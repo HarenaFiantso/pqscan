@@ -5,8 +5,8 @@
 pqscan is a command-line tool, written in C, that finds cryptography quantum computers
 will break across C/C++ source, configuration files, certificates and ELF binaries.
 
-A large enough quantum computer running Shor's algorithm would break RSA, ECDSA, ECDH, DH
-and DSA, and NIST plans to deprecate them after 2030 and disallow them after 2035.
+A large enough quantum computer running Shor's algorithm would break RSA, ECDSA, EdDSA,
+ECDH, DH and DSA, and NIST plans to deprecate them after 2030 and disallow them after 2035.
 pqscan exists because you can't migrate what you can't find: it shows where that
 cryptography is and how urgently each use needs to be replaced.
 
