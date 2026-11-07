@@ -1,0 +1,15 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+#
+# Builds the working tree with sanitizers and runs every test before a push.
+
+set -eu
+
+fail() {
+    echo "pre-push: $1 failed, push aborted." >&2
+    exit 1
+}
+
+cmake --preset debug >/dev/null || fail "configure"
+cmake --build --preset debug --parallel >/dev/null || fail "build"
+ctest --preset debug || fail "tests"

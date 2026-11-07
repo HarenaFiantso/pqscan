@@ -1,0 +1,39 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+#
+# Enforces Conventional Commits and rejects co-author and AI attribution lines.
+
+set -u
+
+commit_types='build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test'
+ai_names='anthropic|chatgpt|claude|codex|copilot|cursor|gemini|openai'
+
+# `git commit -v` appends the diff after a scissors line. Drop it, so a diff that
+# merely mentions a trailer is not mistaken for one.
+message=$(sed '/^# -* >8 -*$/,$d' "$1" | grep -v '^#')
+subject=$(printf '%s\n' "$message" | sed -n '/./{p;q;}')
+
+reject() {
+    echo "commit-msg: $1" >&2
+    echo "Subject was: $subject" >&2
+    exit 1
+}
+
+if printf '%s\n' "$message" | grep -iqE '^co-authored-by:'; then
+    reject "remove the Co-Authored-By trailer; this project does not use them."
+fi
+
+if printf '%s\n' "$message" |
+    grep -iqE "^[a-z-]+-by:.*($ai_names)|generated (with|by).*($ai_names)|🤖"; then
+    reject "remove the AI attribution line."
+fi
+
+case "$subject" in
+    "Merge "* | "Revert \""* | "fixup! "* | "squash! "* | "amend! "*) exit 0 ;;
+esac
+
+if ! printf '%s\n' "$subject" | grep -qE "^($commit_types)(\([a-z0-9._-]+\))?!?: [^ ]"; then
+    reject "subject must follow Conventional Commits: type(scope): description
+Allowed types: $(printf '%s' "$commit_types" | sed 's/|/, /g')
+Example: feat(scan): detect EC_KEY usage"
+fi

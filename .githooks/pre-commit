@@ -1,0 +1,36 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+#
+# Rejects a commit when a staged C file does not match .clang-format.
+
+set -u
+
+if ! command -v clang-format >/dev/null 2>&1; then
+    echo "pre-commit: clang-format not found." >&2
+    echo "Install the pinned version: pipx install \"\$(grep clang-format requirements-dev.txt)\"" >&2
+    exit 1
+fi
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- \
+    '*.c' '*.h' ':(exclude)tests/fixtures/*' ':(exclude)third_party/*')
+
+[ -n "$staged_files" ] || exit 0
+
+unformatted=""
+while IFS= read -r file; do
+    # Format the staged blob, not the working copy: a partly staged file must
+    # be judged on what will actually be committed.
+    if ! git show ":$file" |
+        clang-format --dry-run --Werror --assume-filename="$file" >/dev/null 2>&1; then
+        unformatted="$unformatted \"$file\""
+    fi
+done <<FILES
+$staged_files
+FILES
+
+[ -z "$unformatted" ] && exit 0
+
+echo "pre-commit: these staged files are not formatted:$unformatted" >&2
+echo "Fix them with:" >&2
+echo "    clang-format -i$unformatted && git add$unformatted" >&2
+exit 1
