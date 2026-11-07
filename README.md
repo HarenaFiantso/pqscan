@@ -5,7 +5,7 @@
 pqscan is a command-line tool, written in C, that finds cryptography quantum computers
 will break across C/C++ source, configuration files, certificates and ELF binaries.
 
-![pqscan reporting RSA, DSA, DH, MD5 and AES-128 in a sample directory, then skipping a file with --ignore](assets/demo.gif)
+![pqscan reporting RSA and DSA with their key sizes in a sample file, then nothing in a clean directory](assets/demo.gif)
 
 A large enough quantum computer running Shor's algorithm would break RSA, ECDSA, EdDSA,
 ECDH, DH and DSA. pqscan exists because you can't migrate what you can't find: it shows
@@ -17,9 +17,10 @@ where that cryptography is and how urgently each use needs to be replaced.
 ## Status
 
 > [!WARNING]
-> Early development. pqscan scans C/C++ source for known OpenSSL identifiers. The scan is
-> a plain text match for now, so it also reports identifiers in comments and strings, and
-> it does not read key sizes yet.
+> Early development. pqscan scans C/C++ source for known OpenSSL identifiers through its
+> syntax tree, and reads literal key sizes and algorithm names. Key sizes do not change the
+> risk level yet, so RSA-1024 is still reported as `QUANTUM_VULNERABLE`, and a size held in
+> a variable shows as `unknown`.
 
 ## Build and test
 
@@ -51,8 +52,22 @@ never followed, and only `.c`, `.h`, `.cpp` and `.hpp` files are scanned. Each f
 one line:
 
 ```text
-src/keys.c:42: RSA (QUANTUM_VULNERABLE)
+src/keys.c:42: RSA-2048 (QUANTUM_VULNERABLE)
+src/keys.c:57: RSA-unknown (QUANTUM_VULNERABLE)
+src/hash.c:12: MD5 (CLASSICALLY_WEAK)
 ```
+
+The number is the key size. `unknown` means the algorithm has one, but it isn't a literal
+in the source.
+
+pqscan parses each file with [Tree-sitter](https://tree-sitter.github.io), so broken code
+is still scanned:
+
+* **Reported:** calls and other uses of known identifiers, including in macro bodies and in
+  every branch of `#ifdef`, plus algorithm names passed to known calls, such as `"RSA"` in
+  `EVP_PKEY_CTX_new_from_name`.
+* **Not reported:** comments, other strings, declarations such as prototypes, struct fields,
+  C++ methods, and code under a literal `#if 0`.
 
 | Option | Meaning |
 | --- | --- |
@@ -62,7 +77,7 @@ src/keys.c:42: RSA (QUANTUM_VULNERABLE)
 
 > [!NOTE]
 > Paths that can't be read are skipped with a warning on stderr, as are files that contain
-> a NUL byte or exceed 64 MiB.
+> a NUL byte, exceed 64 MiB, or take more than 30 seconds to scan.
 
 | Exit code | Meaning |
 | --- | --- |
