@@ -306,6 +306,29 @@ static void test_a_cpp_call_still_reads_the_value_it_is_given(void) {
     assert_cpp("void f() { int b = 2048; " KEY("b") " " KEY("b") " }", "1:RSA-2048 1:RSA-unknown");
 }
 
+static void test_a_macro_body_is_text_not_a_value(void) {
+    assert_c("#define BASE 512 + 512\nvoid f(void) { " KEY("BASE * 2") " }", "2:RSA-unknown");
+    assert_c("#define N 1 << 10\nvoid f(void) { " KEY("N + 1024") " }", "2:RSA-unknown");
+    assert_c("#define A 512 + 512\n#define B A\nvoid f(void) { " KEY("B * 2") " }",
+             "3:RSA-unknown");
+    assert_c("#define BASE 1024 + 1024\nvoid f(void) { " KEY("BASE") " }", "2:RSA-2048");
+    assert_c("#define BASE (512 + 512)\nvoid f(void) { " KEY("BASE * 2") " }", "2:RSA-2048");
+    assert_c("#define BASE (1024 * 2)\nvoid f(void) { " KEY("BASE") " }", "2:RSA-2048");
+    assert_c("#define BASE (2048);\nvoid f(void) { " KEY("BASE") " }", "2:RSA-unknown");
+    assert_c("#define BASE 1024 + 1024\nconst int K = BASE;\nvoid f(void) { " KEY("K * 2") " }",
+             "3:RSA-4096");
+}
+
+static void test_a_cast_that_can_change_the_value_is_unknown(void) {
+    assert_c("void f(void) { " KEY("(unsigned char)4096") " }", "1:RSA-unknown");
+    assert_c("void f(void) { " KEY("(short)69632") " }", "1:RSA-unknown");
+    assert_c("void f(void) { " KEY("(my_small_t)2048") " }", "1:RSA-unknown");
+    assert_c("void f(void) { int b = (char)4096; " KEY("b") " }", "1:RSA-unknown");
+    assert_c("void f(void) { " KEY("(size_t)2048") " }", "1:RSA-2048");
+    assert_c("void f(void) { " KEY("(const int)2048") " }", "1:RSA-2048");
+    assert_c("void f(void) { " KEY("(unsigned long)2048") " }", "1:RSA-2048");
+}
+
 static void test_a_cpp_stream_read_loses_the_value(void) {
     assert_cpp("void f() { int b = 2048; std::cin >> b; " KEY("b") " }", "1:RSA-unknown");
 }
@@ -452,6 +475,8 @@ int main(void) {
     RUN_TEST(test_a_reference_itself_is_unknown);
     RUN_TEST(test_a_cpp_call_loses_its_arguments_afterwards);
     RUN_TEST(test_a_cpp_call_still_reads_the_value_it_is_given);
+    RUN_TEST(test_a_macro_body_is_text_not_a_value);
+    RUN_TEST(test_a_cast_that_can_change_the_value_is_unknown);
     RUN_TEST(test_a_cpp_stream_read_loses_the_value);
     RUN_TEST(test_a_lambda_that_writes_loses_the_value);
     RUN_TEST(test_a_lambda_at_file_scope_is_analyzed_too);
