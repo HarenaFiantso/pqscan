@@ -8,20 +8,26 @@ will break across C/C++ source, configuration files, certificates and ELF binari
 ![pqscan reporting RSA, DSA, DH, MD5 and AES-128 in a sample directory, then skipping a file with --ignore](assets/demo.gif)
 
 A large enough quantum computer running Shor's algorithm would break RSA, ECDSA, EdDSA,
-ECDH, DH and DSA, and NIST plans to deprecate them after 2030 and disallow them after 2035.
-pqscan exists because you can't migrate what you can't find: it shows where that
-cryptography is and how urgently each use needs to be replaced.
+ECDH, DH and DSA. pqscan exists because you can't migrate what you can't find: it shows
+where that cryptography is and how urgently each use needs to be replaced.
+
+> [!IMPORTANT]
+> NIST plans to deprecate these algorithms after 2030 and disallow them after 2035.
 
 ## Status
 
-Early development. pqscan scans C/C++ source for known OpenSSL identifiers. The scan is a
-plain text match for now, so it also reports identifiers in comments and strings, and it
-does not read key sizes yet.
+> [!WARNING]
+> Early development. pqscan scans C/C++ source for known OpenSSL identifiers. The scan is
+> a plain text match for now, so it also reports identifiers in comments and strings, and
+> it does not read key sizes yet.
 
 ## Build and test
 
-You need CMake 3.20 or newer and a C11 compiler (GCC or Clang), on Linux or macOS. If you
-have Docker, `docker compose run --rm dev` opens a Linux shell with everything installed.
+You need CMake 3.20 or newer and a C11 compiler (GCC or Clang), on Linux or macOS.
+
+> [!TIP]
+> If you have Docker, `docker compose run --rm dev` opens a Linux shell with everything
+> installed.
 
 ```sh
 cmake --preset debug
@@ -54,8 +60,9 @@ src/keys.c:42: RSA (QUANTUM_VULNERABLE)
 | `-h`, `--help` | Show the help and exit. |
 | `-V`, `--version` | Show the version and exit. |
 
-Paths that can't be read are skipped with a warning on stderr, as are files that contain
-a NUL byte or exceed 64 MiB.
+> [!NOTE]
+> Paths that can't be read are skipped with a warning on stderr, as are files that contain
+> a NUL byte or exceed 64 MiB.
 
 | Exit code | Meaning |
 | --- | --- |
@@ -63,6 +70,10 @@ a NUL byte or exceed 64 MiB.
 | 1 | Findings reported |
 | 2 | Usage error, such as a path that doesn't exist |
 | 3 | Internal error |
+
+> [!CAUTION]
+> Exit code 0 doesn't prove the code is free of vulnerable cryptography. pqscan only
+> recognizes the OpenSSL identifiers it knows about, in C/C++ source files.
 
 ## Roadmap
 
