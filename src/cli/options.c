@@ -8,11 +8,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-static const char SHORT_OPTIONS[] = "hi:V";
+static const char SHORT_OPTIONS[] = "hi:r:V";
 
 static const struct option LONG_OPTIONS[] = {
     {"help", no_argument, NULL, 'h'},
     {"ignore", required_argument, NULL, 'i'},
+    {"rules", required_argument, NULL, 'r'},
     {"version", no_argument, NULL, 'V'},
     {NULL, 0, NULL, 0},
 };
@@ -34,13 +35,16 @@ static cli_parse_result apply_option(int option, cli_options *options) {
         return CLI_PARSE_OK;
     case 'i':
         return add_ignore(options, optarg);
+    case 'r':
+        options->rules_path = optarg;
+        return CLI_PARSE_OK;
     default:
         return CLI_PARSE_USAGE_ERROR;
     }
 }
 
 cli_parse_result cli_options_parse(int argc, char **argv, cli_options *options) {
-    *options = (cli_options){NULL, NULL, 0, false, false};
+    *options = (cli_options){NULL, NULL, 0, NULL, false, false};
     options->ignores = string_list_create();
     if (options->ignores == NULL) {
         return CLI_PARSE_NOMEM;

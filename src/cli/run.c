@@ -25,6 +25,7 @@ static const char USAGE[] =
     "\n"
     "Options:\n"
     "  -i, --ignore PATTERN  skip paths matching this glob (repeatable; .git is always skipped)\n"
+    "  -r, --rules FILE      use the rules in this JSON file instead of the built-in ones\n"
     "  -h, --help            show this help and exit\n"
     "  -V, --version         show the version and exit\n"
     "\n"
@@ -121,7 +122,7 @@ static int scan_with_rules(const cli_options *options, const rule_set *rules) {
 /* Findings borrow their algorithm names from the rules, so the rules are freed last. */
 static int run_scan(const cli_options *options) {
     rule_set *rules = NULL;
-    int code = cli_load_rules(NULL, &rules);
+    int code = cli_load_rules(options->rules_path, &rules);
     if (code == PQSCAN_EXIT_CLEAN) {
         code = scan_with_rules(options, rules);
     }

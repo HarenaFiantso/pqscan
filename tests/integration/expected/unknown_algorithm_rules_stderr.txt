@@ -1,0 +1,1 @@
+pqscan: ../rules/unknown_algorithm.json: rules[0].algorithm: not declared in algorithms

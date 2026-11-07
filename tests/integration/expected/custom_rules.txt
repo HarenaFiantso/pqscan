@@ -1,0 +1,2 @@
+custom/keygen.c:3: HOME-GROWN-256 (CLASSICALLY_WEAK)
+custom/keygen.c:4: HOME-GROWN-1024 (REVIEW)
