@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/cli/run.h"
 
+#include "pqscan/cli/diagnostic.h"
 #include "pqscan/cli/exit_code.h"
 #include "pqscan/cli/options.h"
 #include "pqscan/cli/rule_option.h"
@@ -45,7 +46,7 @@ typedef struct scan_job {
 
 static void warn_skipped(const char *path, pqscan_status reason, void *context) {
     (void)context;
-    (void)fprintf(stderr, "pqscan: warning: %s: %s\n", path, pqscan_status_message(reason));
+    cli_print_diagnostic("pqscan: warning: ", path, pqscan_status_message(reason));
 }
 
 static pqscan_status scan_with(const scanner *active, const char *path, const scan_job *job) {
@@ -80,7 +81,7 @@ static pqscan_status scan_file(const char *path, void *context) {
 }
 
 static int fail_on_path(const char *path, pqscan_status status) {
-    (void)fprintf(stderr, "pqscan: %s: %s\n", path, pqscan_status_message(status));
+    cli_print_diagnostic("pqscan: ", path, pqscan_status_message(status));
     const int bad_argument = status == PQSCAN_ERR_NOT_FOUND || status == PQSCAN_ERR_IO;
     return bad_argument ? PQSCAN_EXIT_USAGE : PQSCAN_EXIT_INTERNAL;
 }

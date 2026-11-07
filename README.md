@@ -57,6 +57,9 @@ src/keys.c:57: RSA-unknown (QUANTUM_VULNERABLE)
 src/hash.c:12: MD5 (CLASSICALLY_WEAK)
 ```
 
+File names are untrusted input, so control characters, bidirectional marks and invalid UTF-8
+in them print as `\xNN`, and a backslash prints doubled.
+
 The number is the key size. `unknown` means the algorithm has one, but pqscan can't prove its
 value. RSA, DSA and DH keys under 2048 bits are `CLASSICALLY_WEAK`, because they are already
 unsafe today. An `unknown` size keeps the algorithm's usual level.

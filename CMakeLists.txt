@@ -22,6 +22,7 @@ pqscan_embed_rules("${PROJECT_SOURCE_DIR}/rules/default.json" "${default_rules_c
 
 add_library(pqscan_core STATIC
     "${default_rules_c}"
+    src/cli/diagnostic.c
     src/cli/options.c
     src/cli/rule_option.c
     src/cli/run.c

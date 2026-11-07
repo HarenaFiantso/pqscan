@@ -76,6 +76,9 @@ pqscan_add_cli_test(invalid_rules EXIT 2 ARGS --rules ../rules/unknown_algorithm
 pqscan_add_cli_test(missing_rules EXIT 2 ARGS --rules ../rules/no-such-file.json findings
     STDOUT "${expected}/empty.txt" STDERR "${expected}/missing_rules_stderr.txt")
 pqscan_add_cli_test(rules_without_file EXIT 2 ARGS findings --rules STDOUT "${expected}/empty.txt")
+pqscan_add_cli_test(rules_cannot_forge_a_diagnostic EXIT 2
+    ARGS --rules ../rules/escape_in_field.json findings
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/escape_in_field_stderr.txt")
 
 # /dev/full fails every write. macOS does not have it.
 if(EXISTS /dev/full)

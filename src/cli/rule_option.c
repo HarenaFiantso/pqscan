@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/cli/rule_option.h"
 
+#include "pqscan/cli/diagnostic.h"
 #include "pqscan/cli/exit_code.h"
 #include "pqscan/core/status.h"
 #include "pqscan/rules/default_rules.h"
@@ -10,12 +11,11 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdio.h>
 
 static const char BUILT_IN_NAME[] = "built-in rules";
 
 static int fail(const char *origin, pqscan_status status, const char *detail) {
-    (void)fprintf(stderr, "pqscan: %s: %s\n", origin, detail);
+    cli_print_diagnostic("pqscan: ", origin, detail);
     const bool user_can_fix = status != PQSCAN_ERR_NOMEM && origin != BUILT_IN_NAME;
     return user_can_fix ? PQSCAN_EXIT_USAGE : PQSCAN_EXIT_INTERNAL;
 }

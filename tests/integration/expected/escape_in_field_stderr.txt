@@ -1,0 +1,1 @@
+pqscan: ../rules/escape_in_field.json: a\x1b[31mred: unknown field
