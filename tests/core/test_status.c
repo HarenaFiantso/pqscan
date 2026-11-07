@@ -10,6 +10,8 @@ static void test_every_status_has_a_distinct_message(void) {
     TEST_ASSERT_EQUAL_STRING("success", pqscan_status_message(PQSCAN_OK));
     TEST_ASSERT_EQUAL_STRING("out of memory", pqscan_status_message(PQSCAN_ERR_NOMEM));
     TEST_ASSERT_EQUAL_STRING("skipped, binary file", pqscan_status_message(PQSCAN_ERR_BINARY));
+    TEST_ASSERT_EQUAL_STRING("skipped, cannot parse source in time",
+                             pqscan_status_message(PQSCAN_ERR_PARSE));
 }
 
 int main(void) {
