@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Linux development image, matching the ubuntu-24.04 CI runners. It lets any host run the
-# Linux checks locally, such as real Valgrind. See docs/decisions/002-linux-dev-container.md.
+# Linux checks locally, such as real Valgrind.
 
 # The digest is the multi-arch index, so this builds natively on arm64 and x86-64.
 FROM ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852

@@ -6,4 +6,4 @@
 
 - [ ] Tests added or updated, and all checks pass (see CONTRIBUTING.md)
 - [ ] `scripts/check-format.sh` passes
-- [ ] Docs updated (README, header comments, decision records)
+- [ ] Docs updated (README, CONTRIBUTING, header comments)
