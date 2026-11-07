@@ -61,6 +61,7 @@ static finding finding_at(const source_walk *walk, TSNode node, const crypto_rul
         rule->algorithm->risk,
         {KEY_SIZE_NOT_APPLICABLE, 0},
         rule->primitive,
+        rule->pattern,
     };
     return item;
 }
