@@ -1,0 +1,42 @@
+name: Detection report
+description: pqscan reported something it shouldn't have, or missed something it should have found.
+labels: [detection]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Report type
+      options:
+        - False positive (reported, but not a real finding)
+        - False negative (a real finding was missed)
+    validations:
+      required: true
+  - type: textarea
+    id: snippet
+    attributes:
+      label: Code snippet
+      description: The smallest input that reproduces this. Remove anything private, especially keys.
+      render: c
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      placeholder: "file.c:12: RSA-2048 (QUANTUM_VULNERABLE)"
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      placeholder: No finding reported.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: pqscan version
+      placeholder: 0.1.0, or a commit hash
+    validations:
+      required: true

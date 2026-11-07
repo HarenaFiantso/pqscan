@@ -1,0 +1,38 @@
+name: Bug report
+description: pqscan crashed, gave an error or behaved incorrectly.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: For wrong or missing findings, use the detection report instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: The exact command, and the input if you can share it.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: pqscan version
+      placeholder: 0.1.0, or a commit hash
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and compiler
+      placeholder: macOS 15 with Apple clang 17
+    validations:
+      required: true
