@@ -7,5 +7,5 @@ set -eu
 
 cd "$(git rev-parse --show-toplevel)"
 
-git ls-files -- '*.c' '*.h' ':(exclude)tests/fixtures/*' ':(exclude)third_party/*' |
+git ls-files -- '*.c' '*.h' ':(exclude)tests/fixtures/*' |
     xargs clang-format --dry-run --Werror
