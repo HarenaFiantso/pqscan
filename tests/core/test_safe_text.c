@@ -8,29 +8,22 @@
 
 enum { OUTPUT_SIZE = 128 };
 
-static FILE *out;
+void setUp(void) {}
 
-void setUp(void) {
-    out = tmpfile();
-    TEST_ASSERT_NOT_NULL(out);
-}
-
-void tearDown(void) {
-    const int closed = fclose(out);
-    TEST_ASSERT_EQUAL_INT(0, closed);
-}
+void tearDown(void) {}
 
 static void assert_written(const char *text, const char *expected) {
-    TEST_ASSERT_EQUAL_INT(0, fseek(out, 0, SEEK_SET));
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, safe_text_write(out, text));
+    FILE *file = tmpfile();
+    TEST_ASSERT_NOT_NULL(file);
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, safe_text_write(file, text));
+    const int rewound = fseek(file, 0, SEEK_SET);
+    TEST_ASSERT_EQUAL_INT(0, rewound);
     char output[OUTPUT_SIZE];
-    const long len = ftell(out);
-    TEST_ASSERT_EQUAL_INT(0, fseek(out, 0, SEEK_SET));
-    TEST_ASSERT_LESS_THAN_size_t(sizeof(output), (size_t)len);
-    TEST_ASSERT_EQUAL_size_t((size_t)len, fread(output, 1, (size_t)len, out));
+    const size_t len = fread(output, 1, sizeof(output) - 1, file);
     output[len] = '\0';
+    const int closed = fclose(file);
+    TEST_ASSERT_EQUAL_INT(0, closed);
     TEST_ASSERT_EQUAL_STRING(expected, output);
-    TEST_ASSERT_EQUAL_INT(0, fseek(out, 0, SEEK_SET));
 }
 
 static void test_plain_paths_are_unchanged(void) {
@@ -74,8 +67,11 @@ static void test_utf8_terminal_controls_are_escaped(void) {
                    "\\xc2\\x9b2K"); /* U+009B, CSI on many terminals. */
 }
 
+/* These literals hold the very marks the check warns about, which is what is being tested. */
 static void test_utf8_reordering_marks_are_escaped(void) {
+    // NOLINTNEXTLINE(misc-misleading-bidirectional)
     assert_written("\xe2\x80\xae.c", "\\xe2\\x80\\xae.c"); /* U+202E, right-to-left override. */
+    // NOLINTNEXTLINE(misc-misleading-bidirectional)
     assert_written("\xe2\x81\xa6.c", "\\xe2\\x81\\xa6.c"); /* U+2066, left-to-right isolate. */
     assert_written("\xe2\x80\xa8.c", "\\xe2\\x80\\xa8.c"); /* U+2028, line separator. */
 }

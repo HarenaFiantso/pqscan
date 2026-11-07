@@ -11,25 +11,26 @@
 enum {
     FIRST_PRINTABLE = 0x20,
     LAST_ASCII = 0x7f, /* DEL, which is not printable. */
-    CONTINUATION_MASK = 0xC0,
-    CONTINUATION_BITS = 0x80,
-    CONTINUATION_PAYLOAD = 0x3F,
-    CONTINUATION_SHIFT = 6,
 };
+
+static const uint32_t CONTINUATION_MASK = 0xC0U;
+static const uint32_t CONTINUATION_BITS = 0x80U;
+static const uint32_t CONTINUATION_PAYLOAD = 0x3FU;
+static const unsigned CONTINUATION_SHIFT = 6U;
 
 /* What a lead byte announces. Each sequence must encode at least min_code_point, because a
  * longer encoding of a small value is how filters get bypassed. */
 typedef struct utf8_form {
-    unsigned char lead_mask;
-    unsigned char lead_bits;
+    uint32_t lead_mask;
+    uint32_t lead_bits;
     size_t len;
     uint32_t min_code_point;
 } utf8_form;
 
 static const utf8_form FORMS[] = {
-    {0xE0, 0xC0, 2, 0x80},
-    {0xF0, 0xE0, 3, 0x800},
-    {0xF8, 0xF0, 4, 0x10000},
+    {0xE0U, 0xC0U, 2, 0x80U},
+    {0xF0U, 0xE0U, 3, 0x800U},
+    {0xF8U, 0xF0U, 4, 0x10000U},
 };
 
 /* C1 controls include the 8-bit CSI. The rest can rearrange or split what a terminal shows. */
@@ -57,12 +58,13 @@ static bool is_unsafe(uint32_t code_point) {
 
 /* The text ends in NUL, which is no continuation byte, so this never reads past it. */
 static bool decode(const unsigned char *text, const utf8_form *form, uint32_t *out) {
-    uint32_t code_point = text[0] & (unsigned char)~form->lead_mask;
+    uint32_t code_point = (uint32_t)text[0] & ~form->lead_mask;
     for (size_t i = 1; i < form->len; i++) {
-        if ((text[i] & CONTINUATION_MASK) != CONTINUATION_BITS) {
+        const uint32_t byte = text[i];
+        if ((byte & CONTINUATION_MASK) != CONTINUATION_BITS) {
             return false;
         }
-        code_point = (code_point << CONTINUATION_SHIFT) | (text[i] & CONTINUATION_PAYLOAD);
+        code_point = (code_point << CONTINUATION_SHIFT) | (byte & CONTINUATION_PAYLOAD);
     }
     *out = code_point;
     return code_point >= form->min_code_point;
@@ -72,7 +74,7 @@ static bool decode(const unsigned char *text, const utf8_form *form, uint32_t *o
 static size_t safe_sequence_len(const unsigned char *text) {
     for (size_t i = 0; i < sizeof(FORMS) / sizeof(FORMS[0]); i++) {
         uint32_t code_point = 0;
-        if ((text[0] & FORMS[i].lead_mask) == FORMS[i].lead_bits) {
+        if (((uint32_t)text[0] & FORMS[i].lead_mask) == FORMS[i].lead_bits) {
             const bool valid = decode(text, &FORMS[i], &code_point);
             return (valid && !is_unsafe(code_point)) ? FORMS[i].len : 0;
         }
@@ -80,24 +82,33 @@ static size_t safe_sequence_len(const unsigned char *text) {
     return 0;
 }
 
-static bool write_escaped(FILE *out, unsigned char byte) {
-    return (byte == '\\') ? fputs("\\\\", out) != EOF : fprintf(out, "\\x%02x", byte) > 0;
-}
-
 static bool is_plain_ascii(unsigned char byte) {
     return byte >= FIRST_PRINTABLE && byte < LAST_ASCII && byte != '\\';
 }
 
+static bool write_escaped(FILE *out, unsigned char byte) {
+    if (byte == '\\') {
+        return fputs("\\\\", out) != EOF;
+    }
+    return fprintf(out, "\\x%02x", (unsigned)byte) > 0;
+}
+
+/* Writes the next character of the text, and tells how many bytes it took. */
+static size_t write_next(FILE *out, const unsigned char *text, bool *written) {
+    const size_t len = is_plain_ascii(*text) ? 1 : safe_sequence_len(text);
+    if (len == 0) {
+        *written = write_escaped(out, *text);
+        return 1;
+    }
+    *written = fwrite(text, 1, len, out) == len;
+    return len;
+}
+
 pqscan_status safe_text_write(FILE *out, const char *text) {
     const unsigned char *rest = (const unsigned char *)text;
-    while (*rest != '\0') {
-        const size_t len = is_plain_ascii(*rest) ? 1 : safe_sequence_len(rest);
-        const bool written =
-            (len > 0) ? fwrite(rest, 1, len, out) == len : write_escaped(out, *rest);
-        if (!written) {
-            return PQSCAN_ERR_IO;
-        }
-        rest += (len > 0) ? len : 1;
+    bool written = true;
+    while (*rest != '\0' && written) {
+        rest += write_next(out, rest, &written);
     }
-    return PQSCAN_OK;
+    return written ? PQSCAN_OK : PQSCAN_ERR_IO;
 }

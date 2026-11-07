@@ -28,13 +28,12 @@ static void test_accepts_the_other_cpp_extensions(void) {
 }
 
 static void test_rejects_everything_else(void) {
-    TEST_ASSERT_FALSE(file_type_is_source("a.txt"));
-    TEST_ASSERT_FALSE(file_type_is_source("Makefile"));
-    TEST_ASSERT_FALSE(file_type_is_source("a.H.txt"));
-    TEST_ASSERT_FALSE(file_type_is_source("a.CC"));
-    TEST_ASSERT_FALSE(file_type_is_source("a.c.orig"));
-    TEST_ASSERT_FALSE(file_type_is_source("dir.c/README"));
-    TEST_ASSERT_FALSE(file_type_is_source(""));
+    static const char *const PATHS[] = {
+        "a.txt", "Makefile", "a.H.txt", "a.CC", "a.c.orig", "dir.c/README", "",
+    };
+    for (size_t i = 0; i < sizeof(PATHS) / sizeof(PATHS[0]); i++) {
+        TEST_ASSERT_FALSE_MESSAGE(file_type_is_source(PATHS[i]), PATHS[i]);
+    }
 }
 
 static void test_c_files_use_the_c_grammar(void) {
