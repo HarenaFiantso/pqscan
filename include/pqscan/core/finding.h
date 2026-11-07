@@ -7,12 +7,26 @@
 
 #include <stddef.h>
 
+/** What is known about the key size of a finding. */
+typedef enum key_size_kind {
+    KEY_SIZE_NOT_APPLICABLE = 0, /**< The finding has no key size, such as a hash. */
+    KEY_SIZE_UNKNOWN,            /**< It has one, but the scanner could not resolve it. */
+    KEY_SIZE_KNOWN,              /**< It has one, and bits holds it. */
+} key_size_kind;
+
+/** A key size. A plain 0 could not tell "no key size" from "not resolved". */
+typedef struct key_size {
+    key_size_kind kind;
+    unsigned bits; /**< Only meaningful for KEY_SIZE_KNOWN. */
+} key_size;
+
 /** One use of cryptography found by a scanner. */
 typedef struct finding {
     const char *path;      /**< File the finding is in. */
     size_t line;           /**< Line number, from 1. */
     const char *algorithm; /**< Normalized name. Must have static storage duration. */
     risk_level risk;       /**< Urgency of the migration. */
+    key_size size;         /**< Key size, if the algorithm has one. */
 } finding;
 
 /** A growable list of findings, in the order they were added. */

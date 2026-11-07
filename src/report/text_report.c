@@ -9,11 +9,25 @@
 #include <stddef.h>
 #include <stdio.h>
 
+/* Large enough for "-" and any unsigned value, which keeps snprintf from truncating. */
+enum { KEY_SUFFIX_SIZE = 32 };
+
+static void format_key_suffix(const key_size *size, char *suffix) {
+    suffix[0] = '\0';
+    if (size->kind == KEY_SIZE_KNOWN) {
+        (void)snprintf(suffix, KEY_SUFFIX_SIZE, "-%u", size->bits);
+    } else if (size->kind == KEY_SIZE_UNKNOWN) {
+        (void)snprintf(suffix, KEY_SUFFIX_SIZE, "-unknown");
+    }
+}
+
 static pqscan_status write_text(const finding_list *findings, FILE *out) {
     for (size_t i = 0; i < finding_list_count(findings); i++) {
         const finding *item = finding_list_get(findings, i);
-        const int written = fprintf(out, "%s:%zu: %s (%s)\n", item->path, item->line,
-                                    item->algorithm, risk_level_name(item->risk));
+        char key_suffix[KEY_SUFFIX_SIZE];
+        format_key_suffix(&item->size, key_suffix);
+        const int written = fprintf(out, "%s:%zu: %s%s (%s)\n", item->path, item->line,
+                                    item->algorithm, key_suffix, risk_level_name(item->risk));
         if (written < 0) {
             return PQSCAN_ERR_IO;
         }

@@ -37,7 +37,8 @@ static pqscan_status report_token(const source_cursor *cursor, const char *token
     if (known == NULL) {
         return PQSCAN_OK;
     }
-    const finding item = {cursor->path, cursor->line, known->algorithm, known->risk};
+    const finding item = {
+        cursor->path, cursor->line, known->algorithm, known->risk, {KEY_SIZE_NOT_APPLICABLE, 0}};
     return finding_list_add(cursor->findings, &item);
 }
 
