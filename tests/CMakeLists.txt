@@ -28,6 +28,7 @@ function(pqscan_add_unit_test name source)
 endfunction()
 
 pqscan_add_unit_test(test_call_arguments scan/test_call_arguments.c)
+pqscan_add_unit_test(test_default_rules rules/test_default_rules.c)
 pqscan_add_unit_test(test_file_reader scan/test_file_reader.c)
 pqscan_add_unit_test(test_file_type walk/test_file_type.c)
 pqscan_add_unit_test(test_finding core/test_finding.c)
