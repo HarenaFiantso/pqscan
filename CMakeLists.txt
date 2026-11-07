@@ -12,6 +12,7 @@ set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(cmake/warnings.cmake)
+include(cmake/memcheck.cmake)
 
 add_library(pqscan_core STATIC src/core/version.c)
 target_include_directories(pqscan_core PUBLIC include)
