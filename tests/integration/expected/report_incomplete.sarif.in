@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "pqscan",
+          "version": "@PROJECT_VERSION@",
+          "semanticVersion": "@PROJECT_VERSION@",
+          "informationUri": "https://github.com/HarenaFiantso/pqscan",
+          "rules": [
+            {
+              "id": "pqscan/AES-128",
+              "shortDescription": {
+                "text": "Use of AES-128"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "cryptography"
+                ],
+                "security-severity": "4.0"
+              }
+            },
+            {
+              "id": "pqscan/DH",
+              "shortDescription": {
+                "text": "Use of DH"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "cryptography"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "pqscan/ECDSA",
+              "shortDescription": {
+                "text": "Use of ECDSA"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "cryptography"
+                ],
+                "security-severity": "8.0"
+              }
+            },
+            {
+              "id": "pqscan/MD5",
+              "shortDescription": {
+                "text": "Use of MD5"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "cryptography"
+                ],
+                "security-severity": "9.0"
+              }
+            },
+            {
+              "id": "pqscan/RC4",
+              "shortDescription": {
+                "text": "Use of RC4"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "cryptography"
+                ],
+                "security-severity": "9.0"
+              }
+            },
+            {
+              "id": "pqscan/RSA",
+              "shortDescription": {
+                "text": "Use of RSA"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "cryptography"
+                ],
+                "security-severity": "9.0"
+              }
+            }
+          ]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": false,
+          "toolExecutionNotifications": [
+            {
+              "level": "warning",
+              "message": {
+                "text": "skipped, binary file"
+              },
+              "locations": [
+                {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "edge/binary.c"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "pqscan/RSA",
+          "level": "error",
+          "message": {
+            "text": "RSA_generate_key_ex uses RSA-2048: QUANTUM_VULNERABLE"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/RSA",
+          "level": "error",
+          "message": {
+            "text": "RSA_generate_key_ex uses RSA-1024: CLASSICALLY_WEAK"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/RSA",
+          "level": "error",
+          "message": {
+            "text": "RSA_generate_key_ex uses RSA-unknown: QUANTUM_VULNERABLE"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/RSA",
+          "level": "error",
+          "message": {
+            "text": "RSA_generate_key_ex uses RSA-2048: QUANTUM_VULNERABLE"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 6
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/ECDSA",
+          "level": "error",
+          "message": {
+            "text": "ECDSA_sign uses ECDSA: QUANTUM_VULNERABLE"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 7
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/DH",
+          "level": "error",
+          "message": {
+            "text": "DH_compute_key uses DH: QUANTUM_VULNERABLE"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 8
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/RSA",
+          "level": "error",
+          "message": {
+            "text": "RSA_public_encrypt uses RSA: QUANTUM_VULNERABLE"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 9
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/AES-128",
+          "level": "warning",
+          "message": {
+            "text": "EVP_aes_128_gcm uses AES-128: REVIEW"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 10
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/RC4",
+          "level": "error",
+          "message": {
+            "text": "EVP_rc4 uses RC4: CLASSICALLY_WEAK"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/MD5",
+          "level": "error",
+          "message": {
+            "text": "EVP_md5 uses MD5: CLASSICALLY_WEAK"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
