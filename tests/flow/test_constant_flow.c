@@ -381,6 +381,13 @@ static void test_a_parenthesized_declarator_stays_what_it_is(void) {
     assert_cpp("void f() { int b = 2048; int (&r) = b; r = 1024; " KEY("b") " }", "1:RSA-unknown");
 }
 
+static void test_a_callee_is_found_through_its_wrapping(void) {
+    assert_c("void f(void) { (RSA_generate_key_ex)(r, 1024, 0, 0); }", "1:RSA-1024");
+    assert_c("void f(void) { ((RSA_generate_key_ex))(r, 2048, 0, 0); }", "1:RSA-2048");
+    assert_cpp("void f() { RSA_generate_key_ex<int>(r, 1024, 0, 0); }", "1:RSA-1024");
+    assert_cpp("void f() { ns::RSA_generate_key_ex<int>(r, 1024, 0, 0); }", "1:RSA-1024");
+}
+
 static void test_a_cpp_stream_read_loses_the_value(void) {
     assert_cpp("void f() { int b = 2048; std::cin >> b; " KEY("b") " }", "1:RSA-unknown");
 }
@@ -535,6 +542,7 @@ int main(void) {
     RUN_TEST(test_a_cpp_brace_initializer_may_take_a_reference);
     RUN_TEST(test_every_way_to_hide_a_name_hides_it);
     RUN_TEST(test_a_parenthesized_declarator_stays_what_it_is);
+    RUN_TEST(test_a_callee_is_found_through_its_wrapping);
     RUN_TEST(test_a_cpp_stream_read_loses_the_value);
     RUN_TEST(test_a_lambda_that_writes_loses_the_value);
     RUN_TEST(test_a_lambda_at_file_scope_is_analyzed_too);
