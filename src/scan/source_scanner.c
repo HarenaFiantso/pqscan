@@ -4,6 +4,8 @@
 #include "pqscan/core/finding.h"
 #include "pqscan/core/key_size.h"
 #include "pqscan/core/status.h"
+#include "pqscan/flow/constant_flow.h"
+#include "pqscan/flow/flow_source.h"
 #include "pqscan/risk/risk.h"
 #include "pqscan/rules/rule_set.h"
 #include "pqscan/scan/call_arguments.h"
@@ -26,6 +28,7 @@ typedef struct source_walk {
     const file_contents *file;
     const rule_set *rules;
     syntax_parser *parser;
+    constant_flow *flow;
     finding_list *findings;
     uint32_t skip_until; /* Nodes that start before this offset are not visited. */
     size_t visited;
@@ -83,7 +86,8 @@ static key_size signature_key_size(const source_walk *walk, TSNode call,
         const key_size none = {KEY_SIZE_NOT_APPLICABLE, 0};
         return none;
     }
-    return call_key_size(call, (uint32_t)signature->key_bits_argument, walk->file);
+    const call_argument argument = {call, (uint32_t)signature->key_bits_argument};
+    return call_key_size(&argument, walk->flow);
 }
 
 static const call_signature *find_signature(const source_walk *walk, TSNode name) {
@@ -107,17 +111,19 @@ static pqscan_status report_callee(const source_walk *walk, TSNode call, TSNode 
 
 static pqscan_status report_algorithm_argument(const source_walk *walk, TSNode call, TSNode name) {
     const call_signature *signature = find_signature(walk, name);
-    TSNode argument;
-    if (signature == NULL || signature->algorithm_argument == CALL_NO_ARGUMENT ||
-        !call_string_argument(call, (uint32_t)signature->algorithm_argument, &argument)) {
+    if (signature == NULL || signature->algorithm_argument == CALL_NO_ARGUMENT) {
         return PQSCAN_OK;
     }
-    const syntax_text text = syntax_node_text(argument, walk->file);
-    const crypto_rule *rule = rule_set_find_string(walk->rules, text.data, text.len);
+    const call_argument argument = {call, (uint32_t)signature->algorithm_argument};
+    string_argument found;
+    if (!call_string_argument(&argument, walk->flow, &found)) {
+        return PQSCAN_OK;
+    }
+    const crypto_rule *rule = rule_set_find_string(walk->rules, found.text.data, found.text.len);
     if (rule == NULL) {
         return PQSCAN_OK;
     }
-    finding item = finding_at(walk, argument, rule);
+    finding item = finding_at(walk, found.node, rule);
     set_key_size(&item, rule, signature_key_size(walk, call, signature));
     return finding_list_add(walk->findings, &item);
 }
@@ -212,7 +218,9 @@ static pqscan_status visit_macro_body(source_walk *walk, TSNode node, const char
     source_walk body = *walk;
     body.in_macro_body = true;
     body.skip_until = 0;
+    constant_flow_set_macro_body(walk->flow, true);
     status = walk_nodes(&body, ts_tree_root_node(tree));
+    constant_flow_set_macro_body(walk->flow, false);
     walk->visited = body.visited;
     ts_tree_delete(tree);
     return status;
@@ -234,6 +242,10 @@ static pqscan_status visit_node(source_walk *walk, TSNode node, const char *fiel
     walk->visited++;
     if (walk->visited % DEADLINE_CHECK_INTERVAL == 0 && syntax_parser_expired(walk->parser)) {
         return PQSCAN_ERR_PARSE;
+    }
+    const pqscan_status status = constant_flow_visit(walk->flow, node);
+    if (status != PQSCAN_OK) {
+        return status;
     }
     const char *type = ts_node_type(node);
     for (size_t i = 0; i < sizeof(HANDLERS) / sizeof(HANDLERS[0]); i++) {
@@ -265,10 +277,35 @@ static pqscan_status walk_nodes(source_walk *walk, TSNode root) {
 static pqscan_status parse_and_walk(source_walk *walk) {
     TSTree *tree = NULL;
     pqscan_status status = syntax_parser_parse_file(walk->parser, &tree);
-    if (status == PQSCAN_OK) {
-        status = walk_nodes(walk, ts_tree_root_node(tree));
-        ts_tree_delete(tree);
+    if (status != PQSCAN_OK) {
+        return status;
     }
+    const TSNode root = ts_tree_root_node(tree);
+    status = constant_flow_collect_file(walk->flow, root);
+    if (status == PQSCAN_OK) {
+        status = walk_nodes(walk, root);
+    }
+    ts_tree_delete(tree);
+    return status;
+}
+
+static pqscan_status walk_with_flow(const scan_input *input, syntax_parser *parser,
+                                    finding_list *findings) {
+    const flow_source source = {
+        input->file,
+        parser,
+        file_type_source_language(input->path),
+    };
+    constant_flow *flow = NULL;
+    pqscan_status status = constant_flow_create(&source, &flow);
+    if (status != PQSCAN_OK) {
+        return status;
+    }
+    source_walk walk = {
+        input->path, input->file, input->rules, parser, flow, findings, 0, 0, false,
+    };
+    status = parse_and_walk(&walk);
+    constant_flow_destroy(flow);
     return status;
 }
 
@@ -286,8 +323,7 @@ static pqscan_status scan_source(const scan_input *input, finding_list *findings
     if (status != PQSCAN_OK) {
         return status;
     }
-    source_walk walk = {input->path, input->file, input->rules, parser, findings, 0, 0, false};
-    status = parse_and_walk(&walk);
+    status = walk_with_flow(input, parser, findings);
     syntax_parser_destroy(parser);
     return status;
 }

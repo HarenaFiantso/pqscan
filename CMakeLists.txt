@@ -32,6 +32,7 @@ add_library(pqscan_core STATIC
     src/core/string_list.c
     src/core/version.c
     src/flow/constant_eval.c
+    src/flow/constant_flow.c
     src/flow/constant_table.c
     src/flow/declarations.c
     src/flow/file_constants.c
