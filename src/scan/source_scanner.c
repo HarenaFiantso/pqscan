@@ -33,9 +33,6 @@ static size_t find_token_end(const file_contents *file, size_t start) {
 }
 
 static pqscan_status report_token(const source_cursor *cursor, const char *token, size_t len) {
-    if (isdigit((unsigned char)token[0]) != 0) {
-        return PQSCAN_OK;
-    }
     const crypto_identifier *known = openssl_identifier_find(token, len);
     if (known == NULL) {
         return PQSCAN_OK;
