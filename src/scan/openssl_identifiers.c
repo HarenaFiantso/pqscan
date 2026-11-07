@@ -3,6 +3,8 @@
 
 #include "pqscan/risk/risk.h"
 
+#include <ctype.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,17 +78,77 @@ static const crypto_identifier IDENTIFIERS[] = {
     {"SHA1_Update", "SHA-1", RISK_CLASSICALLY_WEAK},
 };
 
-static const size_t IDENTIFIER_COUNT = sizeof(IDENTIFIERS) / sizeof(IDENTIFIERS[0]);
+/* Sorted by name for bsearch(). */
+static const call_signature CALLS[] = {
+    {"DH_generate_parameters_ex", 1, CALL_NO_ARGUMENT},
+    {"DSA_generate_parameters_ex", 1, CALL_NO_ARGUMENT},
+    {"EVP_ASYM_CIPHER_fetch", CALL_NO_ARGUMENT, 1},
+    {"EVP_CIPHER_fetch", CALL_NO_ARGUMENT, 1},
+    {"EVP_KEYEXCH_fetch", CALL_NO_ARGUMENT, 1},
+    {"EVP_KEYMGMT_fetch", CALL_NO_ARGUMENT, 1},
+    {"EVP_MD_fetch", CALL_NO_ARGUMENT, 1},
+    {"EVP_PKEY_CTX_new_from_name", CALL_NO_ARGUMENT, 1},
+    {"EVP_PKEY_CTX_set_rsa_keygen_bits", 1, CALL_NO_ARGUMENT},
+    {"EVP_PKEY_Q_keygen", 3, 2},
+    {"EVP_RSA_gen", 0, CALL_NO_ARGUMENT},
+    {"EVP_SIGNATURE_fetch", CALL_NO_ARGUMENT, 1},
+    {"EVP_get_cipherbyname", CALL_NO_ARGUMENT, 0},
+    {"EVP_get_digestbyname", CALL_NO_ARGUMENT, 0},
+    {"RSA_generate_key", 0, CALL_NO_ARGUMENT},
+    {"RSA_generate_key_ex", 1, CALL_NO_ARGUMENT},
+};
 
-static int compare_key_to_identifier(const void *key_ptr, const void *entry_ptr) {
-    const identifier_key *key = key_ptr;
-    const crypto_identifier *entry = entry_ptr;
-    const int order = strncmp(key->name, entry->name, key->len);
+/* The names OpenSSL accepts are case-insensitive, so this table has no useful order. */
+static const crypto_identifier ALGORITHM_NAMES[] = {
+    {"3DES", "3DES", RISK_CLASSICALLY_WEAK},
+    {"AES-128-CBC", "AES-128", RISK_REVIEW},
+    {"AES-128-CTR", "AES-128", RISK_REVIEW},
+    {"AES-128-ECB", "AES-128", RISK_REVIEW},
+    {"AES-128-GCM", "AES-128", RISK_REVIEW},
+    {"DES-CBC", "DES", RISK_CLASSICALLY_WEAK},
+    {"DES-ECB", "DES", RISK_CLASSICALLY_WEAK},
+    {"DES-EDE3-CBC", "3DES", RISK_CLASSICALLY_WEAK},
+    {"DES-EDE3-ECB", "3DES", RISK_CLASSICALLY_WEAK},
+    {"DH", "DH", RISK_QUANTUM_VULNERABLE},
+    {"DHX", "DH", RISK_QUANTUM_VULNERABLE},
+    {"DSA", "DSA", RISK_QUANTUM_VULNERABLE},
+    {"EC", "EC", RISK_QUANTUM_VULNERABLE},
+    {"ECDH", "ECDH", RISK_QUANTUM_VULNERABLE},
+    {"ECDSA", "ECDSA", RISK_QUANTUM_VULNERABLE},
+    {"ED25519", "EdDSA", RISK_QUANTUM_VULNERABLE},
+    {"ED448", "EdDSA", RISK_QUANTUM_VULNERABLE},
+    {"MD5", "MD5", RISK_CLASSICALLY_WEAK},
+    {"RC4", "RC4", RISK_CLASSICALLY_WEAK},
+    {"RSA", "RSA", RISK_QUANTUM_VULNERABLE},
+    {"RSA-PSS", "RSA", RISK_QUANTUM_VULNERABLE},
+    {"RSASSA-PSS", "RSA", RISK_QUANTUM_VULNERABLE},
+    {"SHA-1", "SHA-1", RISK_CLASSICALLY_WEAK},
+    {"SHA1", "SHA-1", RISK_CLASSICALLY_WEAK},
+    {"X25519", "ECDH", RISK_QUANTUM_VULNERABLE},
+    {"X448", "ECDH", RISK_QUANTUM_VULNERABLE},
+};
+
+static const size_t IDENTIFIER_COUNT = sizeof(IDENTIFIERS) / sizeof(IDENTIFIERS[0]);
+static const size_t CALL_COUNT = sizeof(CALLS) / sizeof(CALLS[0]);
+static const size_t ALGORITHM_NAME_COUNT = sizeof(ALGORITHM_NAMES) / sizeof(ALGORITHM_NAMES[0]);
+
+static int compare_key_to_name(const identifier_key *key, const char *name) {
+    const int order = strncmp(key->name, name, key->len);
     if (order != 0) {
         return order;
     }
-    /* The first len bytes are equal, so a longer entry sorts after the key. */
-    return (entry->name[key->len] == '\0') ? 0 : -1;
+    /* The first len bytes are equal, so a longer name sorts after the key. */
+    return (name[key->len] == '\0') ? 0 : -1;
+}
+
+static int compare_key_to_identifier(const void *key_ptr, const void *entry_ptr) {
+    const crypto_identifier *entry = entry_ptr;
+    return compare_key_to_name(key_ptr, entry->name);
+}
+
+static int compare_key_to_call(const void *key_ptr, const void *entry_ptr) {
+    const call_signature *entry = entry_ptr;
+    return compare_key_to_name(key_ptr, entry->name);
 }
 
 const crypto_identifier *openssl_identifier_find(const char *name, size_t len) {
@@ -98,4 +160,32 @@ const crypto_identifier *openssl_identifier_find(const char *name, size_t len) {
 const crypto_identifier *openssl_identifier_table(size_t *count) {
     *count = IDENTIFIER_COUNT;
     return IDENTIFIERS;
+}
+
+const call_signature *openssl_call_find(const char *name, size_t len) {
+    const identifier_key key = {name, len};
+    return bsearch(&key, CALLS, CALL_COUNT, sizeof(CALLS[0]), compare_key_to_call);
+}
+
+const call_signature *openssl_call_table(size_t *count) {
+    *count = CALL_COUNT;
+    return CALLS;
+}
+
+static bool equals_ignoring_case(const char *text, size_t len, const char *name) {
+    for (size_t i = 0; i < len; i++) {
+        if (name[i] == '\0' || tolower((unsigned char)text[i]) != tolower((unsigned char)name[i])) {
+            return false;
+        }
+    }
+    return name[len] == '\0';
+}
+
+const crypto_identifier *openssl_algorithm_name_find(const char *name, size_t len) {
+    for (size_t i = 0; i < ALGORITHM_NAME_COUNT; i++) {
+        if (equals_ignoring_case(name, len, ALGORITHM_NAMES[i].name)) {
+            return &ALGORITHM_NAMES[i];
+        }
+    }
+    return NULL;
 }
