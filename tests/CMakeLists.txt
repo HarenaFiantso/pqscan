@@ -28,6 +28,7 @@ function(pqscan_add_unit_test name source)
 endfunction()
 
 pqscan_add_unit_test(test_call_arguments scan/test_call_arguments.c)
+pqscan_add_unit_test(test_constant_eval flow/test_constant_eval.c)
 pqscan_add_unit_test(test_constant_table flow/test_constant_table.c)
 pqscan_add_unit_test(test_default_rules rules/test_default_rules.c)
 pqscan_add_unit_test(test_file_reader scan/test_file_reader.c)
