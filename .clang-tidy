@@ -24,5 +24,6 @@ CheckOptions:
   bugprone-unsafe-functions.CustomFunctions: '^::(sprintf|vsprintf|strcpy|strcat)$,a bounded function such as snprintf,is forbidden by the project style;'
   readability-function-size.ParameterThreshold: 3
   # Unity's macros live in this internal header; tests include the public unity.h.
-  # macOS defines O_* flags in sys/fcntl.h, but the portable header is fcntl.h.
-  misc-include-cleaner.IgnoreHeaders: '.*unity_internals\.h;.*sys/fcntl\.h'
+  # macOS declares POSIX names in private headers, such as O_* flags in sys/fcntl.h and
+  # strdup in _string.h. Code must include the portable headers fcntl.h and string.h.
+  misc-include-cleaner.IgnoreHeaders: '.*unity_internals\.h;.*sys/fcntl\.h;.*/_[a-z_]+\.h'
