@@ -2,7 +2,7 @@
 #ifndef PQSCAN_SCAN_CALL_ARGUMENTS_H
 #define PQSCAN_SCAN_CALL_ARGUMENTS_H
 
-#include "pqscan/core/finding.h"
+#include "pqscan/core/key_size.h"
 #include "pqscan/scan/file_reader.h"
 
 #include <stdbool.h>
