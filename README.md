@@ -105,6 +105,7 @@ Enum constants aren't followed yet, so they also stay `unknown`.
 | --- | --- |
 | `-i`, `--ignore PATTERN` | Skip paths matching a glob, tried on the file name, the path, and the path relative to `PATH`. Repeatable. `.git` is always skipped. |
 | `-r`, `--rules FILE` | Use the rules in this JSON file instead of the built-in ones. |
+| `-f`, `--format FORMAT` | Write the report as `text` (the default) or `json`. |
 | `--fail-on LEVEL` | The lowest risk level that makes pqscan exit 1: `OK`, `REVIEW`, `QUANTUM_VULNERABLE` or `CLASSICALLY_WEAK`. The default is `REVIEW`. It changes only the exit code: every finding is still reported. |
 | `--max-time SECS` | Start on no new file after this long. The default is 3600. Files left over are skipped, so the scan is incomplete. |
 | `-h`, `--help` | Show the help and exit. |

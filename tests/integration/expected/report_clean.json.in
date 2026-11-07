@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "tool": {
+    "name": "pqscan",
+    "version": "@PROJECT_VERSION@"
+  },
+  "complete": true,
+  "summary": {
+    "total": 0,
+    "by_risk": {
+      "OK": 0,
+      "REVIEW": 0,
+      "QUANTUM_VULNERABLE": 0,
+      "CLASSICALLY_WEAK": 0
+    }
+  },
+  "findings": [],
+  "unanalyzed": []
+}

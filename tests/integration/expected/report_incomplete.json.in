@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "tool": {
+    "name": "pqscan",
+    "version": "@PROJECT_VERSION@"
+  },
+  "complete": false,
+  "summary": {
+    "total": 10,
+    "by_risk": {
+      "OK": 0,
+      "REVIEW": 1,
+      "QUANTUM_VULNERABLE": 6,
+      "CLASSICALLY_WEAK": 3
+    }
+  },
+  "findings": [
+    {
+      "path": "report/mixed.c",
+      "line": 3,
+      "symbol": "RSA_generate_key_ex",
+      "algorithm": "RSA",
+      "key_size": 2048,
+      "primitive": "unspecified",
+      "risk": "QUANTUM_VULNERABLE"
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 4,
+      "symbol": "RSA_generate_key_ex",
+      "algorithm": "RSA",
+      "key_size": 1024,
+      "primitive": "unspecified",
+      "risk": "CLASSICALLY_WEAK"
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 5,
+      "symbol": "RSA_generate_key_ex",
+      "algorithm": "RSA",
+      "key_size": "unknown",
+      "primitive": "unspecified",
+      "risk": "QUANTUM_VULNERABLE"
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 6,
+      "symbol": "RSA_generate_key_ex",
+      "algorithm": "RSA",
+      "key_size": 2048,
+      "primitive": "unspecified",
+      "risk": "QUANTUM_VULNERABLE"
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 7,
+      "symbol": "ECDSA_sign",
+      "algorithm": "ECDSA",
+      "key_size": null,
+      "primitive": "signature",
+      "risk": "QUANTUM_VULNERABLE"
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 8,
+      "symbol": "DH_compute_key",
+      "algorithm": "DH",
+      "key_size": null,
+      "primitive": "key_exchange",
+      "risk": "QUANTUM_VULNERABLE"
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 9,
+      "symbol": "RSA_public_encrypt",
+      "algorithm": "RSA",
+      "key_size": null,
+      "primitive": "encryption",
+      "risk": "QUANTUM_VULNERABLE"
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 10,
+      "symbol": "EVP_aes_128_gcm",
+      "algorithm": "AES-128",
+      "key_size": null,
+      "primitive": "encryption",
+      "risk": "REVIEW"
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 11,
+      "symbol": "EVP_rc4",
+      "algorithm": "RC4",
+      "key_size": null,
+      "primitive": "encryption",
+      "risk": "CLASSICALLY_WEAK"
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 12,
+      "symbol": "EVP_md5",
+      "algorithm": "MD5",
+      "key_size": null,
+      "primitive": "hash",
+      "risk": "CLASSICALLY_WEAK"
+    }
+  ],
+  "unanalyzed": [
+    {
+      "path": "edge/binary.c",
+      "reason": "skipped, binary file"
+    }
+  ]
+}
