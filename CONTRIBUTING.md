@@ -173,6 +173,24 @@ cmake --build --preset release
 vhs assets/demo.tape
 ```
 
+## Updating the website
+
+The [website](https://harenafiantso.github.io/pqscan/) is one hand-written page in `site/`, with
+no framework. It's published to GitHub Pages when a change to `site/` reaches `main`, and it
+needs Python 3 and `curl` to build:
+
+```sh
+scripts/build-site.sh
+python3 -m http.server --directory build/site
+```
+
+The script adds JetBrains Mono Nerd Font, pinned by hash and cut down to the glyphs the page
+uses, so a new icon also has to be added to the list in the script.
+
+The page repeats facts from the README, and its examples are real output. Update it when options,
+exit codes or report formats change. The page must also read well without JavaScript and with
+`prefers-reduced-motion`.
+
 ## Reporting a false positive or false negative
 
 Open a [detection report](https://github.com/HarenaFiantso/pqscan/issues/new?template=detection_report.yml)
