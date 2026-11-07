@@ -132,6 +132,10 @@ cmake --preset debug                     # build and test with ASan and UBSan
 cmake --build --preset debug
 ctest --preset debug
 
+cmake --preset release                   # optimized build
+cmake --build --preset release
+ctest --preset release
+
 scripts/run-static-analysis.sh           # clang-tidy and cppcheck, after the debug configure
 
 cmake --preset valgrind                  # memory checker
