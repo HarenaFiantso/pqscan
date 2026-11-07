@@ -28,6 +28,7 @@ function(pqscan_add_unit_test name source)
 endfunction()
 
 pqscan_add_unit_test(test_call_arguments scan/test_call_arguments.c)
+pqscan_add_unit_test(test_cbom_report report/test_cbom_report.c)
 pqscan_add_unit_test(test_default_rules rules/test_default_rules.c)
 pqscan_add_unit_test(test_constant_eval flow/test_constant_eval.c)
 pqscan_add_unit_test(test_constant_flow flow/test_constant_flow.c)
@@ -61,6 +62,7 @@ pqscan_add_unit_test(test_text_report report/test_text_report.c)
 pqscan_add_unit_test(test_version core/test_version.c)
 pqscan_add_unit_test(test_walker walk/test_walker.c)
 
+target_link_libraries(test_cbom_report PRIVATE pqscan_cjson)
 target_link_libraries(test_json_report PRIVATE pqscan_cjson)
 target_link_libraries(test_sarif_report PRIVATE pqscan_cjson)
 

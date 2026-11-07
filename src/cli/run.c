@@ -32,7 +32,7 @@ static const char USAGE[] =
     "Options:\n"
     "  -i, --ignore PATTERN  skip paths matching this glob (repeatable; .git is always skipped)\n"
     "  -r, --rules FILE      use the rules in this JSON file instead of the built-in ones\n"
-    "  -f, --format FORMAT   write the report as text, json or sarif\n"
+    "  -f, --format FORMAT   write the report as text, json, cbom or sarif\n"
     "      --fail-on LEVEL   lowest risk level that exits 1: OK, REVIEW, QUANTUM_VULNERABLE or\n"
     "                        CLASSICALLY_WEAK (default REVIEW)\n"
     "      --max-time SECS   start on no new file after this long (default 3600)\n"
