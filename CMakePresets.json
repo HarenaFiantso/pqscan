@@ -57,6 +57,11 @@
       "environment": { "UBSAN_OPTIONS": "print_stacktrace=1" }
     },
     { "name": "release", "inherits": "base", "configurePreset": "release" },
-    { "name": "valgrind", "inherits": "base", "configurePreset": "valgrind" }
+    {
+      "name": "valgrind",
+      "inherits": "base",
+      "configurePreset": "valgrind",
+      "execution": { "noTestsAction": "error", "timeout": 300 }
+    }
   ]
 }
