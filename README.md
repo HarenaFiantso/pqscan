@@ -14,6 +14,8 @@ where that cryptography is and how urgently each use needs to be replaced.
 > [!IMPORTANT]
 > NIST plans to deprecate these algorithms after 2030 and disallow them after 2035.
 
+The [website](https://harenafiantso.github.io/pqscan/) is a guided tour of everything below.
+
 ## Status
 
 > [!WARNING]
