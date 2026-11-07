@@ -26,6 +26,7 @@ add_library(pqscan_core STATIC
     src/core/version.c
     src/report/text_report.c
     src/risk/risk.c
+    src/scan/call_arguments.c
     src/scan/file_reader.c
     src/scan/openssl_identifiers.c
     src/scan/source_scanner.c
