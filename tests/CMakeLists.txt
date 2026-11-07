@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 include(FetchContent)
 
-set(PQSCAN_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/.downloads" CACHE PATH
-    "Where third-party archives are kept, so presets and CI can reuse them")
-
 FetchContent_Declare(unity
     URL https://github.com/ThrowTheSwitch/Unity/archive/refs/tags/v2.6.1.tar.gz
     URL_HASH SHA256=b41a66d45a6b99758fb3202ace6178177014d52fc524bf1f72687d93e9867292
