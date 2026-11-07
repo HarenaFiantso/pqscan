@@ -1,0 +1,274 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "pqscan",
+          "version": "@PROJECT_VERSION@"
+        }
+      ]
+    },
+    "properties": [
+      {
+        "name": "pqscan:scan-complete",
+        "value": "false"
+      },
+      {
+        "name": "pqscan:unanalyzed",
+        "value": "edge/binary.c: skipped, binary file"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/AES-128/encryption",
+      "name": "AES-128",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "block-cipher"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "report/mixed.c",
+            "line": 10,
+            "symbol": "EVP_aes_128_gcm"
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "pqscan:risk",
+          "value": "REVIEW"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/DH/key_exchange",
+      "name": "DH",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "key-agree"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "report/mixed.c",
+            "line": 8,
+            "symbol": "DH_compute_key"
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "pqscan:risk",
+          "value": "QUANTUM_VULNERABLE"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/ECDSA/signature",
+      "name": "ECDSA",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "report/mixed.c",
+            "line": 7,
+            "symbol": "ECDSA_sign"
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "pqscan:risk",
+          "value": "QUANTUM_VULNERABLE"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/MD5/hash",
+      "name": "MD5",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "report/mixed.c",
+            "line": 12,
+            "symbol": "EVP_md5"
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "pqscan:risk",
+          "value": "CLASSICALLY_WEAK"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/RC4/encryption",
+      "name": "RC4",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "stream-cipher"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "report/mixed.c",
+            "line": 11,
+            "symbol": "EVP_rc4"
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "pqscan:risk",
+          "value": "CLASSICALLY_WEAK"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/RSA/encryption",
+      "name": "RSA",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "pke"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "report/mixed.c",
+            "line": 9,
+            "symbol": "RSA_public_encrypt"
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "pqscan:risk",
+          "value": "QUANTUM_VULNERABLE"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/RSA-unknown/unspecified",
+      "name": "RSA",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "unknown"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "report/mixed.c",
+            "line": 5,
+            "symbol": "RSA_generate_key_ex"
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "pqscan:risk",
+          "value": "QUANTUM_VULNERABLE"
+        },
+        {
+          "name": "pqscan:key-size",
+          "value": "unknown"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/RSA-1024/unspecified",
+      "name": "RSA-1024",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "unknown",
+          "parameterSetIdentifier": "1024"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "report/mixed.c",
+            "line": 4,
+            "symbol": "RSA_generate_key_ex"
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "pqscan:risk",
+          "value": "CLASSICALLY_WEAK"
+        }
+      ]
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto/RSA-2048/unspecified",
+      "name": "RSA-2048",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "unknown",
+          "parameterSetIdentifier": "2048"
+        }
+      },
+      "evidence": {
+        "occurrences": [
+          {
+            "location": "report/mixed.c",
+            "line": 3,
+            "symbol": "RSA_generate_key_ex"
+          },
+          {
+            "location": "report/mixed.c",
+            "line": 6,
+            "symbol": "RSA_generate_key_ex"
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "pqscan:risk",
+          "value": "QUANTUM_VULNERABLE"
+        }
+      ]
+    }
+  ]
+}
