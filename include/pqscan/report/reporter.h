@@ -23,7 +23,7 @@ typedef struct reporter {
      *
      * @param report What to write. Not modified.
      * @param out The stream to write to. Stays open and owned by the caller.
-     * @return PQSCAN_OK, or PQSCAN_ERR_IO if writing or flushing failed.
+     * @return PQSCAN_OK, PQSCAN_ERR_NOMEM, or PQSCAN_ERR_IO if writing or flushing failed.
      */
     pqscan_status (*write)(const scan_report *report, FILE *out);
 } reporter;

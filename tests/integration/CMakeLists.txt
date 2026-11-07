@@ -101,7 +101,7 @@ pqscan_add_cli_test(unknown_threshold EXIT 2 ARGS --fail-on review clean
 pqscan_add_cli_test(unknown_format EXIT 2 ARGS --format xml clean
     STDOUT "${expected}/empty.txt" STDERR "${expected}/bad_format_stderr.txt")
 
-foreach(extension IN ITEMS json)
+foreach(extension IN ITEMS json sarif)
     pqscan_expected_report(report_clean.${extension})
     pqscan_expected_report(report_incomplete.${extension})
 endforeach()
@@ -109,6 +109,10 @@ pqscan_add_cli_test(json_report EXIT 1 ARGS --format json report edge/binary.c
     STDOUT "${CMAKE_CURRENT_BINARY_DIR}/report_incomplete.json")
 pqscan_add_cli_test(json_report_of_a_clean_tree EXIT 0 ARGS -f json clean
     STDOUT "${CMAKE_CURRENT_BINARY_DIR}/report_clean.json" STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(sarif_report EXIT 1 ARGS --format sarif report edge/binary.c
+    STDOUT "${CMAKE_CURRENT_BINARY_DIR}/report_incomplete.sarif")
+pqscan_add_cli_test(sarif_report_of_a_clean_tree EXIT 0 ARGS -f sarif clean
+    STDOUT "${CMAKE_CURRENT_BINARY_DIR}/report_clean.sarif" STDERR "${expected}/empty.txt")
 
 pqscan_add_cli_test(custom_rules EXIT 1 ARGS --rules ../rules/custom.json custom
     STDOUT "${expected}/custom_rules.txt" STDERR "${expected}/empty.txt")
