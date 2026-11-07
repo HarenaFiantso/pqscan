@@ -7,6 +7,7 @@
 #include "pqscan/cli/rule_option.h"
 #include "pqscan/core/clock.h"
 #include "pqscan/core/finding.h"
+#include "pqscan/core/skip_list.h"
 #include "pqscan/core/status.h"
 #include "pqscan/core/version.h"
 #include "pqscan/report/reporter.h"
@@ -48,9 +49,10 @@ static const scanner *const SCANNERS[] = {&source_scanner};
 typedef struct scan_job {
     const rule_set *rules;
     finding_list *findings;
-    const char *root;  /* The PATH being walked. */
-    size_t unanalyzed; /* Paths in scope that were not analyzed. */
-    time_t deadline;   /* When to stop starting on new files. */
+    skip_list *skipped;     /* Paths in scope that were not analyzed. */
+    const char *root;       /* The PATH being walked. */
+    time_t deadline;        /* When to stop starting on new files. */
+    pqscan_status recorded; /* Whether skipped is whole, as a walk callback cannot fail. */
 } scan_job;
 
 /* A symlink or device inside a tree is left out by design. The same thing given as a PATH was
@@ -62,7 +64,9 @@ static bool is_in_scope(const scan_job *job, const char *path, pqscan_status rea
 static void warn_skipped(const char *path, pqscan_status reason, void *context) {
     scan_job *job = context;
     cli_print_diagnostic("pqscan: warning: ", path, pqscan_status_message(reason));
-    job->unanalyzed += is_in_scope(job, path, reason) ? 1 : 0;
+    if (is_in_scope(job, path, reason) && job->recorded == PQSCAN_OK) {
+        job->recorded = skip_list_add(job->skipped, path, reason);
+    }
 }
 
 static pqscan_status scan_with(const scanner *active, const char *path, scan_job *job) {
@@ -112,7 +116,8 @@ static int scan_paths(const cli_options *options, scan_job *job) {
     const walk_callbacks callbacks = {scan_file, warn_skipped, job};
     for (size_t i = 0; i < options->path_count; i++) {
         job->root = options->paths[i];
-        const pqscan_status status = walk_tree(options->paths[i], options->ignores, &callbacks);
+        pqscan_status status = walk_tree(options->paths[i], options->ignores, &callbacks);
+        status = (status == PQSCAN_OK) ? job->recorded : status;
         if (status != PQSCAN_OK) {
             return fail_on_path(options->paths[i], status);
         }
@@ -125,34 +130,39 @@ static int exit_code_of(const scan_job *job) {
     if (finding_list_count(job->findings) > 0) {
         return PQSCAN_EXIT_FINDINGS;
     }
-    return (job->unanalyzed > 0) ? PQSCAN_EXIT_INCOMPLETE : PQSCAN_EXIT_CLEAN;
+    return (skip_list_count(job->skipped) > 0) ? PQSCAN_EXIT_INCOMPLETE : PQSCAN_EXIT_CLEAN;
 }
 
 static int report_findings(const scan_job *job) {
-    if (text_reporter.write(job->findings, stdout) != PQSCAN_OK) {
+    const scan_report report = {job->findings, job->skipped};
+    if (text_reporter.write(&report, stdout) != PQSCAN_OK) {
         (void)fprintf(stderr, "pqscan: cannot write the report\n");
         return PQSCAN_EXIT_INTERNAL;
     }
-    if (job->unanalyzed > 0) {
+    const size_t unanalyzed = skip_list_count(job->skipped);
+    if (unanalyzed > 0) {
         (void)fprintf(stderr, "pqscan: scan incomplete: %zu path%s could not be analyzed\n",
-                      job->unanalyzed, (job->unanalyzed == 1) ? "" : "s");
+                      unanalyzed, (unanalyzed == 1) ? "" : "s");
     }
     return exit_code_of(job);
 }
 
+static int scan_and_report(const cli_options *options, scan_job *job) {
+    const int code = scan_paths(options, job);
+    return (code == PQSCAN_EXIT_CLEAN) ? report_findings(job) : code;
+}
+
 static int scan_with_rules(const cli_options *options, const rule_set *rules) {
-    finding_list *findings = finding_list_create();
-    if (findings == NULL) {
-        (void)fprintf(stderr, "pqscan: %s\n", pqscan_status_message(PQSCAN_ERR_NOMEM));
-        return PQSCAN_EXIT_INTERNAL;
-    }
     const time_t deadline = pqscan_monotonic_seconds() + (time_t)options->max_seconds;
-    scan_job job = {rules, findings, NULL, 0, deadline};
-    int code = scan_paths(options, &job);
-    if (code == PQSCAN_EXIT_CLEAN) {
-        code = report_findings(&job);
+    scan_job job = {rules, finding_list_create(), skip_list_create(), NULL, deadline, PQSCAN_OK};
+    int code = PQSCAN_EXIT_INTERNAL;
+    if (job.findings != NULL && job.skipped != NULL) {
+        code = scan_and_report(options, &job);
+    } else {
+        (void)fprintf(stderr, "pqscan: %s\n", pqscan_status_message(PQSCAN_ERR_NOMEM));
     }
-    finding_list_destroy(findings);
+    skip_list_destroy(job.skipped);
+    finding_list_destroy(job.findings);
     return code;
 }
 
