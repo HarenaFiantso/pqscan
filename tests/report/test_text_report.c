@@ -131,8 +131,9 @@ static void test_an_algorithm_name_cannot_forge_a_line(void) {
 }
 
 static void test_the_summary_runs_from_most_to_least_severe(void) {
-    const risk_level levels[] = {RISK_OK, RISK_REVIEW, RISK_QUANTUM_VULNERABLE,
-                                 RISK_CLASSICALLY_WEAK, RISK_REVIEW};
+    const risk_level levels[] = {
+        RISK_OK, RISK_REVIEW, RISK_QUANTUM_VULNERABLE, RISK_CLASSICALLY_WEAK, RISK_REVIEW,
+    };
     for (size_t i = 0; i < sizeof(levels) / sizeof(levels[0]); i++) {
         const finding item = {
             "a.c", i + 1, "X", levels[i], NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED, "x",

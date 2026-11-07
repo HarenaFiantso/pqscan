@@ -30,10 +30,11 @@ static void test_no_size_shows_nothing(void) {
 }
 
 static void test_the_largest_size_fits(void) {
+    const unsigned largest = UINT_MAX;
     char expected[KEY_SIZE_SUFFIX_SIZE];
-    const int len = snprintf(expected, sizeof(expected), "-%u", UINT_MAX);
+    const int len = snprintf(expected, sizeof(expected), "-%u", largest);
     TEST_ASSERT_GREATER_THAN_INT(0, len);
-    assert_suffix((key_size){KEY_SIZE_KNOWN, UINT_MAX}, expected);
+    assert_suffix((key_size){KEY_SIZE_KNOWN, largest}, expected);
 }
 
 int main(void) {

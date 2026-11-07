@@ -35,9 +35,9 @@ static const risk_style RISK_STYLES[RISK_LEVEL_COUNT] = {
 };
 
 static int compare_algorithms(const void *left, const void *right) {
-    const finding *const *first = left;
-    const finding *const *second = right;
-    return strcmp((*first)->algorithm, (*second)->algorithm);
+    const finding *first = *(const finding *const *)left;
+    const finding *second = *(const finding *const *)right;
+    return strcmp(first->algorithm, second->algorithm);
 }
 
 static void write_rule_id(json_writer *json, const char *key, const char *algorithm) {

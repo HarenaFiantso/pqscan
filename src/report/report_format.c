@@ -10,8 +10,12 @@
 #include <stddef.h>
 #include <string.h>
 
-static const reporter *const REPORTERS[] = {&text_reporter, &json_reporter, &cbom_reporter,
-                                            &sarif_reporter};
+static const reporter *const REPORTERS[] = {
+    &text_reporter,
+    &json_reporter,
+    &cbom_reporter,
+    &sarif_reporter,
+};
 
 const reporter *reporter_find(const char *name) {
     for (size_t i = 0; i < sizeof(REPORTERS) / sizeof(REPORTERS[0]); i++) {
