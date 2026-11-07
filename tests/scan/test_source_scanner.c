@@ -173,6 +173,30 @@ static void test_reports_references_that_are_not_calls(void) {
     assert_findings("2:RSA 3:SHA-1");
 }
 
+static void test_reports_one_shot_hash_calls(void) {
+    scan_text("void f(void) {\n  MD5(d, n, out);\n  SHA1(d, n, out);\n}\n");
+    assert_findings("2:MD5 3:SHA-1");
+}
+
+static void test_reports_one_shot_hash_calls_in_macros_and_namespaces(void) {
+    scan_cpp_text("#define HASH(d, n, o) MD5(d, n, o)\n"
+                  "void f(void) { ::SHA1(d, n, out); }\n");
+    assert_findings("1:MD5 2:SHA-1");
+}
+
+static void test_ignores_one_shot_hash_names_outside_calls(void) {
+    scan_text("enum kind { MD5, SHA1 };\n"
+              "int MD5(int n);\n"
+              "int h = MD5;\n"
+              "void f(void) { use(SHA1); }\n");
+    assert_finding_count(0);
+}
+
+static void test_ignores_one_shot_hash_methods(void) {
+    scan_cpp_text("void f(s *p, s v) { p->MD5(d); v.SHA1(d); }\n");
+    assert_finding_count(0);
+}
+
 static void test_reports_constants_as_arguments(void) {
     scan_text("void f(void) { EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL); }\n");
     assert_findings("1:RSA");
@@ -370,6 +394,10 @@ int main(void) {
     RUN_TEST(test_ignores_fields_and_methods);
     RUN_TEST(test_ignores_directives_that_are_not_code);
     RUN_TEST(test_reports_references_that_are_not_calls);
+    RUN_TEST(test_reports_one_shot_hash_calls);
+    RUN_TEST(test_reports_one_shot_hash_calls_in_macros_and_namespaces);
+    RUN_TEST(test_ignores_one_shot_hash_names_outside_calls);
+    RUN_TEST(test_ignores_one_shot_hash_methods);
     RUN_TEST(test_reports_constants_as_arguments);
     RUN_TEST(test_reports_nested_calls_in_order);
     RUN_TEST(test_reads_key_sizes);

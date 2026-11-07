@@ -66,6 +66,8 @@ is still scanned:
 * **Reported:** calls and other uses of known identifiers, including in macro bodies and in
   every branch of `#ifdef`, plus algorithm names passed to known calls, such as `"RSA"` in
   `EVP_PKEY_CTX_new_from_name`.
+* **Reported only when called:** `MD5` and `SHA1`, since those names are also common enum
+  values and variables.
 * **Not reported:** comments, other strings, declarations such as prototypes, struct fields,
   C++ methods, and code under a literal `#if 0`.
 

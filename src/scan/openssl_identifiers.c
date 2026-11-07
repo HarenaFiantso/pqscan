@@ -79,6 +79,12 @@ static const crypto_identifier IDENTIFIERS[] = {
 };
 
 /* Sorted by name for bsearch(). */
+static const crypto_identifier CALL_ONLY_IDENTIFIERS[] = {
+    {"MD5", "MD5", RISK_CLASSICALLY_WEAK},
+    {"SHA1", "SHA-1", RISK_CLASSICALLY_WEAK},
+};
+
+/* Sorted by name for bsearch(). */
 static const call_signature CALLS[] = {
     {"DH_generate_parameters_ex", 1, CALL_NO_ARGUMENT},
     {"DSA_generate_parameters_ex", 1, CALL_NO_ARGUMENT},
@@ -129,6 +135,8 @@ static const crypto_identifier ALGORITHM_NAMES[] = {
 };
 
 static const size_t IDENTIFIER_COUNT = sizeof(IDENTIFIERS) / sizeof(IDENTIFIERS[0]);
+static const size_t CALL_ONLY_COUNT =
+    sizeof(CALL_ONLY_IDENTIFIERS) / sizeof(CALL_ONLY_IDENTIFIERS[0]);
 static const size_t CALL_COUNT = sizeof(CALLS) / sizeof(CALLS[0]);
 static const size_t ALGORITHM_NAME_COUNT = sizeof(ALGORITHM_NAMES) / sizeof(ALGORITHM_NAMES[0]);
 
@@ -160,6 +168,17 @@ const crypto_identifier *openssl_identifier_find(const char *name, size_t len) {
 const crypto_identifier *openssl_identifier_table(size_t *count) {
     *count = IDENTIFIER_COUNT;
     return IDENTIFIERS;
+}
+
+const crypto_identifier *openssl_call_only_find(const char *name, size_t len) {
+    const identifier_key key = {name, len};
+    return bsearch(&key, CALL_ONLY_IDENTIFIERS, CALL_ONLY_COUNT, sizeof(CALL_ONLY_IDENTIFIERS[0]),
+                   compare_key_to_identifier);
+}
+
+const crypto_identifier *openssl_call_only_table(size_t *count) {
+    *count = CALL_ONLY_COUNT;
+    return CALL_ONLY_IDENTIFIERS;
 }
 
 const call_signature *openssl_call_find(const char *name, size_t len) {
