@@ -50,3 +50,16 @@ size_t finding_list_count(const finding_list *list) { return list->count; }
 const finding *finding_list_get(const finding_list *list, size_t index) {
     return (index < list->count) ? &list->items[index] : NULL;
 }
+
+/* An empty list still gets one element, because calloc(0, ...) may return NULL. */
+const finding **finding_list_pointers(const finding_list *list) {
+    const finding **pointers =
+        (const finding **)calloc((list->count > 0) ? list->count : 1, sizeof(pointers[0]));
+    if (pointers == NULL) {
+        return NULL;
+    }
+    for (size_t i = 0; i < list->count; i++) {
+        pointers[i] = &list->items[i];
+    }
+    return pointers;
+}

@@ -63,6 +63,17 @@ static void assert_finding_count(size_t expected) {
     TEST_ASSERT_EQUAL_size_t(expected, finding_list_count(findings));
 }
 
+static void test_records_what_matched(void) {
+    char text[] = "void f(void) {\n"
+                  "    RSA_new();\n"
+                  "    EVP_PKEY_CTX_new_from_name(0, \"rsa\", 0);\n"
+                  "}\n";
+    scan_text(text);
+    TEST_ASSERT_EQUAL_size_t(2, finding_list_count(findings));
+    TEST_ASSERT_EQUAL_STRING("RSA_new", finding_list_get(findings, 0)->symbol);
+    TEST_ASSERT_EQUAL_STRING("RSA", finding_list_get(findings, 1)->symbol);
+}
+
 static void assert_findings(const char *expected) {
     char actual[DESCRIPTION_SIZE];
     describe_findings(findings, actual, sizeof(actual));
@@ -493,6 +504,7 @@ int main(void) {
     RUN_TEST(test_skips_files_containing_nul_bytes);
     RUN_TEST(test_finds_a_match_after_a_huge_line);
     RUN_TEST(test_survives_deep_nesting);
+    RUN_TEST(test_records_what_matched);
     RUN_TEST(test_survives_many_nested_conditionals);
     RUN_TEST(test_survives_every_truncation_of_a_source);
     RUN_TEST(test_survives_arbitrary_bytes);

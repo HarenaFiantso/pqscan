@@ -17,6 +17,7 @@ typedef struct finding {
     risk_level risk;            /**< Urgency of the migration. */
     key_size size;              /**< Key size, if the algorithm has one. */
     crypto_primitive primitive; /**< What the use of the algorithm does. */
+    const char *symbol;         /**< What matched in the file. Borrowed like the algorithm. */
 } finding;
 
 /** A growable list of findings, in the order they were added. */
@@ -42,9 +43,9 @@ void finding_list_destroy(finding_list *list);
  *
  * @param list The list.
  * @param item The finding to copy. The list keeps its own copy of the path, so the
- *             caller's path need not outlive this call. It only borrows the algorithm,
- *             which must outlive the list. Scanners take it from a rule_set, which has to
- *             be destroyed after the list.
+ *             caller's path need not outlive this call. It only borrows the algorithm and
+ *             the symbol, which must outlive the list. Scanners take them from a rule_set,
+ *             which has to be destroyed after the list.
  * @return PQSCAN_OK, or PQSCAN_ERR_NOMEM.
  */
 pqscan_status finding_list_add(finding_list *list, const finding *item);
@@ -66,5 +67,16 @@ size_t finding_list_count(const finding_list *list);
  *         stays valid until the next finding_list_add() or finding_list_destroy().
  */
 const finding *finding_list_get(const finding_list *list, size_t index);
+
+/**
+ * @brief Point at every finding, so that a reader can sort them without touching the list.
+ *
+ * @param list The list.
+ * @return An array of finding_list_count() pointers in list order, owned by the caller and
+ *         freed with free(), or NULL if out of memory. The findings still belong to the list,
+ *         and the pointers stay valid until the next finding_list_add() or
+ *         finding_list_destroy().
+ */
+const finding **finding_list_pointers(const finding_list *list);
 
 #endif /* PQSCAN_CORE_FINDING_H */
