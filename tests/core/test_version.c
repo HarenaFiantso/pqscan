@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-#include "pqscan/version.h"
+#include "pqscan/core/version.h"
 #include "unity.h"
 
 void setUp(void) {}
