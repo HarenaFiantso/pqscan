@@ -97,6 +97,7 @@ below enforce what they can, and reviewers check the rest.
 * In `.c` files, comment **only** what the code can't say: a non-obvious algorithm, tricky pointer work, a format quirk (ELF, DER, SARIF), a workaround, or a "why". Never paraphrase code line by line.
 * If a block needs a comment, first try a better name or extracting a function.
 * **No `docs/` folder.** Documentation lives in `README.md`, `CONTRIBUTING.md` and header comments.
+* The website in `site/` presents the README to a wider audience and never replaces it. Update it when options, exit codes or report formats change.
 * Record significant design decisions in the commit message and pull request description. A "why" that must outlive them goes in a comment next to the code.
 * Keep `README.md` current at the end of every phase.
 
