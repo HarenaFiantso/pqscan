@@ -62,6 +62,9 @@ bool syntax_parser_expired(const syntax_parser *parser) {
     return monotonic_seconds() >= parser->deadline;
 }
 
+/* Tree-sitter dictates the signatures of this callback and the next one. */
+// cppcheck-suppress constParameterCallback
+// NOLINTNEXTLINE(readability-function-size)
 static const char *read_from_file(void *payload, uint32_t byte_index, TSPoint position,
                                   uint32_t *bytes_read) {
     (void)position;
@@ -74,6 +77,7 @@ static const char *read_from_file(void *payload, uint32_t byte_index, TSPoint po
     return file->data + byte_index;
 }
 
+// cppcheck-suppress constParameterCallback
 static bool cancel_when_expired(TSParseState *state) {
     return syntax_parser_expired(state->payload);
 }
@@ -99,8 +103,12 @@ pqscan_status syntax_parser_parse_file(syntax_parser *parser, TSTree **out) {
 }
 
 pqscan_status syntax_parser_parse_node(syntax_parser *parser, TSNode node, TSTree **out) {
-    const TSRange range = {ts_node_start_point(node), ts_node_end_point(node),
-                           ts_node_start_byte(node), ts_node_end_byte(node)};
+    const TSRange range = {
+        ts_node_start_point(node),
+        ts_node_end_point(node),
+        ts_node_start_byte(node),
+        ts_node_end_byte(node),
+    };
     if (!ts_parser_set_included_ranges(parser->parser, &range, 1)) {
         return PQSCAN_ERR_PARSE;
     }
