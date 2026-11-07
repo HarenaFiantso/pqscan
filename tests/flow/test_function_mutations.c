@@ -17,13 +17,17 @@ enum { SOURCE_SIZE = 512 };
 static char text[SOURCE_SIZE];
 static parsed_source source;
 static constant_table *table;
+static constant_table *bindings;
 
 void setUp(void) {
     table = constant_table_create();
     TEST_ASSERT_NOT_NULL(table);
+    bindings = constant_table_create();
+    TEST_ASSERT_NOT_NULL(bindings);
 }
 
 void tearDown(void) {
+    constant_table_destroy(bindings);
     constant_table_destroy(table);
     parsed_source_release(&source);
 }
@@ -33,7 +37,8 @@ static void collect(const char *code, source_language language) {
     TEST_ASSERT_TRUE(written > 0 && (size_t)written < sizeof(text));
     parsed_source_init(&source, text, language);
     const TSNode function = find_node_of_type(parsed_source_root(&source), "function_definition");
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, function_mutations_collect(&source.flow, function, table));
+    const mutation_tables tables = {bindings, table};
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, function_mutations_collect(&source.flow, function, &tables));
 }
 
 static void collect_c(const char *code) { collect(code, SOURCE_LANGUAGE_C); }
@@ -177,6 +182,26 @@ static void test_a_c_call_changes_nothing(void) {
     assert_untouched("a");
 }
 
+static void test_an_all_caps_call_may_change_its_arguments(void) {
+    collect_c("void f(void) { SET_1(a, 1); }\n");
+    assert_position("a", offset_of("; }"));
+}
+
+static void test_a_known_macro_may_change_its_arguments(void) {
+    constant_binding binding;
+    memset(&binding, 0, sizeof(binding));
+    binding.name = text_from("set");
+    binding.kind = BINDING_FUNCTION_MACRO;
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, constant_table_bind(bindings, &binding));
+    collect_c("void f(void) { set((a)); }\n");
+    assert_position("a", offset_of("; }"));
+}
+
+static void test_a_name_without_letters_is_no_macro(void) {
+    collect_c("void f(void) { _1(a); }\n");
+    assert_untouched("a");
+}
+
 static void test_a_cpp_stream_read_counts(void) {
     collect("void f() { cin >> a; }\n", SOURCE_LANGUAGE_CPP);
     assert_position("a", offset_of("; }"));
@@ -214,6 +239,9 @@ int main(void) {
     RUN_TEST(test_a_cpp_reference_counts_for_what_it_aliases);
     RUN_TEST(test_a_cpp_call_may_change_its_arguments_after_it_returns);
     RUN_TEST(test_a_c_call_changes_nothing);
+    RUN_TEST(test_an_all_caps_call_may_change_its_arguments);
+    RUN_TEST(test_a_known_macro_may_change_its_arguments);
+    RUN_TEST(test_a_name_without_letters_is_no_macro);
     RUN_TEST(test_a_cpp_stream_read_counts);
     RUN_TEST(test_a_shift_in_c_is_no_stream_read);
     RUN_TEST(test_a_write_in_a_lambda_counts_from_the_lambda);

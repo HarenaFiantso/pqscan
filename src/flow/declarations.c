@@ -28,12 +28,26 @@ pqscan_status declaration_each_declarator(TSNode declaration, declarator_visitor
     return status;
 }
 
+TSNode declarator_strip_parentheses(TSNode declarator) {
+    TSNode node = declarator;
+    while (syntax_node_is(node, "parenthesized_declarator")) {
+        node = ts_node_named_child(node, 0);
+    }
+    return node;
+}
+
+/* These three wrap the next declarator without giving it a field. */
+static TSNode inner_declarator(TSNode node) {
+    const bool unlabelled = syntax_node_is(node, "reference_declarator") ||
+                            syntax_node_is(node, "parenthesized_declarator") ||
+                            syntax_node_is(node, "attributed_declarator");
+    return unlabelled ? ts_node_named_child(node, 0) : syntax_node_field(node, "declarator");
+}
+
 bool declarator_name(TSNode declarator, TSNode *out) {
     TSNode node = declarator;
     while (!ts_node_is_null(node) && !syntax_node_is(node, "identifier")) {
-        const TSNode inner = syntax_node_field(node, "declarator");
-        /* A C++ reference holds its name without a field. */
-        node = syntax_node_is(node, "reference_declarator") ? ts_node_named_child(node, 0) : inner;
+        node = inner_declarator(node);
     }
     if (ts_node_is_null(node)) {
         return false;
@@ -66,9 +80,9 @@ bool declaration_is_const(const source_node *declaration) {
 }
 
 bool declarator_is_fixed(const source_node *declaration, TSNode declarator) {
-    const TSNode node = syntax_node_is(declarator, "init_declarator")
-                            ? syntax_node_field(declarator, "declarator")
-                            : declarator;
+    const TSNode node = declarator_strip_parentheses(
+        syntax_node_is(declarator, "init_declarator") ? syntax_node_field(declarator, "declarator")
+                                                      : declarator);
     if (syntax_node_is(node, "reference_declarator")) {
         return false;
     }

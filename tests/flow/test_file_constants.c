@@ -111,9 +111,19 @@ static void test_a_macro_and_a_constant_of_one_name_are_unknown(void) {
     assert_kind(BINDING_VALUE, "A");
 }
 
-static void test_a_macro_with_parameters_is_unknown(void) {
+static void test_a_macro_with_parameters_is_remembered(void) {
     collect("#define A(x) (x)\n", SOURCE_LANGUAGE_C);
-    assert_kind(BINDING_VALUE, "A");
+    assert_kind(BINDING_FUNCTION_MACRO, "A");
+}
+
+static void test_a_macro_with_parameters_survives_another_branch(void) {
+    collect("#ifdef X\n#define A(x) (x)\n#else\n#define A(x) (x + 1)\n#endif\n", SOURCE_LANGUAGE_C);
+    assert_kind(BINDING_FUNCTION_MACRO, "A");
+}
+
+static void test_a_macro_with_parameters_survives_any_other_definition(void) {
+    collect("#undef A\n#define A(x) (x)\n#define A 1\n", SOURCE_LANGUAGE_C);
+    assert_kind(BINDING_FUNCTION_MACRO, "A");
 }
 
 static void test_a_macro_without_a_body_is_unknown(void) {
@@ -193,7 +203,9 @@ int main(void) {
     RUN_TEST(test_two_definitions_with_one_body_stay_known);
     RUN_TEST(test_two_different_definitions_are_unknown);
     RUN_TEST(test_a_macro_and_a_constant_of_one_name_are_unknown);
-    RUN_TEST(test_a_macro_with_parameters_is_unknown);
+    RUN_TEST(test_a_macro_with_parameters_is_remembered);
+    RUN_TEST(test_a_macro_with_parameters_survives_another_branch);
+    RUN_TEST(test_a_macro_with_parameters_survives_any_other_definition);
     RUN_TEST(test_a_macro_without_a_body_is_unknown);
     RUN_TEST(test_undef_makes_a_name_unknown_wherever_it_stands);
     RUN_TEST(test_other_directives_change_nothing);

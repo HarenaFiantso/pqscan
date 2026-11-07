@@ -49,7 +49,10 @@ static pqscan_status record(const collector *state, const constant_binding *bind
     if (known == NULL) {
         return constant_table_bind(state->table, binding);
     }
-    if (!same_definition(state, known, binding)) {
+    /* In any conditional branch, a macro with parameters can write what it is given. */
+    if (known->kind == BINDING_FUNCTION_MACRO || binding->kind == BINDING_FUNCTION_MACRO) {
+        known->kind = BINDING_FUNCTION_MACRO;
+    } else if (!same_definition(state, known, binding)) {
         make_unknown(known);
     }
     return PQSCAN_OK;
@@ -84,7 +87,12 @@ static pqscan_status record_macro(const collector *state, TSNode node) {
 }
 
 static pqscan_status record_macro_with_parameters(const collector *state, TSNode node) {
-    return record_unknown(state, text_of(state, syntax_node_field(node, "name")));
+    constant_binding binding;
+    memset(&binding, 0, sizeof(binding));
+    binding.name = text_of(state, syntax_node_field(node, "name"));
+    binding.kind = BINDING_FUNCTION_MACRO;
+    binding.position = ts_node_start_byte(node);
+    return record(state, &binding);
 }
 
 /* The argument of #undef keeps whatever follows the name on the line, such as a comment. */

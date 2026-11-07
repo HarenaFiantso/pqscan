@@ -28,9 +28,10 @@ typedef struct constant_value {
 
 /** How to get the value of a name. */
 typedef enum binding_kind {
-    BINDING_VALUE = 0, /**< It is in value, which may be CONSTANT_UNKNOWN. */
-    BINDING_MACRO,     /**< definition is the body of a macro, evaluated where it is used. */
-    BINDING_GLOBAL,    /**< definition is the initializer of a constant at file scope. */
+    BINDING_VALUE = 0,      /**< It is in value, which may be CONSTANT_UNKNOWN. */
+    BINDING_MACRO,          /**< definition is the body of a macro, evaluated where it is used. */
+    BINDING_GLOBAL,         /**< definition is the initializer of a constant at file scope. */
+    BINDING_FUNCTION_MACRO, /**< A macro with parameters: unknown, and it may write them. */
 } binding_kind;
 
 /** What a name stands for. The table copies this struct but not what it points at. */
