@@ -48,7 +48,7 @@
       "name": "base",
       "hidden": true,
       "output": { "outputOnFailure": true },
-      "execution": { "noTestsAction": "error" }
+      "execution": { "noTestsAction": "error", "timeout": 60 }
     },
     {
       "name": "debug",
