@@ -30,6 +30,10 @@ target_include_directories(pqscan_tree_sitter SYSTEM PUBLIC "${tree_sitter_SOURC
 # Tree-sitter's own Makefile asks for these: its endian helpers are not part of ISO C.
 target_compile_definitions(pqscan_tree_sitter PRIVATE
     _POSIX_C_SOURCE=200112L _DEFAULT_SOURCE $<$<PLATFORM_ID:Darwin>:_DARWIN_C_SOURCE>)
+# tree-sitter-cpp defines its scanner hook as f() and the runtime calls it as f(void). C says those
+# types are compatible, but Clang's function check on Linux demands identical ones. Checks stay on
+# everywhere else, because this flag only affects the calls made from this library.
+target_compile_options(pqscan_tree_sitter PRIVATE $<$<C_COMPILER_ID:Clang>:-fno-sanitize=function>)
 
 # One library per grammar, because each ships its own copy of tree_sitter/parser.h.
 add_library(pqscan_grammar_c STATIC "${tree_sitter_c_SOURCE_DIR}/src/parser.c")
