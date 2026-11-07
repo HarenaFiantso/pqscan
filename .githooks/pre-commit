@@ -12,7 +12,7 @@ if ! command -v clang-format >/dev/null 2>&1; then
 fi
 
 staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- \
-    '*.c' '*.h' ':(exclude)tests/fixtures/*' ':(exclude)third_party/*')
+    '*.c' '*.h' ':(exclude)tests/fixtures/*')
 
 [ -n "$staged_files" ] || exit 0
 

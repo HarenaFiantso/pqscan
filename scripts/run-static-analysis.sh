@@ -21,7 +21,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
 fi
 
 # shellcheck disable=SC2086 # sysroot_arg is empty or one word, and must vanish when empty.
-git ls-files -- '*.c' ':(exclude)tests/fixtures/*' ':(exclude)third_party/*' |
+git ls-files -- '*.c' ':(exclude)tests/fixtures/*' |
     xargs clang-tidy --quiet -p "$compile_db_dir" $sysroot_arg
 
 cppcheck --project="$compile_db_dir/compile_commands.json" \
