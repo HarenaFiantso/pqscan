@@ -7,8 +7,8 @@
 #include <stddef.h>
 #include <string.h>
 
-enum { HIGH_NIBBLE_SHIFT = 4, LOW_NIBBLE_MASK = 0x0F };
-
+static const unsigned HIGH_NIBBLE_SHIFT = 4U;
+static const unsigned LOW_NIBBLE_MASK = 0x0FU;
 static const char HEX_DIGITS[] = "0123456789ABCDEF";
 static const char FILE_SCHEME[] = "file://";
 static const char CURRENT_DIRECTORY[] = ".";
@@ -25,9 +25,12 @@ static void write_uri_byte(json_writer *json, char byte) {
         json_append_raw(json, &byte, 1);
         return;
     }
-    const unsigned char value = (unsigned char)byte;
-    const char encoded[] = {'%', HEX_DIGITS[value >> HIGH_NIBBLE_SHIFT],
-                            HEX_DIGITS[value & LOW_NIBBLE_MASK]};
+    const unsigned value = (unsigned char)byte;
+    const char encoded[] = {
+        '%',
+        HEX_DIGITS[value >> HIGH_NIBBLE_SHIFT],
+        HEX_DIGITS[value & LOW_NIBBLE_MASK],
+    };
     json_append_raw(json, encoded, sizeof(encoded));
 }
 
