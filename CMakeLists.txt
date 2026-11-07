@@ -21,7 +21,11 @@ add_library(pqscan_core STATIC
     src/core/status.c
     src/core/string_list.c
     src/core/version.c
+    src/report/text_report.c
     src/risk/risk.c
+    src/scan/file_reader.c
+    src/scan/openssl_identifiers.c
+    src/scan/source_scanner.c
     src/walk/file_type.c
     src/walk/ignore.c
     src/walk/walker.c)
