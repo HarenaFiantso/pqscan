@@ -78,6 +78,7 @@ static const char *read_from_file(void *payload, uint32_t byte_index, TSPoint po
 }
 
 // cppcheck-suppress constParameterCallback
+// cppcheck-suppress constParameterPointer
 static bool cancel_when_expired(TSParseState *state) {
     return syntax_parser_expired(state->payload);
 }
