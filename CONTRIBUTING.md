@@ -2,8 +2,9 @@
 
 ## Development setup
 
-You need CMake 3.20 or newer, a C11 compiler, `clang-format`, `clang-tidy` and `cppcheck`.
-The two Clang tools are pinned in `requirements-dev.txt` so that your results match CI.
+You need CMake 3.20 or newer, a C11 compiler, `clang-format`, `clang-tidy`, `cppcheck` and
+`check-jsonschema`. `clang-format`, `clang-tidy` and `check-jsonschema` are pinned in
+`requirements-dev.txt` so that your results match CI.
 
 On macOS, with the Xcode command line tools installed:
 
@@ -150,6 +151,15 @@ because it scans memory conservatively, so CI's Valgrind job is the final check.
 [Linux container](#linux-container-optional).
 
 To run just the memory-checked tests, use `ctest --preset valgrind -L valgrind`.
+
+To validate reports against the official CycloneDX and SARIF schemas, also on file names
+built to break them:
+
+```sh
+cmake --preset debug -DPQSCAN_CHECK_REPORT_SCHEMAS=ON
+cmake --build --preset debug
+ctest --preset debug -L schema
+```
 
 ## Updating the README demo
 
