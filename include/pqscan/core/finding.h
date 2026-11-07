@@ -3,6 +3,7 @@
 #define PQSCAN_CORE_FINDING_H
 
 #include "pqscan/core/key_size.h"
+#include "pqscan/core/primitive.h"
 #include "pqscan/core/status.h"
 #include "pqscan/risk/risk.h"
 
@@ -10,11 +11,12 @@
 
 /** One use of cryptography found by a scanner. */
 typedef struct finding {
-    const char *path;      /**< File the finding is in. */
-    size_t line;           /**< Line number, from 1. */
-    const char *algorithm; /**< Normalized name. Must have static storage duration. */
-    risk_level risk;       /**< Urgency of the migration. */
-    key_size size;         /**< Key size, if the algorithm has one. */
+    const char *path;           /**< File the finding is in. */
+    size_t line;                /**< Line number, from 1. */
+    const char *algorithm;      /**< Normalized name. Borrowed: see finding_list_add(). */
+    risk_level risk;            /**< Urgency of the migration. */
+    key_size size;              /**< Key size, if the algorithm has one. */
+    crypto_primitive primitive; /**< What the use of the algorithm does. */
 } finding;
 
 /** A growable list of findings, in the order they were added. */
@@ -40,7 +42,9 @@ void finding_list_destroy(finding_list *list);
  *
  * @param list The list.
  * @param item The finding to copy. The list keeps its own copy of the path, so the
- *             caller's path need not outlive this call.
+ *             caller's path need not outlive this call. It only borrows the algorithm,
+ *             which must outlive the list. Scanners take it from a rule_set, which has to
+ *             be destroyed after the list.
  * @return PQSCAN_OK, or PQSCAN_ERR_NOMEM.
  */
 pqscan_status finding_list_add(finding_list *list, const finding *item);
