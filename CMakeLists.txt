@@ -28,6 +28,7 @@ add_library(pqscan_core STATIC
     src/cli/run.c
     src/core/clock.c
     src/core/finding.c
+    src/core/key_size.c
     src/core/memory.c
     src/core/primitive.c
     src/core/safe_text.c

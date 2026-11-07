@@ -11,24 +11,12 @@
 #include <stddef.h>
 #include <stdio.h>
 
-/* Large enough for "-" and any unsigned value, which keeps snprintf from truncating. */
-enum { KEY_SUFFIX_SIZE = 32 };
-
-static void format_key_suffix(const key_size *size, char *suffix) {
-    suffix[0] = '\0';
-    if (size->kind == KEY_SIZE_KNOWN) {
-        (void)snprintf(suffix, KEY_SUFFIX_SIZE, "-%u", size->bits);
-    } else if (size->kind == KEY_SIZE_UNKNOWN) {
-        (void)snprintf(suffix, KEY_SUFFIX_SIZE, "-unknown");
-    }
-}
-
 static pqscan_status write_text(const scan_report *report, FILE *out) {
     const finding_list *findings = report->findings;
     for (size_t i = 0; i < finding_list_count(findings); i++) {
         const finding *item = finding_list_get(findings, i);
-        char key_suffix[KEY_SUFFIX_SIZE];
-        format_key_suffix(&item->size, key_suffix);
+        char key_suffix[KEY_SIZE_SUFFIX_SIZE];
+        key_size_format_suffix(item->size, key_suffix, sizeof(key_suffix));
         if (safe_text_write(out, item->path) != PQSCAN_OK) {
             return PQSCAN_ERR_IO;
         }
