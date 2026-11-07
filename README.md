@@ -105,6 +105,7 @@ Enum constants aren't followed yet, so they also stay `unknown`.
 | --- | --- |
 | `-i`, `--ignore PATTERN` | Skip paths matching a glob, tried on the file name, the path, and the path relative to `PATH`. Repeatable. `.git` is always skipped. |
 | `-r`, `--rules FILE` | Use the rules in this JSON file instead of the built-in ones. |
+| `--fail-on LEVEL` | The lowest risk level that makes pqscan exit 1: `OK`, `REVIEW`, `QUANTUM_VULNERABLE` or `CLASSICALLY_WEAK`. The default is `REVIEW`. It changes only the exit code: every finding is still reported. |
 | `--max-time SECS` | Start on no new file after this long. The default is 3600. Files left over are skipped, so the scan is incomplete. |
 | `-h`, `--help` | Show the help and exit. |
 | `-V`, `--version` | Show the version and exit. |
@@ -118,11 +119,11 @@ Enum constants aren't followed yet, so they also stay `unknown`.
 
 | Exit code | Meaning |
 | --- | --- |
-| 0 | No findings, and everything in scope was analyzed |
-| 1 | Findings reported, even if the scan was incomplete |
+| 0 | No findings at or above `--fail-on`, and everything in scope was analyzed |
+| 1 | Findings at or above `--fail-on`, even if the scan was incomplete |
 | 2 | Usage error, such as a path that doesn't exist or a rule file that isn't valid |
 | 3 | Internal error |
-| 4 | No findings, but something in scope could not be analyzed |
+| 4 | No findings at or above `--fail-on`, but something in scope could not be analyzed |
 
 > [!CAUTION]
 > Exit code 0 doesn't prove the code is free of vulnerable cryptography. pqscan only

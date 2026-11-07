@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/cli/options.h"
 #include "pqscan/core/string_list.h"
+#include "pqscan/risk/risk.h"
 #include "unity.h"
 
 #include <getopt.h>
@@ -48,6 +49,37 @@ static void test_parses_the_time_budget(void) {
     char *argv[] = {"pqscan", "--max-time", "90", "src", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
     TEST_ASSERT_EQUAL_UINT(90, options.max_seconds);
+}
+
+static void test_the_report_defaults_to_text_failing_on_review(void) {
+    char *argv[] = {"pqscan", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_EQUAL_STRING("text", options.format->name);
+    TEST_ASSERT_EQUAL_INT(RISK_REVIEW, options.fail_on);
+}
+
+static void test_parses_the_format(void) {
+    char *argv[] = {"pqscan", "-f", "text", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_EQUAL_STRING("text", options.format->name);
+}
+
+static void test_refuses_an_unknown_format(void) {
+    char *argv[] = {"pqscan", "--format", "xml", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_USAGE_ERROR,
+                          cli_options_parse(ARG_COUNT(argv), argv, &options));
+}
+
+static void test_parses_the_threshold(void) {
+    char *argv[] = {"pqscan", "--fail-on", "QUANTUM_VULNERABLE", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_EQUAL_INT(RISK_QUANTUM_VULNERABLE, options.fail_on);
+}
+
+static void test_refuses_an_unknown_threshold(void) {
+    char *argv[] = {"pqscan", "--fail-on", "review", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_USAGE_ERROR,
+                          cli_options_parse(ARG_COUNT(argv), argv, &options));
 }
 
 static void assert_refuses_budget(char *value) {
@@ -163,6 +195,11 @@ int main(void) {
     RUN_TEST(test_the_last_rules_path_wins);
     RUN_TEST(test_rules_without_a_path_is_a_usage_error);
     RUN_TEST(test_ignore_is_repeatable);
+    RUN_TEST(test_the_report_defaults_to_text_failing_on_review);
+    RUN_TEST(test_parses_the_format);
+    RUN_TEST(test_refuses_an_unknown_format);
+    RUN_TEST(test_parses_the_threshold);
+    RUN_TEST(test_refuses_an_unknown_threshold);
     RUN_TEST(test_options_may_follow_paths);
     RUN_TEST(test_double_dash_ends_options);
     RUN_TEST(test_unknown_option_is_a_usage_error);

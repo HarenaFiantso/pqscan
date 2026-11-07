@@ -79,6 +79,23 @@ pqscan_add_cli_test(used_up_budget_is_not_a_clean_result EXIT 4 ARGS --max-time 
 pqscan_add_cli_test(budget_must_be_a_number EXIT 2 ARGS --max-time soon clean
     STDOUT "${expected}/empty.txt" STDERR "${expected}/bad_budget_stderr.txt")
 
+pqscan_add_cli_test(a_finding_below_the_threshold_does_not_fail EXIT 0
+    ARGS --fail-on CLASSICALLY_WEAK findings/rsa.c STDOUT "${expected}/single_file.txt")
+pqscan_add_cli_test(a_finding_at_the_threshold_fails EXIT 1
+    ARGS --fail-on QUANTUM_VULNERABLE findings/rsa.c STDOUT "${expected}/single_file.txt")
+pqscan_add_cli_test(a_finding_above_the_threshold_fails EXIT 1
+    ARGS --fail-on OK findings/rsa.c STDOUT "${expected}/single_file.txt")
+pqscan_add_cli_test(below_the_threshold_and_incomplete_is_not_clean EXIT 4
+    ARGS --fail-on CLASSICALLY_WEAK findings/rsa.c edge/binary.c
+    STDOUT "${expected}/single_file.txt" STDERR "${expected}/incomplete_stderr.txt")
+pqscan_add_cli_test(at_the_threshold_and_incomplete_reports_findings EXIT 1
+    ARGS --fail-on QUANTUM_VULNERABLE findings/rsa.c edge/binary.c
+    STDOUT "${expected}/single_file.txt" STDERR "${expected}/incomplete_stderr.txt")
+pqscan_add_cli_test(unknown_threshold EXIT 2 ARGS --fail-on review clean
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/bad_threshold_stderr.txt")
+pqscan_add_cli_test(unknown_format EXIT 2 ARGS --format xml clean
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/bad_format_stderr.txt")
+
 pqscan_add_cli_test(custom_rules EXIT 1 ARGS --rules ../rules/custom.json custom
     STDOUT "${expected}/custom_rules.txt" STDERR "${expected}/empty.txt")
 pqscan_add_cli_test(custom_rules_replace_the_built_in_ones EXIT 0

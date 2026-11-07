@@ -1,0 +1,2 @@
+pqscan: --fail-on: expected OK, REVIEW, QUANTUM_VULNERABLE or CLASSICALLY_WEAK
+Try 'pqscan --help' for more information.
