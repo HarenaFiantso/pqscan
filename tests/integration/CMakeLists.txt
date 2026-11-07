@@ -59,7 +59,8 @@ pqscan_add_cli_test(ignore_directory EXIT 1 ARGS findings --ignore sub
     STDOUT "${expected}/findings_without_sub.txt")
 pqscan_add_cli_test(ignore_glob EXIT 1 ARGS --ignore *.hpp findings
     STDOUT "${expected}/findings_without_sub.txt")
-pqscan_add_cli_test(ignore_everything EXIT 0 ARGS --ignore *.c --ignore *.hpp findings
+pqscan_add_cli_test(ignore_everything EXIT 0
+    ARGS --ignore *.c --ignore *.h --ignore *.cpp --ignore *.hpp findings
     STDOUT "${expected}/empty.txt")
 pqscan_add_cli_test(edge_cases EXIT 1 ARGS edge STDOUT "${expected}/edge_stdout.txt"
     STDERR "${expected}/edge_stderr.txt")

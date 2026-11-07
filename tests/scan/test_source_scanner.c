@@ -7,10 +7,25 @@
 #include "unity.h"
 
 #include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-enum { HUGE_LINE_SIZE = 1024 * 1024, EXPECTED_LINE = 4 };
+enum {
+    HUGE_LINE_SIZE = 1024 * 1024,
+    EXPECTED_LINE = 4,
+    DESCRIPTION_SIZE = 256,
+    DEEP_NESTING = 20000,
+    RANDOM_INPUT_SIZE = 4096,
+    RANDOM_ROUNDS = 50,
+};
+
+/* A linear congruential generator, so that every run tests the same bytes. */
+static const uint32_t RANDOM_SEED = 2048;
+static const uint32_t RANDOM_MULTIPLIER = 1664525;
+static const uint32_t RANDOM_INCREMENT = 1013904223;
+static const uint32_t RANDOM_SHIFT = 24;
 
 static finding_list *findings;
 
@@ -32,6 +47,36 @@ static void scan_text(char *text) {
 
 static void assert_finding_count(size_t expected) {
     TEST_ASSERT_EQUAL_size_t(expected, finding_list_count(findings));
+}
+
+/* Writes one "line:label" word per finding, where a label carries any key size. */
+static void describe_findings(char *description) {
+    size_t used = 0;
+    for (size_t i = 0; i < finding_list_count(findings); i++) {
+        const finding *item = finding_list_get(findings, i);
+        const char *separator = (i == 0) ? "" : " ";
+        const size_t left = DESCRIPTION_SIZE - used;
+        int written = 0;
+        if (item->size.kind == KEY_SIZE_KNOWN) {
+            written = snprintf(description + used, left, "%s%zu:%s-%u", separator, item->line,
+                               item->algorithm, item->size.bits);
+        } else if (item->size.kind == KEY_SIZE_UNKNOWN) {
+            written = snprintf(description + used, left, "%s%zu:%s-unknown", separator, item->line,
+                               item->algorithm);
+        } else {
+            written = snprintf(description + used, left, "%s%zu:%s", separator, item->line,
+                               item->algorithm);
+        }
+        TEST_ASSERT_TRUE(written > 0 && (size_t)written < left);
+        used += (size_t)written;
+    }
+    description[used] = '\0';
+}
+
+static void assert_findings(const char *expected) {
+    char actual[DESCRIPTION_SIZE];
+    describe_findings(actual);
+    TEST_ASSERT_EQUAL_STRING(expected, actual);
 }
 
 static void test_accepts_only_source_files(void) {
@@ -76,19 +121,176 @@ static void test_skips_longer_identifiers(void) {
     assert_finding_count(0);
 }
 
-static void test_skips_tokens_starting_with_a_digit(void) {
-    scan_text("1RSA_new\n");
-    assert_finding_count(0);
-}
-
 static void test_non_utf8_bytes_separate_identifiers(void) {
     scan_text("\xE9RSA_new\xFF\n");
     assert_finding_count(1);
 }
 
-static void test_naive_scan_also_reports_comments_and_strings(void) {
-    scan_text("/* RSA_new */ const char *s = \"DSA_new\";\n");
-    assert_finding_count(2);
+static void scan_cpp_text(const char *text) {
+    const file_contents file = {(char *)text, strlen(text)};
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, source_scanner.scan("a.cpp", &file, findings));
+}
+
+static void test_ignores_comments(void) {
+    scan_text("/* RSA_new */\n// DSA_new()\nint a; /* DH_new */\n");
+    assert_finding_count(0);
+}
+
+static void test_ignores_strings_outside_known_calls(void) {
+    scan_text("const char *s = \"DSA_new\";\n"
+              "void f(void) { puts(\"RSA_new\"); other(NULL, \"RSA\", NULL); }\n");
+    assert_finding_count(0);
+}
+
+static void test_ignores_declarations_of_a_name(void) {
+    scan_text("RSA *RSA_new(void);\n"
+              "RSA *RSA_new(void) { return 0; }\n"
+              "int (DSA_new)(void);\n"
+              "void f(int RSA_sign, int DSA_sign[4]);\n"
+              "int RSA_verify = 1;\n"
+              "enum { EVP_PKEY_RSA = 6 };\n"
+              "#define DH_new other\n"
+              "#define WRAP(EVP_md5) 1\n"
+              "#ifdef EVP_PKEY_DSA\n#endif\n"
+              "#ifndef EVP_PKEY_DH\n#endif\n"
+              "#if defined(EVP_sha1)\n#endif\n");
+    assert_finding_count(0);
+}
+
+static void test_ignores_fields_and_methods(void) {
+    scan_cpp_text("struct s { int EVP_PKEY_RSA; RSA *(*RSA_new)(void); };\n"
+                  "void f(s *p, s v) { p->EVP_PKEY_RSA = 1; p->RSA_new(); v.RSA_new(); }\n");
+    assert_finding_count(0);
+}
+
+static void test_ignores_directives_that_are_not_code(void) {
+    scan_text("#error RSA_new is gone\n#pragma RSA_new\n#include \"RSA_new\"\n");
+    assert_finding_count(0);
+}
+
+static void test_reports_references_that_are_not_calls(void) {
+    scan_text("void f(void) {\n  RSA *(*make)(void) = RSA_new;\n  use(EVP_sha1);\n}\n");
+    assert_findings("2:RSA 3:SHA-1");
+}
+
+static void test_reports_constants_as_arguments(void) {
+    scan_text("void f(void) { EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL); }\n");
+    assert_findings("1:RSA");
+}
+
+static void test_reports_nested_calls_in_order(void) {
+    scan_text("void f(void) { RSA_set0(RSA_new(), DSA_new()); }\n");
+    assert_findings("1:RSA 1:DSA");
+}
+
+static void test_reads_key_sizes(void) {
+    scan_text("void f(int bits) {\n"
+              "  RSA_generate_key_ex(r, 2048, NULL, NULL);\n"
+              "  RSA_generate_key_ex(r, bits, NULL, NULL);\n"
+              "  EVP_RSA_gen((unsigned)0xC00);\n"
+              "  RSA_new();\n"
+              "}\n");
+    assert_findings("2:RSA-2048 3:RSA-unknown 4:RSA-3072 5:RSA");
+}
+
+static void test_reference_without_a_call_has_no_key_size(void) {
+    scan_text("void *p = RSA_generate_key_ex;\n");
+    assert_findings("1:RSA");
+}
+
+static void test_reads_algorithm_names_from_known_calls(void) {
+    scan_text("void f(void) {\n"
+              "  EVP_PKEY_CTX_new_from_name(NULL, \"RSA\", NULL);\n"
+              "  EVP_MD_fetch(NULL,\n"
+              "               \"md5\", NULL);\n"
+              "  EVP_get_digestbyname(\"sha1\");\n"
+              "}\n");
+    assert_findings("2:RSA 4:MD5 5:SHA-1");
+}
+
+static void test_reads_algorithm_and_size_from_the_same_call(void) {
+    scan_text("void f(void) {\n"
+              "  EVP_PKEY_Q_keygen(NULL, NULL, \"RSA\", (size_t)3072);\n"
+              "  EVP_PKEY_Q_keygen(NULL, NULL, \"EC\", \"P-256\");\n"
+              "  EVP_PKEY_Q_keygen(NULL, NULL, \"ED25519\");\n"
+              "  EVP_PKEY_Q_keygen(NULL, NULL, \"RSA\", bits);\n"
+              "}\n");
+    assert_findings("2:RSA-3072 3:EC 4:EdDSA 5:RSA-unknown");
+}
+
+static void test_ignores_safe_or_non_literal_algorithm_names(void) {
+    scan_text("void f(const char *name) {\n"
+              "  EVP_MD_fetch(NULL, \"SHA2-256\", NULL);\n"
+              "  EVP_MD_fetch(NULL, name, NULL);\n"
+              "}\n");
+    assert_finding_count(0);
+}
+
+static void test_scans_macro_bodies_at_their_real_line(void) {
+    scan_text("\n#define NEW_KEY RSA_new()\n"
+              "#define GENERATE(r) \\\n"
+              "    RSA_generate_key_ex(r, 2048, \\\n"
+              "                        NULL, NULL)\n"
+              "#define ALGORITHM EVP_PKEY_DSA\n");
+    assert_findings("2:RSA 4:RSA-2048 6:DSA");
+}
+
+static void test_ignores_comments_and_strings_in_macro_bodies(void) {
+    scan_text("#define A 1 /* RSA_new */\n#define B \"DSA_new\"\n#define C(x) #x\n");
+    assert_finding_count(0);
+}
+
+static void test_a_define_inside_a_macro_body_is_not_followed(void) {
+    scan_text("#define A #define B RSA_new\n");
+    assert_finding_count(0);
+}
+
+static void test_skips_literal_if_zero_but_not_its_else(void) {
+    scan_text("#if 0\nvoid a(void) { RSA_new(); }\n#else\nvoid b(void) { DSA_new(); }\n#endif\n"
+              "void c(void) {\n#if 0\n  DH_new();\n#endif\n}\n");
+    assert_findings("4:DSA");
+}
+
+static void test_skips_prose_under_if_zero(void) {
+    scan_text(
+        "#if 0\nThis isn't C: RSA_new stays disabled.\n#endif\nvoid f(void) { DSA_new(); }\n");
+    assert_findings("4:DSA");
+}
+
+static void test_scans_every_other_conditional_branch(void) {
+    scan_text("#ifdef X\nvoid a(void) { RSA_new(); }\n#else\nvoid a(void) { DSA_new(); }\n#endif\n"
+              "#if 1\nvoid b(void) { DH_new(); }\n#endif\n"
+              "#if FEATURE\n#elif 0\nvoid c(void) { EVP_md5(); }\n#else\n"
+              "void c(void) { EVP_sha1(); }\n#endif\n");
+    assert_findings("2:RSA 4:DSA 7:DH 13:SHA-1");
+}
+
+static void test_scans_broken_syntax(void) {
+    scan_text("void f(void {\n  RSA_new(;\n}\nint g(void) { return DSA_new();\n");
+    assert_findings("2:RSA 4:DSA");
+}
+
+static void test_reads_qualified_names_in_cpp(void) {
+    scan_cpp_text("void f() {\n"
+                  "  ::RSA_new();\n"
+                  "  ossl::v3::RSA_generate_key_ex(r, 2048, 0, 0);\n"
+                  "  auto id = ::EVP_PKEY_DSA;\n"
+                  "}\n"
+                  "RSA *ns::RSA_new() { return 0; }\n");
+    assert_findings("2:RSA 3:RSA-2048 4:DSA");
+}
+
+static void test_scans_lambdas_and_templates_in_cpp(void) {
+    scan_cpp_text("template <class T> T make() { return DH_new(); }\n"
+                  "auto f = [] { return EVP_md5(); };\n");
+    assert_findings("1:DH 2:MD5");
+}
+
+static void test_headers_accept_c_code_using_cpp_keywords(void) {
+    const char *text = "int class = 1;\nvoid f(void) { int new = 0; RSA_new(); }\n";
+    const file_contents file = {(char *)text, strlen(text)};
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, source_scanner.scan("a.h", &file, findings));
+    assert_findings("2:RSA");
 }
 
 static void test_skips_files_containing_nul_bytes(void) {
@@ -97,8 +299,48 @@ static void test_skips_files_containing_nul_bytes(void) {
     assert_finding_count(0);
 }
 
+static void test_survives_deep_nesting(void) {
+    static char text[((size_t)DEEP_NESTING * 2) + 1];
+    memset(text, '(', DEEP_NESTING);
+    text[DEEP_NESTING] = '1';
+    memset(text + DEEP_NESTING + 1, ')', DEEP_NESTING);
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, scan_bytes(text, sizeof(text)));
+}
+
+static void test_survives_many_nested_conditionals(void) {
+    static const char level[] = "#if 0\n#else\n";
+    static char text[(size_t)DEEP_NESTING * (sizeof(level) - 1)];
+    for (size_t i = 0; i < sizeof(text); i++) {
+        text[i] = level[i % (sizeof(level) - 1)];
+    }
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, scan_bytes(text, sizeof(text)));
+}
+
+static void test_survives_every_truncation_of_a_source(void) {
+    static const char source[] =
+        "#define K(x) \\\n  RSA_generate_key_ex(x, (int)2048, NULL, NULL)\n#if 0\n/* c */\n#else\n"
+        "void f(void) { EVP_MD_fetch(NULL, \"md5\", NULL); ::a::b(\"\\x41\"); }\n#endif\n";
+    char copy[sizeof(source)];
+    for (size_t len = 0; len < sizeof(source); len++) {
+        memcpy(copy, source, len);
+        TEST_ASSERT_EQUAL_INT(PQSCAN_OK, scan_bytes(copy, len));
+    }
+}
+
+static void test_survives_arbitrary_bytes(void) {
+    static unsigned char data[RANDOM_INPUT_SIZE];
+    uint32_t state = RANDOM_SEED;
+    for (size_t round = 0; round < RANDOM_ROUNDS; round++) {
+        for (size_t i = 0; i < sizeof(data); i++) {
+            state = (state * RANDOM_MULTIPLIER) + RANDOM_INCREMENT;
+            data[i] = (unsigned char)((state >> RANDOM_SHIFT) | 1U);
+        }
+        TEST_ASSERT_EQUAL_INT(PQSCAN_OK, scan_bytes((char *)data, sizeof(data)));
+    }
+}
+
 static void test_finds_a_match_after_a_huge_line(void) {
-    static const char suffix[] = "\nRSA_new";
+    static const char suffix[] = ";\nRSA_new();";
     const size_t len = HUGE_LINE_SIZE + strlen(suffix);
     char *data = malloc(len + 1);
     TEST_ASSERT_NOT_NULL(data);
@@ -121,10 +363,35 @@ int main(void) {
     RUN_TEST(test_reports_each_match_on_a_line);
     RUN_TEST(test_matches_at_the_edges_of_the_file);
     RUN_TEST(test_skips_longer_identifiers);
-    RUN_TEST(test_skips_tokens_starting_with_a_digit);
     RUN_TEST(test_non_utf8_bytes_separate_identifiers);
-    RUN_TEST(test_naive_scan_also_reports_comments_and_strings);
+    RUN_TEST(test_ignores_comments);
+    RUN_TEST(test_ignores_strings_outside_known_calls);
+    RUN_TEST(test_ignores_declarations_of_a_name);
+    RUN_TEST(test_ignores_fields_and_methods);
+    RUN_TEST(test_ignores_directives_that_are_not_code);
+    RUN_TEST(test_reports_references_that_are_not_calls);
+    RUN_TEST(test_reports_constants_as_arguments);
+    RUN_TEST(test_reports_nested_calls_in_order);
+    RUN_TEST(test_reads_key_sizes);
+    RUN_TEST(test_reference_without_a_call_has_no_key_size);
+    RUN_TEST(test_reads_algorithm_names_from_known_calls);
+    RUN_TEST(test_reads_algorithm_and_size_from_the_same_call);
+    RUN_TEST(test_ignores_safe_or_non_literal_algorithm_names);
+    RUN_TEST(test_scans_macro_bodies_at_their_real_line);
+    RUN_TEST(test_ignores_comments_and_strings_in_macro_bodies);
+    RUN_TEST(test_a_define_inside_a_macro_body_is_not_followed);
+    RUN_TEST(test_skips_literal_if_zero_but_not_its_else);
+    RUN_TEST(test_skips_prose_under_if_zero);
+    RUN_TEST(test_scans_every_other_conditional_branch);
+    RUN_TEST(test_scans_broken_syntax);
+    RUN_TEST(test_reads_qualified_names_in_cpp);
+    RUN_TEST(test_scans_lambdas_and_templates_in_cpp);
+    RUN_TEST(test_headers_accept_c_code_using_cpp_keywords);
     RUN_TEST(test_skips_files_containing_nul_bytes);
     RUN_TEST(test_finds_a_match_after_a_huge_line);
+    RUN_TEST(test_survives_deep_nesting);
+    RUN_TEST(test_survives_many_nested_conditionals);
+    RUN_TEST(test_survives_every_truncation_of_a_source);
+    RUN_TEST(test_survives_arbitrary_bytes);
     return UNITY_END();
 }
