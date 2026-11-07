@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: Apache-2.0
+include(FetchContent)
+
+set(PQSCAN_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/.downloads" CACHE PATH
+    "Where third-party archives are kept, so presets and CI can reuse them")
+
+# These archives ship their own CMakeLists.txt, and the grammars' can run the Tree-sitter CLI.
+# Pointing SOURCE_SUBDIR at a missing directory makes FetchContent stop after extracting, so we
+# build only the generated C files below.
+FetchContent_Declare(tree_sitter
+    URL https://github.com/tree-sitter/tree-sitter/archive/refs/tags/v0.27.2.tar.gz
+    URL_HASH SHA256=356528363bf7fbad12a2cfeb5a2678c0118ef886a4d69ad9a379db5fdef0735f
+    DOWNLOAD_DIR "${PQSCAN_DOWNLOAD_DIR}"
+    SOURCE_SUBDIR none)
+FetchContent_Declare(tree_sitter_c
+    URL https://github.com/tree-sitter/tree-sitter-c/archive/refs/tags/v0.24.2.tar.gz
+    URL_HASH SHA256=2eeb4db31f8fa0865e45488503d13403923bcb485a1bdb637abff8c42dd97364
+    DOWNLOAD_DIR "${PQSCAN_DOWNLOAD_DIR}"
+    SOURCE_SUBDIR none)
+FetchContent_Declare(tree_sitter_cpp
+    URL https://github.com/tree-sitter/tree-sitter-cpp/archive/refs/tags/v0.23.4.tar.gz
+    URL_HASH SHA256=7a2c55afe3028f4105f25762ea58cc16537d1f5a1dcd9cca90410b3cd5d46051
+    DOWNLOAD_DIR "${PQSCAN_DOWNLOAD_DIR}"
+    SOURCE_SUBDIR none)
+FetchContent_MakeAvailable(tree_sitter tree_sitter_c tree_sitter_cpp)
+
+add_library(pqscan_tree_sitter STATIC "${tree_sitter_SOURCE_DIR}/lib/src/lib.c")
+target_include_directories(pqscan_tree_sitter PRIVATE "${tree_sitter_SOURCE_DIR}/lib/src")
+target_include_directories(pqscan_tree_sitter SYSTEM PUBLIC "${tree_sitter_SOURCE_DIR}/lib/include")
+# Tree-sitter's own Makefile asks for these: its endian helpers are not part of ISO C.
+target_compile_definitions(pqscan_tree_sitter PRIVATE
+    _POSIX_C_SOURCE=200112L _DEFAULT_SOURCE $<$<PLATFORM_ID:Darwin>:_DARWIN_C_SOURCE>)
+
+# One library per grammar, because each ships its own copy of tree_sitter/parser.h.
+add_library(pqscan_grammar_c STATIC "${tree_sitter_c_SOURCE_DIR}/src/parser.c")
+target_include_directories(pqscan_grammar_c PRIVATE "${tree_sitter_c_SOURCE_DIR}/src")
+
+add_library(pqscan_grammar_cpp STATIC
+    "${tree_sitter_cpp_SOURCE_DIR}/src/parser.c"
+    "${tree_sitter_cpp_SOURCE_DIR}/src/scanner.c")
+target_include_directories(pqscan_grammar_cpp PRIVATE "${tree_sitter_cpp_SOURCE_DIR}/src")

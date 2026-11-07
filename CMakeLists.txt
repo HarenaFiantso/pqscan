@@ -14,6 +14,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(cmake/posix.cmake)
 include(cmake/warnings.cmake)
 include(cmake/memcheck.cmake)
+include(cmake/dependencies.cmake)
 
 add_library(pqscan_core STATIC
     src/cli/options.c
@@ -33,7 +34,9 @@ add_library(pqscan_core STATIC
     src/walk/walker.c)
 target_include_directories(pqscan_core PUBLIC include)
 target_compile_definitions(pqscan_core PRIVATE PQSCAN_VERSION_STRING="${PROJECT_VERSION}")
-target_link_libraries(pqscan_core PRIVATE pqscan_posix pqscan_warnings)
+target_link_libraries(pqscan_core
+    PUBLIC pqscan_tree_sitter
+    PRIVATE pqscan_grammar_c pqscan_grammar_cpp pqscan_posix pqscan_warnings)
 
 add_executable(pqscan src/cli/main.c)
 target_link_libraries(pqscan PRIVATE pqscan_core pqscan_posix pqscan_warnings)
