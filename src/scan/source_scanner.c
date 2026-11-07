@@ -142,6 +142,7 @@ static pqscan_status visit_call(source_walk *walk, TSNode node, const char *fiel
 
 /* Every visitor shares one signature, even one that does not modify the walk. */
 // cppcheck-suppress constParameterCallback
+// cppcheck-suppress constParameterPointer
 static pqscan_status visit_identifier(source_walk *walk, TSNode node, const char *field) {
     return is_declared_name(field) ? PQSCAN_OK : report_identifier(walk, node);
 }
