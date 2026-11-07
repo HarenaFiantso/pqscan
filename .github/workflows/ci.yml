@@ -63,6 +63,9 @@ jobs:
       - run: cmake --preset debug
       - run: cmake --build --preset debug --parallel
       - run: ctest --preset debug
+      - run: cmake --preset release
+      - run: cmake --build --preset release --parallel
+      - run: ctest --preset release
 
   valgrind:
     needs: build-and-test
