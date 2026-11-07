@@ -22,7 +22,12 @@ FetchContent_Declare(tree_sitter_cpp
     URL_HASH SHA256=7a2c55afe3028f4105f25762ea58cc16537d1f5a1dcd9cca90410b3cd5d46051
     DOWNLOAD_DIR "${PQSCAN_DOWNLOAD_DIR}"
     SOURCE_SUBDIR none)
-FetchContent_MakeAvailable(tree_sitter tree_sitter_c tree_sitter_cpp)
+FetchContent_Declare(cjson
+    URL https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.19.tar.gz
+    URL_HASH SHA256=7fa616e3046edfa7a28a32d5f9eacfd23f92900fe1f8ccd988c1662f30454562
+    DOWNLOAD_DIR "${PQSCAN_DOWNLOAD_DIR}"
+    SOURCE_SUBDIR none)
+FetchContent_MakeAvailable(tree_sitter tree_sitter_c tree_sitter_cpp cjson)
 
 add_library(pqscan_tree_sitter STATIC "${tree_sitter_SOURCE_DIR}/lib/src/lib.c")
 target_include_directories(pqscan_tree_sitter PRIVATE "${tree_sitter_SOURCE_DIR}/lib/src")
@@ -43,3 +48,8 @@ add_library(pqscan_grammar_cpp STATIC
     "${tree_sitter_cpp_SOURCE_DIR}/src/parser.c"
     "${tree_sitter_cpp_SOURCE_DIR}/src/scanner.c")
 target_include_directories(pqscan_grammar_cpp PRIVATE "${tree_sitter_cpp_SOURCE_DIR}/src")
+
+add_library(pqscan_cjson STATIC "${cjson_SOURCE_DIR}/cJSON.c")
+target_include_directories(pqscan_cjson SYSTEM PUBLIC "${cjson_SOURCE_DIR}")
+# macOS deprecates sprintf, which cJSON calls only in the printing code pqscan never uses.
+target_compile_options(pqscan_cjson PRIVATE -Wno-deprecated-declarations)
