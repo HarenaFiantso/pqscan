@@ -17,6 +17,8 @@ const char *pqscan_status_message(pqscan_status status) {
         return "skipped, file too large";
     case PQSCAN_ERR_BINARY:
         return "skipped, binary file";
+    case PQSCAN_ERR_PARSE:
+        return "skipped, cannot parse source in time";
     }
     return "unknown status";
 }
