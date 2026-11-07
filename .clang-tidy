@@ -1,0 +1,23 @@
+# Disabled checks, each with its reason:
+#
+# bugprone-easily-swappable-parameters: fires on any adjacent parameters of one type,
+#   such as (size_t len, size_t cap), which C APIs cannot avoid.
+# clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling: demands the
+#   Annex K *_s functions, which glibc does not provide.
+# readability-identifier-length: rejects names the project allows, such as fd.
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  misc-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -readability-identifier-length
+WarningsAsErrors: '*'
+HeaderFilterRegex: '(include|src|tests)/.*'
+FormatStyle: file
+CheckOptions:
+  # Unity's macros live in this internal header; tests include the public unity.h.
+  misc-include-cleaner.IgnoreHeaders: '.*unity_internals\.h'
