@@ -5,7 +5,9 @@
 #include <stddef.h>
 #include <string.h>
 
-static const char *const SOURCE_EXTENSIONS[] = {".c", ".h", ".cpp", ".hpp"};
+static const char *const SOURCE_EXTENSIONS[] = {
+    ".c", ".h", ".cpp", ".hpp", ".cc", ".cxx", ".C", ".hh", ".hxx", ".ipp", ".inl", ".tcc",
+};
 static const char C_EXTENSION[] = ".c";
 
 bool file_type_is_source(const char *path) {
