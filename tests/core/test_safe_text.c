@@ -3,6 +3,7 @@
 #include "pqscan/core/status.h"
 #include "unity.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 
@@ -86,6 +87,19 @@ static void test_reports_a_failed_write(void) {
     TEST_ASSERT_EQUAL_INT(PQSCAN_ERR_IO, flushed);
 }
 
+static bool refuse_everything(const char *bytes, size_t len, void *context) {
+    (void)bytes;
+    (void)len;
+    (void)context;
+    return false;
+}
+
+static void test_a_sink_can_stop_the_visit(void) {
+    TEST_ASSERT_FALSE(safe_text_visit("a", refuse_everything, NULL));
+    TEST_ASSERT_FALSE(safe_text_visit("\n", refuse_everything, NULL));
+    TEST_ASSERT_TRUE(safe_text_visit("", refuse_everything, NULL));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_plain_paths_are_unchanged);
@@ -97,5 +111,6 @@ int main(void) {
     RUN_TEST(test_utf8_terminal_controls_are_escaped);
     RUN_TEST(test_utf8_reordering_marks_are_escaped);
     RUN_TEST(test_reports_a_failed_write);
+    RUN_TEST(test_a_sink_can_stop_the_visit);
     return UNITY_END();
 }

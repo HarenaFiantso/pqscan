@@ -86,29 +86,36 @@ static bool is_plain_ascii(unsigned char byte) {
     return byte >= FIRST_PRINTABLE && byte < LAST_ASCII && byte != '\\';
 }
 
-static bool write_escaped(FILE *out, unsigned char byte) {
+/* Large enough for "\\xNN" and its NUL. */
+enum { ESCAPED_BYTE_SIZE = 5 };
+
+static bool send_escaped(unsigned char byte, safe_text_sink sink, void *context) {
     if (byte == '\\') {
-        return fputs("\\\\", out) != EOF;
+        return sink("\\\\", 2, context);
     }
-    return fprintf(out, "\\x%02x", (unsigned)byte) > 0;
+    char escaped[ESCAPED_BYTE_SIZE];
+    const int len = snprintf(escaped, sizeof(escaped), "\\x%02x", (unsigned)byte);
+    return len > 0 && sink(escaped, (size_t)len, context);
 }
 
-/* Writes the next character of the text, and tells how many bytes it took. */
-static size_t write_next(FILE *out, const unsigned char *text, bool *written) {
-    const size_t len = is_plain_ascii(*text) ? 1 : safe_sequence_len(text);
-    if (len == 0) {
-        *written = write_escaped(out, *text);
-        return 1;
+bool safe_text_visit(const char *text, safe_text_sink sink, void *context) {
+    const unsigned char *rest = (const unsigned char *)text;
+    while (*rest != '\0') {
+        const size_t len = is_plain_ascii(*rest) ? 1 : safe_sequence_len(rest);
+        const bool sent = (len == 0) ? send_escaped(*rest, sink, context)
+                                     : sink((const char *)rest, len, context);
+        if (!sent) {
+            return false;
+        }
+        rest += (len == 0) ? 1 : len;
     }
-    *written = fwrite(text, 1, len, out) == len;
-    return len;
+    return true;
+}
+
+static bool write_to_stream(const char *bytes, size_t len, void *context) {
+    return fwrite(bytes, 1, len, (FILE *)context) == len;
 }
 
 pqscan_status safe_text_write(FILE *out, const char *text) {
-    const unsigned char *rest = (const unsigned char *)text;
-    bool written = true;
-    while (*rest != '\0' && written) {
-        rest += write_next(out, rest, &written);
-    }
-    return written ? PQSCAN_OK : PQSCAN_ERR_IO;
+    return safe_text_visit(text, write_to_stream, out) ? PQSCAN_OK : PQSCAN_ERR_IO;
 }
