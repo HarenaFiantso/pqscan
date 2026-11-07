@@ -26,4 +26,6 @@ CheckOptions:
   # Unity's macros live in this internal header; tests include the public unity.h.
   # macOS declares POSIX names in private headers, such as O_* flags in sys/fcntl.h and
   # strdup in _string.h. Code must include the portable headers fcntl.h and string.h.
-  misc-include-cleaner.IgnoreHeaders: '.*unity_internals\.h;.*sys/fcntl\.h;.*/_[a-z_]+\.h'
+  misc-include-cleaner.IgnoreHeaders: '.*unity_internals\.h;.*sys/(dirent|errno|fcntl)\.h;.*/_[a-z_]+\.h'
+  # In C the result of && and || has type int, so this would flag bool b = x && y.
+  readability-implicit-bool-conversion.AllowLogicalOperatorConversion: true
