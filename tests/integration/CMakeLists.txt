@@ -137,3 +137,11 @@ pqscan_add_cli_test(rules_cannot_forge_a_diagnostic EXIT 2
 if(EXISTS /dev/full)
     pqscan_add_cli_test(unwritable_report EXIT 3 ARGS findings STDOUT_SINK /dev/full)
 endif()
+
+if(PQSCAN_CHECK_REPORT_SCHEMAS)
+    add_test(NAME report_schemas
+        COMMAND "${PROJECT_SOURCE_DIR}/scripts/check-report-schemas.sh" $<TARGET_FILE:pqscan>
+            "${cyclonedx_specification_SOURCE_DIR}/schema"
+            "${sarif_schema_SOURCE_DIR}/sarif-schema-2.1.0.json")
+    set_tests_properties(report_schemas PROPERTIES LABELS schema)
+endif()

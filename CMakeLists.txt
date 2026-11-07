@@ -16,6 +16,7 @@ include(cmake/warnings.cmake)
 include(cmake/memcheck.cmake)
 include(cmake/dependencies.cmake)
 include(cmake/embed_rules.cmake)
+include(cmake/report_schemas.cmake)
 
 set(default_rules_c "${CMAKE_CURRENT_BINARY_DIR}/generated/default_rules.c")
 pqscan_embed_rules("${PROJECT_SOURCE_DIR}/rules/default.json" "${default_rules_c}")
