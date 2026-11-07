@@ -1,8 +1,14 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/core/finding.h"
+#include "pqscan/core/key_size.h"
+#include "pqscan/core/primitive.h"
 #include "pqscan/core/status.h"
 #include "pqscan/risk/risk.h"
+#include "pqscan/rules/default_rules.h"
+#include "pqscan/rules/rule_loader.h"
+#include "pqscan/rules/rule_set.h"
 #include "pqscan/scan/file_reader.h"
+#include "pqscan/scan/scanner.h"
 #include "pqscan/scan/source_scanner.h"
 #include "unity.h"
 
@@ -28,17 +34,25 @@ static const uint32_t RANDOM_INCREMENT = 1013904223;
 static const uint32_t RANDOM_SHIFT = 24;
 
 static finding_list *findings;
+static rule_set *rules;
 
 void setUp(void) {
     findings = finding_list_create();
     TEST_ASSERT_NOT_NULL(findings);
+    rule_error error;
+    const rule_source source = default_rules_source();
+    TEST_ASSERT_EQUAL_INT_MESSAGE(PQSCAN_OK, rule_set_load(&source, &rules, &error), error.message);
 }
 
-void tearDown(void) { finding_list_destroy(findings); }
+void tearDown(void) {
+    finding_list_destroy(findings);
+    rule_set_destroy(rules);
+}
 
 static pqscan_status scan_bytes(char *data, size_t len) {
     const file_contents file = {data, len};
-    return source_scanner.scan("a.c", &file, findings);
+    const scan_input input = {"a.c", &file, rules};
+    return source_scanner.scan(&input, findings);
 }
 
 static void scan_text(char *text) {
@@ -128,7 +142,8 @@ static void test_non_utf8_bytes_separate_identifiers(void) {
 
 static void scan_cpp_text(const char *text) {
     const file_contents file = {(char *)text, strlen(text)};
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, source_scanner.scan("a.cpp", &file, findings));
+    const scan_input input = {"a.cpp", &file, rules};
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, source_scanner.scan(&input, findings));
 }
 
 static void test_ignores_comments(void) {
@@ -195,6 +210,83 @@ static void test_ignores_one_shot_hash_names_outside_calls(void) {
 static void test_ignores_one_shot_hash_methods(void) {
     scan_cpp_text("void f(s *p, s v) { p->MD5(d); v.SHA1(d); }\n");
     assert_finding_count(0);
+}
+
+static void assert_risk_at(size_t index, risk_level expected) {
+    TEST_ASSERT_EQUAL_INT(expected, finding_list_get(findings, index)->risk);
+}
+
+static void test_a_short_literal_key_is_classically_weak(void) {
+    scan_text("void f(void) {\n"
+              "  RSA_generate_key_ex(r, 1024, 0, 0);\n"
+              "  RSA_generate_key_ex(r, 2047, 0, 0);\n"
+              "  RSA_generate_key_ex(r, 2048, 0, 0);\n"
+              "  DSA_generate_parameters_ex(d, 1024, 0, 0, 0, 0, 0);\n"
+              "  DH_generate_parameters_ex(h, 1024, 2, 0);\n"
+              "}\n");
+    assert_findings("2:RSA-1024 3:RSA-2047 4:RSA-2048 5:DSA-1024 6:DH-1024");
+    assert_risk_at(0, RISK_CLASSICALLY_WEAK);
+    assert_risk_at(1, RISK_CLASSICALLY_WEAK);
+    assert_risk_at(2, RISK_QUANTUM_VULNERABLE);
+    assert_risk_at(3, RISK_CLASSICALLY_WEAK);
+    assert_risk_at(4, RISK_CLASSICALLY_WEAK);
+}
+
+static void test_an_unresolved_key_size_keeps_the_base_risk(void) {
+    scan_text("void f(int bits) { RSA_generate_key_ex(r, bits, 0, 0); }\n");
+    assert_findings("1:RSA-unknown");
+    assert_risk_at(0, RISK_QUANTUM_VULNERABLE);
+}
+
+static void test_a_size_next_to_an_algorithm_name_sets_the_risk(void) {
+    scan_text("void f(void) {\n"
+              "  EVP_PKEY_Q_keygen(0, 0, \"RSA\", (size_t)1024);\n"
+              "  EVP_PKEY_Q_keygen(0, 0, \"RSA\", (size_t)3072);\n"
+              "}\n");
+    assert_findings("2:RSA-1024 3:RSA-3072");
+    assert_risk_at(0, RISK_CLASSICALLY_WEAK);
+    assert_risk_at(1, RISK_QUANTUM_VULNERABLE);
+}
+
+static void test_findings_carry_the_primitive_of_their_rule(void) {
+    scan_text("void f(void) {\n"
+              "  RSA_sign(0, 0, 0, 0, 0, 0);\n"
+              "  RSA_new();\n"
+              "  use(EVP_md5);\n"
+              "  EVP_PKEY_CTX_new_from_name(0, \"X25519\", 0);\n"
+              "}\n");
+    assert_finding_count(4);
+    TEST_ASSERT_EQUAL_INT(PRIMITIVE_SIGNATURE, finding_list_get(findings, 0)->primitive);
+    TEST_ASSERT_EQUAL_INT(PRIMITIVE_UNSPECIFIED, finding_list_get(findings, 1)->primitive);
+    TEST_ASSERT_EQUAL_INT(PRIMITIVE_HASH, finding_list_get(findings, 2)->primitive);
+    TEST_ASSERT_EQUAL_INT(PRIMITIVE_KEY_EXCHANGE, finding_list_get(findings, 3)->primitive);
+}
+
+static void use_rules(const char *json) {
+    rule_set_destroy(rules);
+    rules = NULL;
+    rule_error error;
+    const rule_source source = {json, strlen(json)};
+    TEST_ASSERT_EQUAL_INT_MESSAGE(PQSCAN_OK, rule_set_load(&source, &rules, &error), error.message);
+}
+
+static void test_an_empty_rule_set_reports_nothing(void) {
+    use_rules("{\"schema_version\":1,\"algorithms\":[],\"rules\":[],\"calls\":[]}");
+    scan_text("void f(void) { RSA_new(); MD5(d, 1, o); use(EVP_sha1); }\n");
+    assert_finding_count(0);
+}
+
+static void test_the_rules_alone_decide_what_is_reported(void) {
+    use_rules("{\"schema_version\":1,"
+              "\"algorithms\":[{\"name\":\"HOME-GROWN\",\"risk\":\"REVIEW\","
+              "\"weak_below_bits\":512}],"
+              "\"rules\":[{\"pattern\":\"my_keygen\",\"kind\":\"function\","
+              "\"algorithm\":\"HOME-GROWN\",\"primitive\":\"signature\"}],"
+              "\"calls\":[{\"name\":\"my_keygen\",\"key_bits_argument\":0}]}");
+    scan_text("void f(void) {\n  RSA_new();\n  my_keygen(256);\n  my_keygen(1024);\n}\n");
+    assert_findings("3:HOME-GROWN-256 4:HOME-GROWN-1024");
+    assert_risk_at(0, RISK_CLASSICALLY_WEAK);
+    assert_risk_at(1, RISK_REVIEW);
 }
 
 static void test_reports_constants_as_arguments(void) {
@@ -313,7 +405,8 @@ static void test_scans_lambdas_and_templates_in_cpp(void) {
 static void test_headers_accept_c_code_using_cpp_keywords(void) {
     const char *text = "int class = 1;\nvoid f(void) { int new = 0; RSA_new(); }\n";
     const file_contents file = {(char *)text, strlen(text)};
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, source_scanner.scan("a.h", &file, findings));
+    const scan_input input = {"a.h", &file, rules};
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, source_scanner.scan(&input, findings));
     assert_findings("2:RSA");
 }
 
@@ -398,6 +491,12 @@ int main(void) {
     RUN_TEST(test_reports_one_shot_hash_calls_in_macros_and_namespaces);
     RUN_TEST(test_ignores_one_shot_hash_names_outside_calls);
     RUN_TEST(test_ignores_one_shot_hash_methods);
+    RUN_TEST(test_a_short_literal_key_is_classically_weak);
+    RUN_TEST(test_an_unresolved_key_size_keeps_the_base_risk);
+    RUN_TEST(test_a_size_next_to_an_algorithm_name_sets_the_risk);
+    RUN_TEST(test_findings_carry_the_primitive_of_their_rule);
+    RUN_TEST(test_an_empty_rule_set_reports_nothing);
+    RUN_TEST(test_the_rules_alone_decide_what_is_reported);
     RUN_TEST(test_reports_constants_as_arguments);
     RUN_TEST(test_reports_nested_calls_in_order);
     RUN_TEST(test_reads_key_sizes);

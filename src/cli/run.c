@@ -3,11 +3,13 @@
 
 #include "pqscan/cli/exit_code.h"
 #include "pqscan/cli/options.h"
+#include "pqscan/cli/rule_option.h"
 #include "pqscan/core/finding.h"
 #include "pqscan/core/status.h"
 #include "pqscan/core/version.h"
 #include "pqscan/report/reporter.h"
 #include "pqscan/report/text_report.h"
+#include "pqscan/rules/rule_set.h"
 #include "pqscan/scan/file_reader.h"
 #include "pqscan/scan/scanner.h"
 #include "pqscan/scan/source_scanner.h"
@@ -34,16 +36,23 @@ static const char USAGE[] =
 
 static const scanner *const SCANNERS[] = {&source_scanner};
 
+/* What every file of a run shares. */
+typedef struct scan_job {
+    const rule_set *rules;
+    finding_list *findings;
+} scan_job;
+
 static void warn_skipped(const char *path, pqscan_status reason, void *context) {
     (void)context;
     (void)fprintf(stderr, "pqscan: warning: %s: %s\n", path, pqscan_status_message(reason));
 }
 
-static pqscan_status scan_with(const scanner *active, const char *path, finding_list *findings) {
+static pqscan_status scan_with(const scanner *active, const char *path, const scan_job *job) {
     file_contents *file = NULL;
     pqscan_status status = file_contents_read(path, &file);
     if (status == PQSCAN_OK) {
-        status = active->scan(path, file, findings);
+        const scan_input input = {path, file, job->rules};
+        status = active->scan(&input, job->findings);
     }
     file_contents_destroy(file);
     if (status == PQSCAN_OK || status == PQSCAN_ERR_NOMEM) {
@@ -53,11 +62,14 @@ static pqscan_status scan_with(const scanner *active, const char *path, finding_
     return PQSCAN_OK;
 }
 
+/* The walker's callback type passes a mutable context, which this one only reads from. */
+// cppcheck-suppress constParameterCallback
+// cppcheck-suppress constParameterPointer
 static pqscan_status scan_file(const char *path, void *context) {
-    finding_list *findings = context;
+    const scan_job *job = context;
     for (size_t i = 0; i < sizeof(SCANNERS) / sizeof(SCANNERS[0]); i++) {
         if (SCANNERS[i]->accepts(path)) {
-            const pqscan_status status = scan_with(SCANNERS[i], path, findings);
+            const pqscan_status status = scan_with(SCANNERS[i], path, job);
             if (status != PQSCAN_OK) {
                 return status;
             }
@@ -72,8 +84,8 @@ static int fail_on_path(const char *path, pqscan_status status) {
     return bad_argument ? PQSCAN_EXIT_USAGE : PQSCAN_EXIT_INTERNAL;
 }
 
-static int scan_paths(const cli_options *options, finding_list *findings) {
-    const walk_callbacks callbacks = {scan_file, warn_skipped, findings};
+static int scan_paths(const cli_options *options, scan_job *job) {
+    const walk_callbacks callbacks = {scan_file, warn_skipped, job};
     for (size_t i = 0; i < options->path_count; i++) {
         const pqscan_status status = walk_tree(options->paths[i], options->ignores, &callbacks);
         if (status != PQSCAN_OK) {
@@ -91,17 +103,29 @@ static int report_findings(const finding_list *findings) {
     return (finding_list_count(findings) > 0) ? PQSCAN_EXIT_FINDINGS : PQSCAN_EXIT_CLEAN;
 }
 
-static int run_scan(const cli_options *options) {
+static int scan_with_rules(const cli_options *options, const rule_set *rules) {
     finding_list *findings = finding_list_create();
     if (findings == NULL) {
         (void)fprintf(stderr, "pqscan: %s\n", pqscan_status_message(PQSCAN_ERR_NOMEM));
         return PQSCAN_EXIT_INTERNAL;
     }
-    int code = scan_paths(options, findings);
+    scan_job job = {rules, findings};
+    int code = scan_paths(options, &job);
     if (code == PQSCAN_EXIT_CLEAN) {
         code = report_findings(findings);
     }
     finding_list_destroy(findings);
+    return code;
+}
+
+/* Findings borrow their algorithm names from the rules, so the rules are freed last. */
+static int run_scan(const cli_options *options) {
+    rule_set *rules = NULL;
+    int code = cli_load_rules(NULL, &rules);
+    if (code == PQSCAN_EXIT_CLEAN) {
+        code = scan_with_rules(options, rules);
+    }
+    rule_set_destroy(rules);
     return code;
 }
 

@@ -2,6 +2,7 @@
 #include "pqscan/report/text_report.h"
 
 #include "pqscan/core/finding.h"
+#include "pqscan/core/key_size.h"
 #include "pqscan/core/status.h"
 #include "pqscan/report/reporter.h"
 #include "pqscan/risk/risk.h"

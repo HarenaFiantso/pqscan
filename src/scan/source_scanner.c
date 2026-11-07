@@ -2,10 +2,12 @@
 #include "pqscan/scan/source_scanner.h"
 
 #include "pqscan/core/finding.h"
+#include "pqscan/core/key_size.h"
 #include "pqscan/core/status.h"
+#include "pqscan/risk/risk.h"
+#include "pqscan/rules/rule_set.h"
 #include "pqscan/scan/call_arguments.h"
 #include "pqscan/scan/file_reader.h"
-#include "pqscan/scan/openssl_identifiers.h"
 #include "pqscan/scan/scanner.h"
 #include "pqscan/scan/syntax_parser.h"
 #include "pqscan/walk/file_type.h"
@@ -22,6 +24,7 @@ enum { PARSE_BUDGET_SECONDS = 30, DEADLINE_CHECK_INTERVAL = 1024 };
 typedef struct source_walk {
     const char *path;
     const file_contents *file;
+    const rule_set *rules;
     syntax_parser *parser;
     finding_list *findings;
     uint32_t skip_until; /* Nodes that start before this offset are not visited. */
@@ -47,28 +50,30 @@ static bool is_declared_name(const char *field) {
     return field_is(field, "declarator") || field_is(field, "name");
 }
 
-static finding finding_at(const source_walk *walk, TSNode node, const crypto_identifier *known) {
+static finding finding_at(const source_walk *walk, TSNode node, const crypto_rule *rule) {
     const finding item = {
         walk->path,
         (size_t)ts_node_start_point(node).row + 1,
-        known->algorithm,
-        known->risk,
+        rule->algorithm->name,
+        rule->algorithm->risk,
         {KEY_SIZE_NOT_APPLICABLE, 0},
+        rule->primitive,
     };
     return item;
 }
 
-static const crypto_identifier *find_identifier(const source_walk *walk, TSNode node) {
-    const syntax_text name = syntax_node_text(node, walk->file);
-    return openssl_identifier_find(name.data, name.len);
+static void set_key_size(finding *item, const crypto_rule *rule, key_size size) {
+    item->size = size;
+    item->risk = risk_classify(rule->algorithm, size);
 }
 
 static pqscan_status report_identifier(const source_walk *walk, TSNode node) {
-    const crypto_identifier *known = find_identifier(walk, node);
-    if (known == NULL) {
+    const syntax_text name = syntax_node_text(node, walk->file);
+    const crypto_rule *rule = rule_set_find_mention(walk->rules, name.data, name.len);
+    if (rule == NULL) {
         return PQSCAN_OK;
     }
-    const finding item = finding_at(walk, node, known);
+    const finding item = finding_at(walk, node, rule);
     return finding_list_add(walk->findings, &item);
 }
 
@@ -83,27 +88,19 @@ static key_size signature_key_size(const source_walk *walk, TSNode call,
 
 static const call_signature *find_signature(const source_walk *walk, TSNode name) {
     const syntax_text text = syntax_node_text(name, walk->file);
-    return openssl_call_find(text.data, text.len);
-}
-
-static const crypto_identifier *find_callee(const source_walk *walk, TSNode name) {
-    const crypto_identifier *known = find_identifier(walk, name);
-    if (known != NULL) {
-        return known;
-    }
-    const syntax_text text = syntax_node_text(name, walk->file);
-    return openssl_call_only_find(text.data, text.len);
+    return rule_set_find_call(walk->rules, text.data, text.len);
 }
 
 static pqscan_status report_callee(const source_walk *walk, TSNode call, TSNode name) {
-    const crypto_identifier *known = find_callee(walk, name);
-    if (known == NULL) {
+    const syntax_text text = syntax_node_text(name, walk->file);
+    const crypto_rule *rule = rule_set_find_callee(walk->rules, text.data, text.len);
+    if (rule == NULL) {
         return PQSCAN_OK;
     }
-    finding item = finding_at(walk, name, known);
+    finding item = finding_at(walk, name, rule);
     const call_signature *signature = find_signature(walk, name);
     if (signature != NULL) {
-        item.size = signature_key_size(walk, call, signature);
+        set_key_size(&item, rule, signature_key_size(walk, call, signature));
     }
     return finding_list_add(walk->findings, &item);
 }
@@ -116,12 +113,12 @@ static pqscan_status report_algorithm_argument(const source_walk *walk, TSNode c
         return PQSCAN_OK;
     }
     const syntax_text text = syntax_node_text(argument, walk->file);
-    const crypto_identifier *known = openssl_algorithm_name_find(text.data, text.len);
-    if (known == NULL) {
+    const crypto_rule *rule = rule_set_find_string(walk->rules, text.data, text.len);
+    if (rule == NULL) {
         return PQSCAN_OK;
     }
-    finding item = finding_at(walk, argument, known);
-    item.size = signature_key_size(walk, call, signature);
+    finding item = finding_at(walk, argument, rule);
+    set_key_size(&item, rule, signature_key_size(walk, call, signature));
     return finding_list_add(walk->findings, &item);
 }
 
@@ -287,18 +284,21 @@ static pqscan_status parse_and_walk(source_walk *walk) {
     return status;
 }
 
-static pqscan_status scan_source(const char *path, const file_contents *file,
-                                 finding_list *findings) {
-    if (memchr(file->data, '\0', file->len) != NULL) {
+static pqscan_status scan_source(const scan_input *input, finding_list *findings) {
+    if (memchr(input->file->data, '\0', input->file->len) != NULL) {
         return PQSCAN_ERR_BINARY;
     }
-    const syntax_source source = {file_type_source_language(path), file, PARSE_BUDGET_SECONDS};
+    const syntax_source source = {
+        file_type_source_language(input->path),
+        input->file,
+        PARSE_BUDGET_SECONDS,
+    };
     syntax_parser *parser = NULL;
     pqscan_status status = syntax_parser_create(&source, &parser);
     if (status != PQSCAN_OK) {
         return status;
     }
-    source_walk walk = {path, file, parser, findings, 0, 0, false};
+    source_walk walk = {input->path, input->file, input->rules, parser, findings, 0, 0, false};
     status = parse_and_walk(&walk);
     syntax_parser_destroy(parser);
     return status;

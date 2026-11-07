@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/core/finding.h"
+#include "pqscan/core/key_size.h"
+#include "pqscan/core/primitive.h"
 #include "pqscan/core/status.h"
 #include "pqscan/report/text_report.h"
 #include "pqscan/risk/risk.h"
@@ -43,8 +45,12 @@ static void test_no_findings_write_nothing(void) {
 }
 
 static void test_writes_one_line_per_finding(void) {
-    const finding first = {"src/a.c", SAMPLE_LINE, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE};
-    const finding second = {"b.h", 1, "MD5", RISK_CLASSICALLY_WEAK, NO_KEY_SIZE};
+    const finding first = {
+        "src/a.c", SAMPLE_LINE, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED,
+    };
+    const finding second = {
+        "b.h", 1, "MD5", RISK_CLASSICALLY_WEAK, NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED,
+    };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &first));
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &second));
 
@@ -57,8 +63,17 @@ static void test_writes_one_line_per_finding(void) {
 }
 
 static void test_appends_the_key_size_to_the_algorithm(void) {
-    const finding known = {"a.c", 1, "RSA", RISK_QUANTUM_VULNERABLE, {KEY_SIZE_KNOWN, SAMPLE_BITS}};
-    const finding unknown = {"a.c", 2, "RSA", RISK_QUANTUM_VULNERABLE, {KEY_SIZE_UNKNOWN, 0}};
+    const finding known = {
+        "a.c",
+        1,
+        "RSA",
+        RISK_QUANTUM_VULNERABLE,
+        {KEY_SIZE_KNOWN, SAMPLE_BITS},
+        PRIMITIVE_UNSPECIFIED,
+    };
+    const finding unknown = {
+        "a.c", 2, "RSA", RISK_QUANTUM_VULNERABLE, {KEY_SIZE_UNKNOWN, 0}, PRIMITIVE_UNSPECIFIED,
+    };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &known));
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &unknown));
 
@@ -71,7 +86,9 @@ static void test_appends_the_key_size_to_the_algorithm(void) {
 }
 
 static void test_reports_a_failed_write(void) {
-    const finding item = {"a.c", 1, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE};
+    const finding item = {
+        "a.c", 1, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED,
+    };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
 
     FILE *read_only = fopen("/dev/null", "r");

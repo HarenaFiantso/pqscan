@@ -27,6 +27,7 @@ add_custom_command(OUTPUT "${default_rules_c}"
 add_library(pqscan_core STATIC
     "${default_rules_c}"
     src/cli/options.c
+    src/cli/rule_option.c
     src/cli/run.c
     src/core/finding.c
     src/core/memory.c
@@ -40,7 +41,6 @@ add_library(pqscan_core STATIC
     src/rules/rule_set.c
     src/scan/call_arguments.c
     src/scan/file_reader.c
-    src/scan/openssl_identifiers.c
     src/scan/source_scanner.c
     src/scan/syntax_parser.c
     src/walk/file_type.c

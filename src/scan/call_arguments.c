@@ -2,6 +2,7 @@
 #include "pqscan/scan/call_arguments.h"
 
 #include "pqscan/core/finding.h"
+#include "pqscan/core/key_size.h"
 #include "pqscan/scan/file_reader.h"
 #include "pqscan/scan/syntax_parser.h"
 
