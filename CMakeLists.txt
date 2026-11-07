@@ -16,7 +16,16 @@ include(cmake/warnings.cmake)
 include(cmake/memcheck.cmake)
 include(cmake/dependencies.cmake)
 
+set(default_rules_json "${PROJECT_SOURCE_DIR}/rules/default.json")
+set(default_rules_c "${CMAKE_CURRENT_BINARY_DIR}/generated/default_rules.c")
+add_custom_command(OUTPUT "${default_rules_c}"
+    COMMAND "${CMAKE_COMMAND}" "-DINPUT=${default_rules_json}" "-DOUTPUT=${default_rules_c}"
+        -P "${PROJECT_SOURCE_DIR}/cmake/embed_rules.cmake"
+    DEPENDS "${default_rules_json}" "${PROJECT_SOURCE_DIR}/cmake/embed_rules.cmake"
+    VERBATIM)
+
 add_library(pqscan_core STATIC
+    "${default_rules_c}"
     src/cli/options.c
     src/cli/run.c
     src/core/finding.c
