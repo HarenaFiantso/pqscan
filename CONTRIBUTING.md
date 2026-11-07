@@ -145,8 +145,8 @@ ctest --preset valgrind
 ```
 
 The `valgrind` preset uses Valgrind on Linux and Apple's `leaks` on macOS, because
-Valgrind does not run on Apple Silicon. `leaks` finds leaks only, so CI's Valgrind job is
-the final check. To catch what `leaks` misses before you push, run the preset in the
+Valgrind does not run on Apple Silicon. `leaks` only looks for leaks, and it can miss some
+because it scans memory conservatively, so CI's Valgrind job is the final check. To catch what `leaks` misses before you push, run the preset in the
 [Linux container](#linux-container-optional).
 
 To run just the memory-checked tests, use `ctest --preset valgrind -L valgrind`.
