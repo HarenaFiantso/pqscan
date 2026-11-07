@@ -5,6 +5,7 @@
 #include "pqscan/cli/exit_code.h"
 #include "pqscan/cli/options.h"
 #include "pqscan/cli/rule_option.h"
+#include "pqscan/core/clock.h"
 #include "pqscan/core/finding.h"
 #include "pqscan/core/status.h"
 #include "pqscan/core/version.h"
@@ -20,6 +21,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static const char USAGE[] =
     "Usage: pqscan [OPTIONS] PATH...\n"
@@ -29,6 +31,7 @@ static const char USAGE[] =
     "Options:\n"
     "  -i, --ignore PATTERN  skip paths matching this glob (repeatable; .git is always skipped)\n"
     "  -r, --rules FILE      use the rules in this JSON file instead of the built-in ones\n"
+    "      --max-time SECS   start on no new file after this long (default 3600)\n"
     "  -h, --help            show this help and exit\n"
     "  -V, --version         show the version and exit\n"
     "\n"
@@ -47,6 +50,7 @@ typedef struct scan_job {
     finding_list *findings;
     const char *root;  /* The PATH being walked. */
     size_t unanalyzed; /* Paths in scope that were not analyzed. */
+    time_t deadline;   /* When to stop starting on new files. */
 } scan_job;
 
 /* A symlink or device inside a tree is left out by design. The same thing given as a PATH was
@@ -76,11 +80,20 @@ static pqscan_status scan_with(const scanner *active, const char *path, scan_job
     return PQSCAN_OK;
 }
 
+/* The budget of each file already bounds how far past the deadline a run can go. */
+static pqscan_status scan_or_skip(const scanner *active, const char *path, scan_job *job) {
+    if (pqscan_monotonic_seconds() < job->deadline) {
+        return scan_with(active, path, job);
+    }
+    warn_skipped(path, PQSCAN_ERR_BUDGET, job);
+    return PQSCAN_OK;
+}
+
 static pqscan_status scan_file(const char *path, void *context) {
     scan_job *job = context;
     for (size_t i = 0; i < sizeof(SCANNERS) / sizeof(SCANNERS[0]); i++) {
         if (SCANNERS[i]->accepts(path)) {
-            const pqscan_status status = scan_with(SCANNERS[i], path, job);
+            const pqscan_status status = scan_or_skip(SCANNERS[i], path, job);
             if (status != PQSCAN_OK) {
                 return status;
             }
@@ -133,7 +146,8 @@ static int scan_with_rules(const cli_options *options, const rule_set *rules) {
         (void)fprintf(stderr, "pqscan: %s\n", pqscan_status_message(PQSCAN_ERR_NOMEM));
         return PQSCAN_EXIT_INTERNAL;
     }
-    scan_job job = {rules, findings, NULL, 0};
+    const time_t deadline = pqscan_monotonic_seconds() + (time_t)options->max_seconds;
+    scan_job job = {rules, findings, NULL, 0, deadline};
     int code = scan_paths(options, &job);
     if (code == PQSCAN_EXIT_CLEAN) {
         code = report_findings(&job);

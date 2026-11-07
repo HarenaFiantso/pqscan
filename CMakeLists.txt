@@ -26,6 +26,7 @@ add_library(pqscan_core STATIC
     src/cli/options.c
     src/cli/rule_option.c
     src/cli/run.c
+    src/core/clock.c
     src/core/finding.c
     src/core/memory.c
     src/core/primitive.c

@@ -5,6 +5,7 @@ Find quantum-vulnerable cryptography in C/C++ source files.
 Options:
   -i, --ignore PATTERN  skip paths matching this glob (repeatable; .git is always skipped)
   -r, --rules FILE      use the rules in this JSON file instead of the built-in ones
+      --max-time SECS   start on no new file after this long (default 3600)
   -h, --help            show this help and exit
   -V, --version         show the version and exit
 

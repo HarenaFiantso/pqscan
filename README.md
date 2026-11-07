@@ -105,6 +105,7 @@ Enum constants aren't followed yet, so they also stay `unknown`.
 | --- | --- |
 | `-i`, `--ignore PATTERN` | Skip paths matching a glob, tried on the file name, the path, and the path relative to `PATH`. Repeatable. `.git` is always skipped. |
 | `-r`, `--rules FILE` | Use the rules in this JSON file instead of the built-in ones. |
+| `--max-time SECS` | Start on no new file after this long. The default is 3600. Files left over are skipped, so the scan is incomplete. |
 | `-h`, `--help` | Show the help and exit. |
 | `-V`, `--version` | Show the version and exit. |
 

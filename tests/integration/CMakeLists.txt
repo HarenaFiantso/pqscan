@@ -74,6 +74,11 @@ pqscan_add_cli_test(symlink_in_a_tree_is_skipped_by_design EXIT 0 ARGS links
 pqscan_add_cli_test(symlink_as_root_is_not_a_clean_result EXIT 4 ARGS links/to_clean
     STDOUT "${expected}/empty.txt" STDERR "${expected}/symlink_root_stderr.txt")
 
+pqscan_add_cli_test(used_up_budget_is_not_a_clean_result EXIT 4 ARGS --max-time 0 findings/rsa.c
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/budget_stderr.txt")
+pqscan_add_cli_test(budget_must_be_a_number EXIT 2 ARGS --max-time soon clean
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/bad_budget_stderr.txt")
+
 pqscan_add_cli_test(custom_rules EXIT 1 ARGS --rules ../rules/custom.json custom
     STDOUT "${expected}/custom_rules.txt" STDERR "${expected}/empty.txt")
 pqscan_add_cli_test(custom_rules_replace_the_built_in_ones EXIT 0

@@ -21,6 +21,8 @@ const char *pqscan_status_message(pqscan_status status) {
         return "skipped, cannot parse source in time";
     case PQSCAN_ERR_RULES:
         return "invalid rules";
+    case PQSCAN_ERR_BUDGET:
+        return "skipped, scan time budget used up";
     }
     return "unknown status";
 }

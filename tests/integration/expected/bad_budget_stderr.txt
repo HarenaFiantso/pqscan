@@ -1,0 +1,2 @@
+pqscan: --max-time: expected a number of seconds
+Try 'pqscan --help' for more information.
