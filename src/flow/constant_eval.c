@@ -32,6 +32,7 @@ typedef struct eval_run {
     uint32_t position;    /* Where the expression stands in the file. */
     unsigned steps;       /* Nodes evaluated so far. */
     bool file_scope_only; /* Inside the initializer of a constant, which sees no locals. */
+    bool in_operand;      /* Inside an operand, where a macro's text mixes with the operator. */
 } eval_run;
 
 static const constant_value UNKNOWN_VALUE = {CONSTANT_UNKNOWN, 0, {"", 0}};
@@ -106,8 +107,11 @@ static constant_value apply_operator(syntax_text operator_text, uint64_t left, u
 
 // NOLINTNEXTLINE(misc-no-recursion): MAX_EVAL_DEPTH bounds the recursion.
 static constant_value eval_binary(eval_run *run, TSNode expression, unsigned depth) {
+    const bool outer = run->in_operand;
+    run->in_operand = true;
     const constant_value left = eval_node(run, syntax_node_field(expression, "left"), depth + 1);
     const constant_value right = eval_node(run, syntax_node_field(expression, "right"), depth + 1);
+    run->in_operand = outer;
     if (left.kind != CONSTANT_INTEGER || right.kind != CONSTANT_INTEGER) {
         return UNKNOWN_VALUE;
     }
@@ -134,10 +138,15 @@ static bool find_only_child(TSNode parent, TSNode *out) {
     return syntax_named_child(parent, 0, out) && !syntax_named_child(parent, 1, &ignored);
 }
 
-/* Alone, a macro body such as 2048 is no valid C, so the grammar wraps it in an ERROR. */
+/* Alone, a macro body is no valid C. The grammar wraps 2048 in an ERROR, and (2048) in a
+ * statement that misses its semicolon. */
 static bool find_macro_expression(TSNode root, TSNode *out) {
-    return find_only_child(root, out) &&
-           (!syntax_node_is(*out, "ERROR") || find_only_child(*out, out));
+    if (!find_only_child(root, out)) {
+        return false;
+    }
+    const bool wrapped =
+        syntax_node_is(*out, "ERROR") || syntax_node_is(*out, "expression_statement");
+    return !wrapped || find_only_child(*out, out);
 }
 
 /* The grammar stops at the first thing it understands, so that 1024 + gives 1024. */
@@ -152,6 +161,11 @@ static bool reaches_end_of_body(const eval_run *run, TSNode expression, TSNode b
     return is_blank_or_comment(rest);
 }
 
+/* A macro expands as text: with #define B 512 + 512, B * 2 is 512 + 512 * 2, not 1024 * 2. */
+static bool is_split_by_expansion(const eval_run *run, TSNode expression) {
+    return run->in_operand && syntax_node_is(expression, "binary_expression");
+}
+
 // NOLINTNEXTLINE(misc-no-recursion): MAX_EVAL_DEPTH bounds the recursion.
 static constant_value eval_macro(eval_run *run, TSNode body, unsigned depth) {
     TSTree *tree = NULL;
@@ -161,7 +175,7 @@ static constant_value eval_macro(eval_run *run, TSNode body, unsigned depth) {
     TSNode expression;
     constant_value value = UNKNOWN_VALUE;
     if (find_macro_expression(ts_tree_root_node(tree), &expression) &&
-        reaches_end_of_body(run, expression, body)) {
+        reaches_end_of_body(run, expression, body) && !is_split_by_expansion(run, expression)) {
         value = eval_node(run, expression, depth + 1);
     }
     ts_tree_delete(tree);
@@ -170,10 +184,12 @@ static constant_value eval_macro(eval_run *run, TSNode body, unsigned depth) {
 
 // NOLINTNEXTLINE(misc-no-recursion): MAX_EVAL_DEPTH bounds the recursion.
 static constant_value eval_global(eval_run *run, TSNode initializer, unsigned depth) {
-    const bool outer = run->file_scope_only;
+    const eval_run outer = *run;
     run->file_scope_only = true;
+    run->in_operand = false; /* A constant is a value, whatever surrounds its name. */
     const constant_value value = eval_node(run, initializer, depth + 1);
-    run->file_scope_only = outer;
+    run->file_scope_only = outer.file_scope_only;
+    run->in_operand = outer.in_operand;
     return value;
 }
 
@@ -220,8 +236,8 @@ static constant_value eval_node(eval_run *run, TSNode expression, unsigned depth
     if (depth > MAX_EVAL_DEPTH || run->steps > MAX_EVAL_STEPS) {
         return UNKNOWN_VALUE;
     }
-    const TSNode node = syntax_unwrap_expression(expression);
     const file_contents *file = run->env->source->file;
+    const TSNode node = syntax_unwrap_expression(expression, file);
     if (syntax_node_is(node, "number_literal")) {
         return eval_number(syntax_node_text(node, file));
     }
@@ -236,6 +252,6 @@ static constant_value eval_node(eval_run *run, TSNode expression, unsigned depth
 }
 
 constant_value constant_eval(const eval_env *env, TSNode expression) {
-    eval_run run = {env, ts_node_start_byte(expression), 0, false};
+    eval_run run = {env, ts_node_start_byte(expression), 0, false, false};
     return eval_node(&run, expression, 0);
 }

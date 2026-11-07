@@ -3,6 +3,7 @@
 
 #include "pqscan/core/finding.h"
 #include "pqscan/core/key_size.h"
+#include "pqscan/core/safe_text.h"
 #include "pqscan/core/status.h"
 #include "pqscan/report/reporter.h"
 #include "pqscan/risk/risk.h"
@@ -27,8 +28,11 @@ static pqscan_status write_text(const finding_list *findings, FILE *out) {
         const finding *item = finding_list_get(findings, i);
         char key_suffix[KEY_SUFFIX_SIZE];
         format_key_suffix(&item->size, key_suffix);
-        const int written = fprintf(out, "%s:%zu: %s%s (%s)\n", item->path, item->line,
-                                    item->algorithm, key_suffix, risk_level_name(item->risk));
+        if (safe_text_write(out, item->path) != PQSCAN_OK) {
+            return PQSCAN_ERR_IO;
+        }
+        const int written = fprintf(out, ":%zu: %s%s (%s)\n", item->line, item->algorithm,
+                                    key_suffix, risk_level_name(item->risk));
         if (written < 0) {
             return PQSCAN_ERR_IO;
         }

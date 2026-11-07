@@ -128,23 +128,25 @@ static pqscan_status report_algorithm_argument(const source_walk *walk, TSNode c
     return finding_list_add(walk->findings, &item);
 }
 
-/* ns::a::name nests one qualified_identifier in the name field of the previous one. */
-static TSNode strip_qualifiers(TSNode name) {
-    TSNode inner = name;
-    while (syntax_node_is(inner, "qualified_identifier")) {
-        inner = syntax_node_field(inner, "name");
+/* ns::a::name nests one qualified_identifier in the name field of the previous one, and
+ * name<int> keeps it in the same field. (name)(x) is how code avoids a macro of that name. */
+static TSNode strip_name_wrapping(TSNode name) {
+    TSNode inner = syntax_strip_parentheses(name);
+    while (syntax_node_is(inner, "qualified_identifier") ||
+           syntax_node_is(inner, "template_function")) {
+        inner = syntax_strip_parentheses(syntax_node_field(inner, "name"));
     }
     return inner;
 }
 
 static pqscan_status visit_call(source_walk *walk, TSNode node, const char *field) {
     (void)field;
-    const TSNode callee = syntax_node_field(node, "function");
-    const TSNode name = strip_qualifiers(callee);
+    const TSNode name = strip_name_wrapping(syntax_node_field(node, "function"));
     if (!syntax_node_is(name, "identifier")) {
         return PQSCAN_OK;
     }
-    walk->skip_until = ts_node_end_byte(callee);
+    /* Not the end of the callee, because the template arguments still need visiting. */
+    walk->skip_until = ts_node_end_byte(name);
     const pqscan_status status = report_callee(walk, node, name);
     if (status != PQSCAN_OK) {
         return status;
@@ -167,7 +169,7 @@ static pqscan_status skip_subtree(source_walk *walk, TSNode node, const char *fi
 
 static pqscan_status visit_qualified_identifier(source_walk *walk, TSNode node, const char *field) {
     walk->skip_until = ts_node_end_byte(node);
-    const TSNode name = strip_qualifiers(node);
+    const TSNode name = strip_name_wrapping(node);
     if (is_declared_name(field) || !syntax_node_is(name, "identifier")) {
         return PQSCAN_OK;
     }

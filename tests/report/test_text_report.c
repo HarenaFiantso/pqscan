@@ -85,6 +85,25 @@ static void test_appends_the_key_size_to_the_algorithm(void) {
                              output);
 }
 
+static void test_a_file_name_cannot_forge_a_line(void) {
+    const finding item = {
+        "evil\nfake.c:1: AES-256 (OK)\n\x1b[2K.c",
+        7,
+        "RSA",
+        RISK_QUANTUM_VULNERABLE,
+        NO_KEY_SIZE,
+        PRIMITIVE_UNSPECIFIED,
+    };
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
+
+    char output[OUTPUT_SIZE];
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(findings, out));
+    read_back(output, sizeof(output));
+    TEST_ASSERT_EQUAL_STRING("evil\\x0afake.c:1: AES-256 (OK)\\x0a\\x1b[2K.c:7: RSA "
+                             "(QUANTUM_VULNERABLE)\n",
+                             output);
+}
+
 static void test_reports_a_failed_write(void) {
     const finding item = {
         "a.c", 1, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED,
@@ -104,6 +123,7 @@ int main(void) {
     RUN_TEST(test_no_findings_write_nothing);
     RUN_TEST(test_writes_one_line_per_finding);
     RUN_TEST(test_appends_the_key_size_to_the_algorithm);
+    RUN_TEST(test_a_file_name_cannot_forge_a_line);
     RUN_TEST(test_reports_a_failed_write);
     return UNITY_END();
 }

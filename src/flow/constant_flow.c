@@ -96,8 +96,8 @@ static pqscan_status enter_function(constant_flow *flow, TSNode node) {
             return status;
         }
         flow->function_end = end;
-        const pqscan_status collected =
-            function_mutations_collect(&flow->source, node, flow->mutations);
+        const mutation_tables tables = {flow->bindings, flow->mutations};
+        const pqscan_status collected = function_mutations_collect(&flow->source, node, &tables);
         if (collected != PQSCAN_OK) {
             return collected;
         }
@@ -122,16 +122,9 @@ static pqscan_status bind_declarator_unknown(constant_flow *flow, TSNode node) {
     return named ? bind_local(flow, name, UNKNOWN_VALUE) : PQSCAN_OK;
 }
 
-// cppcheck-suppress constParameterCallback
-// cppcheck-suppress constParameterPointer
-static pqscan_status handle_macro_parameters(constant_flow *flow, TSNode node) {
-    const pqscan_status opened = open_node_scope(flow, node);
-    const TSNode parameters = syntax_node_field(node, "parameters");
-    if (opened != PQSCAN_OK || ts_node_is_null(parameters)) {
-        return opened;
-    }
+static pqscan_status bind_identifiers_unknown(const constant_flow *flow, TSNode parent) {
     pqscan_status status = PQSCAN_OK;
-    TSTreeCursor cursor = ts_tree_cursor_new(parameters);
+    TSTreeCursor cursor = ts_tree_cursor_new(parent);
     bool more = ts_tree_cursor_goto_first_child(&cursor);
     while (more && status == PQSCAN_OK) {
         const TSNode child = ts_tree_cursor_current_node(&cursor);
@@ -142,6 +135,32 @@ static pqscan_status handle_macro_parameters(constant_flow *flow, TSNode node) {
     }
     ts_tree_cursor_delete(&cursor);
     return status;
+}
+
+// cppcheck-suppress constParameterCallback
+// cppcheck-suppress constParameterPointer
+static pqscan_status handle_macro_parameters(constant_flow *flow, TSNode node) {
+    const pqscan_status opened = open_node_scope(flow, node);
+    const TSNode parameters = syntax_node_field(node, "parameters");
+    if (opened != PQSCAN_OK || ts_node_is_null(parameters)) {
+        return opened;
+    }
+    return bind_identifiers_unknown(flow, parameters);
+}
+
+/* auto [a, b] = pair; takes its values from something that is not evaluated. */
+// cppcheck-suppress constParameterCallback
+// cppcheck-suppress constParameterPointer
+static pqscan_status handle_structured_binding(constant_flow *flow, TSNode node) {
+    return in_function(flow, node) ? bind_identifiers_unknown(flow, node) : PQSCAN_OK;
+}
+
+// cppcheck-suppress constParameterCallback
+// cppcheck-suppress constParameterPointer
+static pqscan_status handle_enumerator(constant_flow *flow, TSNode node) {
+    return in_function(flow, node)
+               ? bind_local(flow, syntax_node_field(node, "name"), UNKNOWN_VALUE)
+               : PQSCAN_OK;
 }
 
 typedef struct local_declaration {
@@ -163,7 +182,8 @@ static local_declaration describe_declaration(const constant_flow *flow, TSNode 
 
 /* The name of a writable array changes contents through any call it is passed to. */
 static bool can_hold_value(const local_declaration *local, TSNode init_declarator) {
-    const TSNode declarator = syntax_node_field(init_declarator, "declarator");
+    const TSNode declarator =
+        declarator_strip_parentheses(syntax_node_field(init_declarator, "declarator"));
     if (syntax_node_is(declarator, "reference_declarator")) {
         return false;
     }
@@ -197,7 +217,7 @@ static pqscan_status handle_declaration(constant_flow *flow, TSNode node) {
 // cppcheck-suppress constParameterCallback
 // cppcheck-suppress constParameterPointer
 static pqscan_status handle_assignment(constant_flow *flow, TSNode node) {
-    const TSNode left = syntax_node_field(node, "left");
+    const TSNode left = syntax_strip_parentheses(syntax_node_field(node, "left"));
     const syntax_text operator_text =
         syntax_node_text(syntax_node_field(node, "operator"), flow->source.file);
     if (!in_function(flow, node) || !syntax_node_is(left, "identifier") ||
@@ -223,6 +243,7 @@ static const handler_entry HANDLERS[] = {
     {"catch_clause", enter_block},
     {"compound_statement", enter_block},
     {"declaration", handle_declaration},
+    {"enumerator", handle_enumerator},
     {"for_range_loop", handle_range_loop},
     {"for_statement", enter_block},
     {"function_definition", enter_function},
@@ -231,6 +252,7 @@ static const handler_entry HANDLERS[] = {
     {"optional_parameter_declaration", bind_declarator_unknown},
     {"parameter_declaration", bind_declarator_unknown},
     {"preproc_function_def", handle_macro_parameters},
+    {"structured_binding_declarator", handle_structured_binding},
     {"switch_statement", enter_block},
     {"while_statement", enter_block},
 };

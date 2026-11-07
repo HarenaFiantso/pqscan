@@ -29,7 +29,16 @@ pqscan_status declaration_each_declarator(TSNode declaration, declarator_visitor
                                           const void *context);
 
 /**
- * @brief Find the name that a declarator introduces, through pointers, arrays and references.
+ * @brief Look through the parentheses around a declarator, as in int (x) = 1;
+ *
+ * @param declarator The declarator. May be a null node.
+ * @return The inner declarator, which may be @p declarator itself.
+ */
+TSNode declarator_strip_parentheses(TSNode declarator);
+
+/**
+ * @brief Find the name that a declarator introduces, through pointers, arrays, references,
+ *        parentheses and attributes.
  *
  * @param declarator The declarator, which may be an init_declarator.
  * @param out On success, the identifier. Untouched on failure.

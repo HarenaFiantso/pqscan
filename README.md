@@ -47,8 +47,8 @@ pqscan [OPTIONS] PATH...
 ```
 
 Each `PATH` is a file or a directory. Directories are walked recursively, symlinks are
-never followed, and only `.c`, `.h`, `.cpp` and `.hpp` files are scanned. Each finding is
-one line:
+never followed, and only C and C++ sources are scanned: `.c`, `.h`, `.cpp`, `.hpp`, `.cc`,
+`.cxx`, `.C`, `.hh`, `.hxx`, `.ipp`, `.inl` and `.tcc`. Each finding is one line:
 
 ```text
 src/keys.c:42: RSA-2048 (QUANTUM_VULNERABLE)
@@ -56,6 +56,9 @@ src/keys.c:51: RSA-1024 (CLASSICALLY_WEAK)
 src/keys.c:57: RSA-unknown (QUANTUM_VULNERABLE)
 src/hash.c:12: MD5 (CLASSICALLY_WEAK)
 ```
+
+File names are untrusted input, so control characters, bidirectional marks and invalid UTF-8
+in them print as `\xNN`, and a backslash prints doubled.
 
 The number is the key size. `unknown` means the algorithm has one, but pqscan can't prove its
 value. RSA, DSA and DH keys under 2048 bits are `CLASSICALLY_WEAK`, because they are already
@@ -100,7 +103,7 @@ Enum constants aren't followed yet, so they also stay `unknown`.
 
 | Option | Meaning |
 | --- | --- |
-| `-i`, `--ignore PATTERN` | Skip paths matching a glob. Repeatable. `.git` is always skipped. |
+| `-i`, `--ignore PATTERN` | Skip paths matching a glob, tried on the file name, the path, and the path relative to `PATH`. Repeatable. `.git` is always skipped. |
 | `-r`, `--rules FILE` | Use the rules in this JSON file instead of the built-in ones. |
 | `-h`, `--help` | Show the help and exit. |
 | `-V`, `--version` | Show the version and exit. |

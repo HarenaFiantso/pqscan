@@ -12,11 +12,7 @@
 
 static bool find_argument(const call_argument *argument, TSNode *out) {
     const TSNode arguments = syntax_node_field(argument->call, "arguments");
-    if (ts_node_is_null(arguments) || !syntax_named_child(arguments, argument->index, out)) {
-        return false;
-    }
-    *out = syntax_unwrap_expression(*out);
-    return true;
+    return !ts_node_is_null(arguments) && syntax_named_child(arguments, argument->index, out);
 }
 
 key_size call_key_size(const call_argument *argument, const constant_flow *flow) {
@@ -26,7 +22,8 @@ key_size call_key_size(const call_argument *argument, const constant_flow *flow)
         return size;
     }
     const constant_value value = constant_flow_evaluate(flow, expression);
-    if (value.kind == CONSTANT_STRING || syntax_node_is(expression, "string_literal")) {
+    if (value.kind == CONSTANT_STRING ||
+        syntax_node_is(syntax_strip_parentheses(expression), "string_literal")) {
         return size;
     }
     const bool known = value.kind == CONSTANT_INTEGER && value.integer <= UINT_MAX;
@@ -45,7 +42,7 @@ bool call_string_argument(const call_argument *argument, const constant_flow *fl
     if (value.kind != CONSTANT_STRING) {
         return false;
     }
-    out->node = expression;
+    out->node = syntax_strip_parentheses(expression);
     out->text = value.text;
     return true;
 }

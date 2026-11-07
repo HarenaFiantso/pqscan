@@ -135,12 +135,24 @@ TSNode syntax_node_field(TSNode node, const char *field);
 bool syntax_named_child(TSNode parent, uint32_t index, TSNode *out);
 
 /**
- * @brief Look through the casts and parentheses around an expression.
+ * @brief Look through the parentheses around an expression.
  *
- * @param expression The expression.
+ * @param expression The expression. May be a null node.
  * @return The inner expression, which may be @p expression itself.
  */
-TSNode syntax_unwrap_expression(TSNode expression);
+TSNode syntax_strip_parentheses(TSNode expression);
+
+/**
+ * @brief Look through the parentheses and value-preserving casts around an expression.
+ *
+ * A cast to a type that could change a key size, such as (char)4096, or to a type this
+ * cannot see through, such as a typedef, is left in place for the caller to treat as unknown.
+ *
+ * @param expression The expression. May be a null node.
+ * @param file The file the node was parsed from.
+ * @return The inner expression, which may be @p expression itself.
+ */
+TSNode syntax_unwrap_expression(TSNode expression, const file_contents *file);
 
 /**
  * @brief Move a cursor to the next node of a depth-first walk.

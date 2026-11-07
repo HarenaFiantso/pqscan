@@ -19,6 +19,7 @@ typedef struct walker {
     string_list *pending; /* A stack: the walk is iterative so a deep tree cannot overflow. */
     const string_list *ignores;
     const walk_callbacks *callbacks;
+    size_t root_len;
 } walker;
 
 static void warn_skipped(const walker *state, const char *path, pqscan_status reason) {
@@ -75,6 +76,19 @@ static pqscan_status list_sorted_names(const char *path, string_list *names) {
     return status;
 }
 
+static const char *relative_to_root(const walker *state, const char *path) {
+    const char *relative = path + state->root_len;
+    while (*relative == '/') {
+        relative++;
+    }
+    return relative;
+}
+
+static bool is_ignored(const walker *state, const char *path) {
+    return ignore_matches(state->ignores, path) ||
+           ignore_matches(state->ignores, relative_to_root(state, path));
+}
+
 /* Pushed last to first, because the stack pops them back in sorted order. */
 static pqscan_status push_children(const walker *state, const char *dir, const string_list *names) {
     for (size_t i = string_list_count(names); i > 0; i--) {
@@ -82,7 +96,7 @@ static pqscan_status push_children(const walker *state, const char *dir, const s
         if (child == NULL) {
             return PQSCAN_ERR_NOMEM;
         }
-        if (ignore_matches(state->ignores, child)) {
+        if (is_ignored(state, child)) {
             free(child);
             continue;
         }
@@ -144,7 +158,7 @@ pqscan_status walk_tree(const char *root, const string_list *ignores,
     if (pending == NULL) {
         return PQSCAN_ERR_NOMEM;
     }
-    const walker state = {pending, ignores, callbacks};
+    const walker state = {pending, ignores, callbacks, strlen(root)};
     status = string_list_add(pending, root);
     while (status == PQSCAN_OK && string_list_count(pending) > 0) {
         char *path = string_list_pop(pending);

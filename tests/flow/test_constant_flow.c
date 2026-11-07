@@ -306,6 +306,88 @@ static void test_a_cpp_call_still_reads_the_value_it_is_given(void) {
     assert_cpp("void f() { int b = 2048; " KEY("b") " " KEY("b") " }", "1:RSA-2048 1:RSA-unknown");
 }
 
+static void test_a_macro_body_is_text_not_a_value(void) {
+    assert_c("#define BASE 512 + 512\nvoid f(void) { " KEY("BASE * 2") " }", "2:RSA-unknown");
+    assert_c("#define N 1 << 10\nvoid f(void) { " KEY("N + 1024") " }", "2:RSA-unknown");
+    assert_c("#define A 512 + 512\n#define B A\nvoid f(void) { " KEY("B * 2") " }",
+             "3:RSA-unknown");
+    assert_c("#define BASE 1024 + 1024\nvoid f(void) { " KEY("BASE") " }", "2:RSA-2048");
+    assert_c("#define BASE (512 + 512)\nvoid f(void) { " KEY("BASE * 2") " }", "2:RSA-2048");
+    assert_c("#define BASE (1024 * 2)\nvoid f(void) { " KEY("BASE") " }", "2:RSA-2048");
+    assert_c("#define BASE (2048);\nvoid f(void) { " KEY("BASE") " }", "2:RSA-unknown");
+    assert_c("#define BASE 1024 + 1024\nconst int K = BASE;\nvoid f(void) { " KEY("K * 2") " }",
+             "3:RSA-4096");
+}
+
+static void test_a_cast_that_can_change_the_value_is_unknown(void) {
+    assert_c("void f(void) { " KEY("(unsigned char)4096") " }", "1:RSA-unknown");
+    assert_c("void f(void) { " KEY("(short)69632") " }", "1:RSA-unknown");
+    assert_c("void f(void) { " KEY("(my_small_t)2048") " }", "1:RSA-unknown");
+    assert_c("void f(void) { int b = (char)4096; " KEY("b") " }", "1:RSA-unknown");
+    assert_c("void f(void) { " KEY("(size_t)2048") " }", "1:RSA-2048");
+    assert_c("void f(void) { " KEY("(const int)2048") " }", "1:RSA-2048");
+    assert_c("void f(void) { " KEY("(unsigned long)2048") " }", "1:RSA-2048");
+}
+
+static void test_a_write_through_parentheses_counts(void) {
+    assert_c("void f(void) { int b = 4096; (b) = 1024; " KEY("b") " }", "1:RSA-1024");
+    assert_c("void f(void) { int b = 4096; ((b)) -= 3072; " KEY("b") " }", "1:RSA-unknown");
+    assert_c("void f(void) { int b = 4096; (b)++; " KEY("b") " }", "1:RSA-unknown");
+    assert_c("void f(void) { int b = 4096; g(&(b)); " KEY("b") " }", "1:RSA-unknown");
+    assert_c("void f(int x) { int b = 4096; if (x) (b) = 1024; " KEY("b") " }", "1:RSA-unknown");
+}
+
+static void test_a_macro_call_may_write_its_arguments(void) {
+    assert_c("#define SHRINK(x) ((x) = 1024)\n"
+             "void f(void) { int b = 4096; SHRINK(b); " KEY("b") " }",
+             "2:RSA-unknown");
+    assert_c("#define shrink(x) ((x) = 1024)\n"
+             "void f(void) { int b = 4096; shrink(b); " KEY("b") " }",
+             "2:RSA-unknown");
+    assert_c("#ifdef A\n#define shrink(x) ((x) = 1024)\n#else\n#define shrink(x) ((x) = 512)\n"
+             "#endif\nvoid f(void) { int b = 4096; shrink(b); " KEY("b") " }",
+             "6:RSA-unknown");
+    assert_c("void f(void) { int b = 4096; FROM_HEADER(b); " KEY("b") " }", "1:RSA-unknown");
+    assert_c("void f(void) { int b = 4096; FROM_HEADER2(1, b); " KEY("b") " }", "1:RSA-unknown");
+}
+
+static void test_only_what_can_be_a_macro_loses_its_arguments(void) {
+    assert_c("void f(void) { int b = 2048; LOG(b); " KEY("b") " }", "1:RSA-unknown");
+    assert_c("void f(void) { int b = 2048; log_bits(b); " KEY("b") " }", "1:RSA-2048");
+}
+
+static void test_a_cpp_brace_initializer_may_take_a_reference(void) {
+    assert_cpp("void f() { int b = 4096; int &r{b}; r = 1024; " KEY("b") " }", "1:RSA-unknown");
+    assert_cpp("void f() { int b = 4096; Holder h{b}; " KEY("b") " }", "1:RSA-unknown");
+}
+
+static void test_every_way_to_hide_a_name_hides_it(void) {
+    assert_c("void f(void) { int b = 4096; { int (b) = 1024; " KEY("b") " } }", "1:RSA-1024");
+    assert_c("void f(void) { int b = 4096; { int ((b)); " KEY("b") " } }", "1:RSA-unknown");
+    assert_c("const int B = 4096;\nvoid f(void) { enum { B = 1024 }; " KEY("B") " }",
+             "2:RSA-unknown");
+    assert_cpp("const int B = 4096;\nvoid f() { int B [[maybe_unused]] = 1024; " KEY("B") " }",
+               "2:RSA-1024");
+    assert_cpp("const int B = 4096;\nvoid f(P p) { auto [B, y] = p; " KEY("B") " }",
+               "2:RSA-unknown");
+    assert_cpp("const int B = 4096;\nvoid f(P p) { for (auto [B, y] : p) { " KEY("B") " } }",
+               "2:RSA-unknown");
+}
+
+static void test_a_parenthesized_declarator_stays_what_it_is(void) {
+    assert_c("const char (*p) = \"RSA\";\nvoid f(void) { EVP_PKEY_CTX_new_from_name(0, p, 0); }",
+             "");
+    assert_cpp("void f(int a) { int (&r) = a; " KEY("r") " }", "1:RSA-unknown");
+    assert_cpp("void f() { int b = 2048; int (&r) = b; r = 1024; " KEY("b") " }", "1:RSA-unknown");
+}
+
+static void test_a_callee_is_found_through_its_wrapping(void) {
+    assert_c("void f(void) { (RSA_generate_key_ex)(r, 1024, 0, 0); }", "1:RSA-1024");
+    assert_c("void f(void) { ((RSA_generate_key_ex))(r, 2048, 0, 0); }", "1:RSA-2048");
+    assert_cpp("void f() { RSA_generate_key_ex<int>(r, 1024, 0, 0); }", "1:RSA-1024");
+    assert_cpp("void f() { ns::RSA_generate_key_ex<int>(r, 1024, 0, 0); }", "1:RSA-1024");
+}
+
 static void test_a_cpp_stream_read_loses_the_value(void) {
     assert_cpp("void f() { int b = 2048; std::cin >> b; " KEY("b") " }", "1:RSA-unknown");
 }
@@ -452,6 +534,15 @@ int main(void) {
     RUN_TEST(test_a_reference_itself_is_unknown);
     RUN_TEST(test_a_cpp_call_loses_its_arguments_afterwards);
     RUN_TEST(test_a_cpp_call_still_reads_the_value_it_is_given);
+    RUN_TEST(test_a_macro_body_is_text_not_a_value);
+    RUN_TEST(test_a_cast_that_can_change_the_value_is_unknown);
+    RUN_TEST(test_a_write_through_parentheses_counts);
+    RUN_TEST(test_a_macro_call_may_write_its_arguments);
+    RUN_TEST(test_only_what_can_be_a_macro_loses_its_arguments);
+    RUN_TEST(test_a_cpp_brace_initializer_may_take_a_reference);
+    RUN_TEST(test_every_way_to_hide_a_name_hides_it);
+    RUN_TEST(test_a_parenthesized_declarator_stays_what_it_is);
+    RUN_TEST(test_a_callee_is_found_through_its_wrapping);
     RUN_TEST(test_a_cpp_stream_read_loses_the_value);
     RUN_TEST(test_a_lambda_that_writes_loses_the_value);
     RUN_TEST(test_a_lambda_at_file_scope_is_analyzed_too);

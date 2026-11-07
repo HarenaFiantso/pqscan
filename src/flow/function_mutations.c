@@ -3,10 +3,12 @@
 
 #include "pqscan/core/status.h"
 #include "pqscan/flow/constant_table.h"
+#include "pqscan/flow/declarations.h"
 #include "pqscan/flow/flow_source.h"
 #include "pqscan/scan/syntax_parser.h"
 #include "pqscan/walk/file_type.h"
 
+#include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -25,6 +27,7 @@ static const uint32_t NEVER = UINT32_MAX;
 /* A nested construct always ends inside the outermost one, so one offset covers them all. */
 typedef struct mutation_scan {
     const flow_source *source;
+    const constant_table *bindings;
     constant_table *mutations;
     uint32_t function_start;
     uint32_t loop_start;
@@ -70,7 +73,8 @@ static pqscan_status mark(const mutation_scan *scan, TSNode name, uint32_t posit
 }
 
 /* The variable is changed by this node, so it cannot be trusted from here on. */
-static pqscan_status mark_changed(const mutation_scan *scan, TSNode name, uint32_t position) {
+static pqscan_status mark_changed(const mutation_scan *scan, TSNode target, uint32_t position) {
+    const TSNode name = syntax_strip_parentheses(target);
     if (!syntax_node_is(name, "identifier")) {
         return PQSCAN_OK;
     }
@@ -78,9 +82,13 @@ static pqscan_status mark_changed(const mutation_scan *scan, TSNode name, uint32
 }
 
 static pqscan_status visit_assignment(const mutation_scan *scan, TSNode node) {
-    const TSNode left = syntax_node_field(node, "left");
+    const TSNode left = syntax_strip_parentheses(syntax_node_field(node, "left"));
     const TSNode operator_node = syntax_node_field(node, "operator");
     const uint32_t position = ts_node_start_byte(node);
+    /* The C++ grammar reads the declaration int (&r) = a; as an assignment to a call. */
+    if (scan->source->language == SOURCE_LANGUAGE_CPP && syntax_node_is(left, "call_expression")) {
+        return mark_changed(scan, syntax_node_field(node, "right"), position);
+    }
     const bool plain = syntax_text_is(text_of(scan, operator_node), "=");
     if (plain && !in_loop(scan, node) && !in_branch(scan, node)) {
         return syntax_node_is(left, "identifier") ? mark(scan, left, NEVER) : PQSCAN_OK;
@@ -98,7 +106,7 @@ static pqscan_status visit_pointer(const mutation_scan *scan, TSNode node) {
 
 /* Declarations in #ifdef branches share one block, so the last one is not the one in force. */
 static pqscan_status visit_init_declarator(const mutation_scan *scan, TSNode node) {
-    const TSNode declarator = syntax_node_field(node, "declarator");
+    const TSNode declarator = declarator_strip_parentheses(syntax_node_field(node, "declarator"));
     if (syntax_node_is(declarator, "reference_declarator")) {
         return mark_changed(scan, syntax_node_field(node, "value"), ts_node_start_byte(node));
     }
@@ -108,9 +116,10 @@ static pqscan_status visit_init_declarator(const mutation_scan *scan, TSNode nod
     return PQSCAN_OK;
 }
 
-/* C++ may bind any argument to a non-const reference, which the call does not show. The
- * call itself still reads the old value, so the variable is lost only after it. */
-static pqscan_status visit_cpp_arguments(const mutation_scan *scan, TSNode node) {
+/* C++ may bind any argument to a non-const reference, and a macro may assign to it, which
+ * the call does not show. The call itself still reads the old value, so the variable is lost
+ * only after it. */
+static pqscan_status visit_arguments(const mutation_scan *scan, TSNode node) {
     TSTreeCursor cursor = ts_tree_cursor_new(node);
     const uint32_t end = ts_node_end_byte(node);
     pqscan_status status = PQSCAN_OK;
@@ -121,6 +130,39 @@ static pqscan_status visit_cpp_arguments(const mutation_scan *scan, TSNode node)
     }
     ts_tree_cursor_delete(&cursor);
     return status;
+}
+
+static bool has_no_lowercase(syntax_text name) {
+    bool has_letter = false;
+    for (size_t i = 0; i < name.len; i++) {
+        const unsigned char byte = (unsigned char)name.data[i];
+        if (islower(byte)) {
+            return false;
+        }
+        has_letter = has_letter || isupper(byte);
+    }
+    return has_letter;
+}
+
+static bool is_macro_call(const mutation_scan *scan, TSNode call) {
+    const TSNode callee = syntax_node_field(call, "function");
+    if (!syntax_node_is(callee, "identifier")) {
+        return false;
+    }
+    const syntax_text name = text_of(scan, callee);
+    const constant_binding *binding = constant_table_find(scan->bindings, name);
+    return has_no_lowercase(name) || (binding != NULL && binding->kind == BINDING_FUNCTION_MACRO);
+}
+
+/* A C function gets a copy of what it is passed, so only a macro can change a variable. */
+static pqscan_status visit_c_call(const mutation_scan *scan, TSNode call) {
+    return is_macro_call(scan, call) ? visit_arguments(scan, syntax_node_field(call, "arguments"))
+                                     : PQSCAN_OK;
+}
+
+static bool is_cpp_argument_list(const mutation_scan *scan, TSNode node) {
+    return scan->source->language == SOURCE_LANGUAGE_CPP &&
+           (syntax_node_is(node, "argument_list") || syntax_node_is(node, "initializer_list"));
 }
 
 static void enter_branch(mutation_scan *scan, TSNode node) {
@@ -182,20 +224,22 @@ static pqscan_status visit_node(void *context, TSNode node) {
     if (syntax_node_is(node, "binary_expression")) {
         return visit_binary(scan, node);
     }
-    const bool cpp = scan->source->language == SOURCE_LANGUAGE_CPP;
-    return (cpp && syntax_node_is(node, "argument_list")) ? visit_cpp_arguments(scan, node)
-                                                          : PQSCAN_OK;
+    if (syntax_node_is(node, "call_expression") && scan->source->language == SOURCE_LANGUAGE_C) {
+        return visit_c_call(scan, node);
+    }
+    return is_cpp_argument_list(scan, node) ? visit_arguments(scan, node) : PQSCAN_OK;
 }
 
 pqscan_status function_mutations_collect(const flow_source *source, TSNode function,
-                                         constant_table *mutations) {
+                                         const mutation_tables *tables) {
     mutation_scan scan = {
-        source, mutations, ts_node_start_byte(function), 0, 0, 0, 0, false,
+        source, tables->bindings, tables->mutations, ts_node_start_byte(function), 0, 0, 0, 0,
+        false,
     };
     const syntax_walk_spec spec = {visit_node, &scan, source->parser};
     const pqscan_status status = syntax_walk(function, &spec);
     if (status == PQSCAN_OK && scan.has_label) {
-        constant_table_set_scope_position(mutations, scan.function_start);
+        constant_table_set_scope_position(tables->mutations, scan.function_start);
     }
     return status;
 }

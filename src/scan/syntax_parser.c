@@ -6,6 +6,7 @@
 #include "pqscan/walk/file_type.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +14,14 @@
 #include <tree_sitter/api.h>
 
 enum { DEADLINE_CHECK_INTERVAL = 1024 };
+
+/* Every one of these holds any key size unchanged. An unknown typedef may not, so this lists
+ * what is safe rather than what is not. */
+static const char *const VALUE_KEEPING_TYPES[] = {
+    "int",       "unsigned",           "unsigned int", "long",    "long int", "unsigned long",
+    "long long", "unsigned long long", "size_t",       "ssize_t", "int32_t",  "uint32_t",
+    "int64_t",   "uint64_t",           "std::size_t",
+};
 
 /* Grammars generate these entry points but ship no header at a stable path. */
 const TSLanguage *tree_sitter_c(void);
@@ -152,7 +161,9 @@ bool syntax_named_child(TSNode parent, uint32_t index, TSNode *out) {
         const TSNode child = ts_tree_cursor_current_node(&cursor);
         if (ts_node_is_named(child) && !syntax_node_is(child, "comment")) {
             found = seen == index;
-            *out = found ? child : *out;
+            if (found) {
+                *out = child;
+            }
             seen++;
         }
         more = ts_tree_cursor_goto_next_sibling(&cursor);
@@ -161,16 +172,35 @@ bool syntax_named_child(TSNode parent, uint32_t index, TSNode *out) {
     return found;
 }
 
-TSNode syntax_unwrap_expression(TSNode expression) {
+TSNode syntax_strip_parentheses(TSNode expression) {
     TSNode inner = expression;
-    for (;;) {
-        if (syntax_node_is(inner, "cast_expression")) {
-            inner = syntax_node_field(inner, "value");
-        } else if (!syntax_node_is(inner, "parenthesized_expression") ||
-                   !syntax_named_child(inner, 0, &inner)) {
-            return inner;
+    while (syntax_node_is(inner, "parenthesized_expression") &&
+           syntax_named_child(inner, 0, &inner)) {
+    }
+    return inner;
+}
+
+/* A pointer cast keeps a string, and no key size is ever written as a pointer. */
+static bool cast_keeps_value(TSNode cast, const file_contents *file) {
+    const TSNode descriptor = syntax_node_field(cast, "type");
+    if (!ts_node_is_null(syntax_node_field(descriptor, "declarator"))) {
+        return true;
+    }
+    const syntax_text type = syntax_node_text(syntax_node_field(descriptor, "type"), file);
+    for (size_t i = 0; i < sizeof(VALUE_KEEPING_TYPES) / sizeof(VALUE_KEEPING_TYPES[0]); i++) {
+        if (syntax_text_is(type, VALUE_KEEPING_TYPES[i])) {
+            return true;
         }
     }
+    return false;
+}
+
+TSNode syntax_unwrap_expression(TSNode expression, const file_contents *file) {
+    TSNode inner = syntax_strip_parentheses(expression);
+    while (syntax_node_is(inner, "cast_expression") && cast_keeps_value(inner, file)) {
+        inner = syntax_strip_parentheses(syntax_node_field(inner, "value"));
+    }
+    return inner;
 }
 
 bool syntax_cursor_advance(TSTreeCursor *cursor, bool skip_children) {

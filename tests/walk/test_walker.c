@@ -86,6 +86,28 @@ static void test_visits_entries_in_sorted_order(void) {
     assert_visited(3, "sub/z.c");
 }
 
+static void test_a_pattern_can_be_relative_to_the_root(void) {
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, string_list_add(ignores, "vendor/*"));
+    temp_tree_add_dir(tree, "vendor");
+    temp_tree_add_file(tree, "vendor/a.c", "");
+    temp_tree_add_file(tree, "kept.c", "");
+
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, walk_root());
+    TEST_ASSERT_EQUAL_size_t(1, string_list_count(visited));
+    assert_visited(0, "kept.c");
+}
+
+static void test_a_root_with_a_trailing_slash_gives_the_same_relative_paths(void) {
+    char root[NAME_SIZE];
+    TEST_ASSERT_GREATER_THAN_INT(0, snprintf(root, sizeof(root), "%s/", temp_tree_root(tree)));
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, string_list_add(ignores, "vendor/*"));
+    temp_tree_add_dir(tree, "vendor");
+    temp_tree_add_file(tree, "vendor/a.c", "");
+
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, walk_tree(root, ignores, &RECORDING));
+    TEST_ASSERT_EQUAL_size_t(0, string_list_count(visited));
+}
+
 static void test_root_can_be_a_file(void) {
     const char *file = temp_tree_add_file(tree, "a.c", "");
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, walk_tree(file, ignores, &RECORDING));
@@ -179,6 +201,8 @@ int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_empty_directory_visits_nothing);
     RUN_TEST(test_visits_entries_in_sorted_order);
+    RUN_TEST(test_a_pattern_can_be_relative_to_the_root);
+    RUN_TEST(test_a_root_with_a_trailing_slash_gives_the_same_relative_paths);
     RUN_TEST(test_root_can_be_a_file);
     RUN_TEST(test_ignored_directory_is_not_entered);
     RUN_TEST(test_ignores_do_not_apply_to_the_root);
