@@ -15,7 +15,13 @@ include(cmake/posix.cmake)
 include(cmake/warnings.cmake)
 include(cmake/memcheck.cmake)
 
-add_library(pqscan_core STATIC src/core/version.c)
+add_library(pqscan_core STATIC
+    src/core/finding.c
+    src/core/memory.c
+    src/core/status.c
+    src/core/string_list.c
+    src/core/version.c
+    src/risk/risk.c)
 target_include_directories(pqscan_core PUBLIC include)
 target_compile_definitions(pqscan_core PRIVATE PQSCAN_VERSION_STRING="${PROJECT_VERSION}")
 target_link_libraries(pqscan_core PRIVATE pqscan_posix pqscan_warnings)

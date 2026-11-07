@@ -1,0 +1,22 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+#include "pqscan/core/status.h"
+
+const char *pqscan_status_message(pqscan_status status) {
+    switch (status) {
+    case PQSCAN_OK:
+        return "success";
+    case PQSCAN_ERR_NOMEM:
+        return "out of memory";
+    case PQSCAN_ERR_IO:
+        return "cannot read";
+    case PQSCAN_ERR_NOT_FOUND:
+        return "no such file or directory";
+    case PQSCAN_ERR_NOT_REGULAR:
+        return "skipped, not a regular file or directory";
+    case PQSCAN_ERR_TOO_LARGE:
+        return "skipped, file too large";
+    case PQSCAN_ERR_BINARY:
+        return "skipped, binary file";
+    }
+    return "unknown status";
+}
