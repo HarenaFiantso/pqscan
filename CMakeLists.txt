@@ -27,6 +27,7 @@ add_library(pqscan_core STATIC
     src/core/version.c
     src/report/text_report.c
     src/risk/risk.c
+    src/rules/rule_loader.c
     src/rules/rule_set.c
     src/scan/call_arguments.c
     src/scan/file_reader.c
@@ -40,7 +41,7 @@ target_include_directories(pqscan_core PUBLIC include)
 target_compile_definitions(pqscan_core PRIVATE PQSCAN_VERSION_STRING="${PROJECT_VERSION}")
 target_link_libraries(pqscan_core
     PUBLIC pqscan_tree_sitter
-    PRIVATE pqscan_grammar_c pqscan_grammar_cpp pqscan_posix pqscan_warnings)
+    PRIVATE pqscan_cjson pqscan_grammar_c pqscan_grammar_cpp pqscan_posix pqscan_warnings)
 
 add_executable(pqscan src/cli/main.c)
 target_link_libraries(pqscan PRIVATE pqscan_core pqscan_posix pqscan_warnings)
