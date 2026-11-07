@@ -3,8 +3,8 @@
 #include "pqscan/core/string_list.h"
 #include "unity.h"
 
+#include <getopt.h>
 #include <stddef.h>
-#include <unistd.h>
 
 static cli_options options;
 
