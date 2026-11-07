@@ -8,6 +8,7 @@ typedef enum pqscan_exit_code {
     PQSCAN_EXIT_FINDINGS = 1,
     PQSCAN_EXIT_USAGE = 2,
     PQSCAN_EXIT_INTERNAL = 3,
+    PQSCAN_EXIT_INCOMPLETE = 4, /**< No findings, but something in scope was not analyzed. */
 } pqscan_exit_code;
 
 #endif /* PQSCAN_CLI_EXIT_CODE_H */

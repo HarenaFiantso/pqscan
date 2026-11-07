@@ -110,14 +110,18 @@ Enum constants aren't followed yet, so they also stay `unknown`.
 
 > [!NOTE]
 > Paths that can't be read are skipped with a warning on stderr, as are files that contain
-> a NUL byte, exceed 64 MiB, or take more than 30 seconds to scan.
+> a NUL byte, exceed 64 MiB, or take more than 30 seconds to scan. A scan that skips any of
+> them is incomplete, and can't exit 0. If a file is skipped on purpose, leave it out with
+> `--ignore`. Symlinks inside a directory are skipped by design and don't count, but a
+> `PATH` that is one does.
 
 | Exit code | Meaning |
 | --- | --- |
-| 0 | No findings |
-| 1 | Findings reported |
+| 0 | No findings, and everything in scope was analyzed |
+| 1 | Findings reported, even if the scan was incomplete |
 | 2 | Usage error, such as a path that doesn't exist or a rule file that isn't valid |
 | 3 | Internal error |
+| 4 | No findings, but something in scope could not be analyzed |
 
 > [!CAUTION]
 > Exit code 0 doesn't prove the code is free of vulnerable cryptography. pqscan only

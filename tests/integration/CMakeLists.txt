@@ -65,6 +65,15 @@ pqscan_add_cli_test(ignore_everything EXIT 0
 pqscan_add_cli_test(edge_cases EXIT 1 ARGS edge STDOUT "${expected}/edge_stdout.txt"
     STDERR "${expected}/edge_stderr.txt")
 
+pqscan_add_cli_test(unreadable_input_is_not_a_clean_result EXIT 4 ARGS edge/binary.c
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/incomplete_stderr.txt")
+pqscan_add_cli_test(ignoring_an_unreadable_file_makes_the_scan_complete EXIT 1
+    ARGS --ignore binary.c edge STDOUT "${expected}/edge_stdout.txt" STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(symlink_in_a_tree_is_skipped_by_design EXIT 0 ARGS links
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/symlink_in_tree_stderr.txt")
+pqscan_add_cli_test(symlink_as_root_is_not_a_clean_result EXIT 4 ARGS links/to_clean
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/symlink_root_stderr.txt")
+
 pqscan_add_cli_test(custom_rules EXIT 1 ARGS --rules ../rules/custom.json custom
     STDOUT "${expected}/custom_rules.txt" STDERR "${expected}/empty.txt")
 pqscan_add_cli_test(custom_rules_replace_the_built_in_ones EXIT 0

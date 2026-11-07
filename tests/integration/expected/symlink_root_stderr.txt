@@ -1,0 +1,2 @@
+pqscan: warning: links/to_clean: skipped, not a regular file or directory
+pqscan: scan incomplete: 1 path could not be analyzed

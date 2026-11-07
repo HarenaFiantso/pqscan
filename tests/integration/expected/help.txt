@@ -13,3 +13,4 @@ Exit codes:
   1  findings reported
   2  usage error
   3  internal error
+  4  no findings, but something could not be analyzed
