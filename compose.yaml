@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+services:
+  dev:
+    image: pqscan-dev
+    build:
+      context: .
+      dockerfile: docker/dev.Dockerfile
+    volumes:
+      - .:/work
+      # Presets build into build/ in the source tree, so without this the container would
+      # reuse the host's CMake cache and object files.
+      - linux-build:/work/build
+
+volumes:
+  linux-build:

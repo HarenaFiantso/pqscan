@@ -17,7 +17,8 @@ anything yet.
 
 ## Build and test
 
-You need CMake 3.20 or newer and a C11 compiler (GCC or Clang), on Linux or macOS.
+You need CMake 3.20 or newer and a C11 compiler (GCC or Clang), on Linux or macOS. If you
+have Docker, `docker compose run --rm dev` opens a Linux shell with everything installed.
 
 ```sh
 cmake --preset debug

@@ -4,7 +4,8 @@ option(PQSCAN_ENABLE_MEMCHECK "Also run each test under Valgrind (Linux) or leak
 
 if(PQSCAN_ENABLE_MEMCHECK)
     if(APPLE)
-        # Valgrind does not run on Apple Silicon. See docs/decisions/001-memory-checking.md.
+        # Valgrind does not run on Apple Silicon. leaks finds leaks only, and it exits 0 when
+        # the test it wraps fails, so each test must also run plain to detect failures.
         find_program(PQSCAN_LEAKS_PROGRAM leaks REQUIRED)
         set(PQSCAN_MEMCHECK_COMMAND "${PQSCAN_LEAKS_PROGRAM}" --atExit --)
     else()
