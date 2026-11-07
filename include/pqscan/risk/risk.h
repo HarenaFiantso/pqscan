@@ -14,6 +14,9 @@ typedef enum risk_level {
     RISK_CLASSICALLY_WEAK,
 } risk_level;
 
+/** How many levels there are. Levels run from 0, so this also sizes an array indexed by level. */
+enum { RISK_LEVEL_COUNT = RISK_CLASSICALLY_WEAK + 1 };
+
 /** How a normalized algorithm is classified. */
 typedef struct algorithm_policy {
     const char *name;         /**< Normalized name, such as "RSA". Not owned by this struct. */

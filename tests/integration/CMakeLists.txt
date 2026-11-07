@@ -4,6 +4,11 @@ set(expected "${CMAKE_CURRENT_SOURCE_DIR}/expected")
 
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/version.txt" "pqscan ${PROJECT_VERSION}\n")
 
+# Reports name the tool version, so what they are compared with is generated.
+function(pqscan_expected_report name)
+    configure_file("${expected}/${name}.in" "${CMAKE_CURRENT_BINARY_DIR}/${name}" @ONLY)
+endfunction()
+
 function(pqscan_add_memcheck_case name joined_args)
     list(JOIN PQSCAN_MEMCHECK_COMMAND "|" joined_memcheck)
     add_test(NAME cli_${name}_memcheck
@@ -95,6 +100,15 @@ pqscan_add_cli_test(unknown_threshold EXIT 2 ARGS --fail-on review clean
     STDOUT "${expected}/empty.txt" STDERR "${expected}/bad_threshold_stderr.txt")
 pqscan_add_cli_test(unknown_format EXIT 2 ARGS --format xml clean
     STDOUT "${expected}/empty.txt" STDERR "${expected}/bad_format_stderr.txt")
+
+foreach(extension IN ITEMS json)
+    pqscan_expected_report(report_clean.${extension})
+    pqscan_expected_report(report_incomplete.${extension})
+endforeach()
+pqscan_add_cli_test(json_report EXIT 1 ARGS --format json report edge/binary.c
+    STDOUT "${CMAKE_CURRENT_BINARY_DIR}/report_incomplete.json")
+pqscan_add_cli_test(json_report_of_a_clean_tree EXIT 0 ARGS -f json clean
+    STDOUT "${CMAKE_CURRENT_BINARY_DIR}/report_clean.json" STDERR "${expected}/empty.txt")
 
 pqscan_add_cli_test(custom_rules EXIT 1 ARGS --rules ../rules/custom.json custom
     STDOUT "${expected}/custom_rules.txt" STDERR "${expected}/empty.txt")
