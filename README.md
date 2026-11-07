@@ -18,8 +18,8 @@ where that cryptography is and how urgently each use needs to be replaced.
 
 > [!WARNING]
 > Early development. pqscan scans C/C++ source for the OpenSSL identifiers in its rules,
-> through the syntax tree, and reads literal key sizes and algorithm names. A size held in a
-> variable shows as `unknown` for now.
+> through the syntax tree, and follows constants inside a file to find key sizes and algorithm
+> names. A value it can't prove shows as `unknown`.
 
 ## Build and test
 
@@ -57,9 +57,9 @@ src/keys.c:57: RSA-unknown (QUANTUM_VULNERABLE)
 src/hash.c:12: MD5 (CLASSICALLY_WEAK)
 ```
 
-The number is the key size. `unknown` means the algorithm has one, but it isn't a literal
-in the source. RSA, DSA and DH keys under 2048 bits are `CLASSICALLY_WEAK`, because they are
-already unsafe today. An `unknown` size keeps the algorithm's usual level.
+The number is the key size. `unknown` means the algorithm has one, but pqscan can't prove its
+value. RSA, DSA and DH keys under 2048 bits are `CLASSICALLY_WEAK`, because they are already
+unsafe today. An `unknown` size keeps the algorithm's usual level.
 
 pqscan parses each file with [Tree-sitter](https://tree-sitter.github.io), so broken code
 is still scanned:
@@ -71,6 +71,32 @@ is still scanned:
   values and variables.
 * **Not reported:** comments, other strings, declarations such as prototypes, struct fields,
   C++ methods, and code under a literal `#if 0`.
+
+pqscan follows constants inside one file, so all of these report `RSA-4096`:
+
+```c
+#define KEY_BITS 4096
+static const int DOUBLE_BITS = 2048 * 2;
+
+RSA_generate_key_ex(r, KEY_BITS, NULL, NULL);
+RSA_generate_key_ex(r, DOUBLE_BITS, NULL, NULL);
+int bits = KEY_BITS;
+RSA_generate_key_ex(r, bits, NULL, NULL);
+RSA_generate_key_ex(r, 1 << 12, NULL, NULL);
+```
+
+It follows locals in order, `#define`s, `const` and `constexpr` globals, strings, and `+`, `-`,
+`*` and `<<`. It never guesses, so these stay `unknown`:
+
+* Anything from another file, a parameter, or a global that isn't constant.
+* A variable written in a branch, from that write on, or in a loop, from the start of the loop.
+* A variable changed by `+=` or `++`, or whose address is taken. In C++, also one passed to a
+  call or bound to a reference, since the call could change it.
+* A macro with parameters, named by `#undef`, defined twice differently, or defined inside
+  `#if` or `#ifdef`, other than a header's include guard. That includes `#ifndef BITS` defaults,
+  which the build can override.
+
+Enum constants aren't followed yet, so they also stay `unknown`.
 
 | Option | Meaning |
 | --- | --- |
@@ -139,8 +165,6 @@ at fault.
 
 ## Roadmap
 
-- **Source scanning:** constant propagation, to resolve key sizes held in variables and
-  macros.
 - **Reports:** text, JSON, CycloneDX CBOM and SARIF output.
 - **Configs, certificates and keys:** OpenSSL, nginx, Apache and SSH settings, plus PEM
   and DER files.
