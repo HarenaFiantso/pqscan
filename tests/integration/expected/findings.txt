@@ -1,0 +1,5 @@
+findings/naive.c:1: DSA (QUANTUM_VULNERABLE)
+findings/naive.c:2: DH (QUANTUM_VULNERABLE)
+findings/rsa.c:4: RSA (QUANTUM_VULNERABLE)
+findings/sub/hash.hpp:1: MD5 (CLASSICALLY_WEAK)
+findings/sub/hash.hpp:2: AES-128 (REVIEW)

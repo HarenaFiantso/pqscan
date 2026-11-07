@@ -1,0 +1,2 @@
+edge/crlf.c:2: DH (QUANTUM_VULNERABLE)
+edge/latin1.c:2: SHA-1 (CLASSICALLY_WEAK)
