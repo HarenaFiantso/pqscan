@@ -12,6 +12,8 @@
 #include <time.h>
 #include <tree_sitter/api.h>
 
+enum { DEADLINE_CHECK_INTERVAL = 1024 };
+
 /* Grammars generate these entry points but ship no header at a stable path. */
 const TSLanguage *tree_sitter_c(void);
 const TSLanguage *tree_sitter_cpp(void);
@@ -133,4 +135,70 @@ bool syntax_node_is(TSNode node, const char *type) {
 
 TSNode syntax_node_field(TSNode node, const char *field) {
     return ts_node_child_by_field_name(node, field, (uint32_t)strlen(field));
+}
+
+bool syntax_text_is(syntax_text text, const char *expected) {
+    return text.len == strlen(expected) && memcmp(text.data, expected, text.len) == 0;
+}
+
+/* A cursor keeps this linear, where ts_node_named_child() in a loop would be quadratic on a
+ * list of hostile length. */
+bool syntax_named_child(TSNode parent, uint32_t index, TSNode *out) {
+    TSTreeCursor cursor = ts_tree_cursor_new(parent);
+    uint32_t seen = 0;
+    bool found = false;
+    bool more = ts_tree_cursor_goto_first_child(&cursor);
+    while (more && !found) {
+        const TSNode child = ts_tree_cursor_current_node(&cursor);
+        if (ts_node_is_named(child) && !syntax_node_is(child, "comment")) {
+            found = seen == index;
+            *out = found ? child : *out;
+            seen++;
+        }
+        more = ts_tree_cursor_goto_next_sibling(&cursor);
+    }
+    ts_tree_cursor_delete(&cursor);
+    return found;
+}
+
+TSNode syntax_unwrap_expression(TSNode expression) {
+    TSNode inner = expression;
+    for (;;) {
+        if (syntax_node_is(inner, "cast_expression")) {
+            inner = syntax_node_field(inner, "value");
+        } else if (!syntax_node_is(inner, "parenthesized_expression") ||
+                   !syntax_named_child(inner, 0, &inner)) {
+            return inner;
+        }
+    }
+}
+
+bool syntax_cursor_advance(TSTreeCursor *cursor, bool skip_children) {
+    if (!skip_children && ts_tree_cursor_goto_first_child(cursor)) {
+        return true;
+    }
+    while (!ts_tree_cursor_goto_next_sibling(cursor)) {
+        if (!ts_tree_cursor_goto_parent(cursor)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+pqscan_status syntax_walk(TSNode root, const syntax_walk_spec *spec) {
+    TSTreeCursor cursor = ts_tree_cursor_new(root);
+    pqscan_status status = PQSCAN_OK;
+    size_t visited = 0;
+    bool more = true;
+    while (more && status == PQSCAN_OK) {
+        visited++;
+        if (visited % DEADLINE_CHECK_INTERVAL == 0 && syntax_parser_expired(spec->deadline)) {
+            status = PQSCAN_ERR_PARSE;
+        } else {
+            status = spec->visit(spec->context, ts_tree_cursor_current_node(&cursor));
+        }
+        more = syntax_cursor_advance(&cursor, false);
+    }
+    ts_tree_cursor_delete(&cursor);
+    return status;
 }

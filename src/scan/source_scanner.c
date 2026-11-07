@@ -244,18 +244,6 @@ static pqscan_status visit_node(source_walk *walk, TSNode node, const char *fiel
     return PQSCAN_OK;
 }
 
-static bool advance_cursor(TSTreeCursor *cursor, bool skip_children) {
-    if (!skip_children && ts_tree_cursor_goto_first_child(cursor)) {
-        return true;
-    }
-    while (!ts_tree_cursor_goto_next_sibling(cursor)) {
-        if (!ts_tree_cursor_goto_parent(cursor)) {
-            return false;
-        }
-    }
-    return true;
-}
-
 /* A cursor keeps its position on the heap. Recursing over the tree instead would let deeply
  * nested input overflow the C stack. */
 static pqscan_status walk_nodes(source_walk *walk, TSNode root) {
@@ -268,7 +256,7 @@ static pqscan_status walk_nodes(source_walk *walk, TSNode root) {
         if (!skipped) {
             status = visit_node(walk, node, ts_tree_cursor_current_field_name(&cursor));
         }
-        more = advance_cursor(&cursor, skipped);
+        more = syntax_cursor_advance(&cursor, skipped);
     }
     ts_tree_cursor_delete(&cursor);
     return status;

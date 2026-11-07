@@ -8,6 +8,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <tree_sitter/api.h>
 
 /** A Tree-sitter parser bound to one file and one deadline. */
@@ -25,6 +26,16 @@ typedef struct syntax_text {
     const char *data;
     size_t len;
 } syntax_text;
+
+/** Called for each node of a walk. Anything but PQSCAN_OK stops it. */
+typedef pqscan_status (*syntax_visitor)(void *context, TSNode node);
+
+/** A depth-first walk over a whole subtree. */
+typedef struct syntax_walk_spec {
+    syntax_visitor visit;
+    void *context;                 /**< Passed to visit. */
+    const syntax_parser *deadline; /**< Stops the walk with PQSCAN_ERR_PARSE when it expires. */
+} syntax_walk_spec;
 
 /**
  * @brief Create a parser and start its deadline.
@@ -87,6 +98,15 @@ bool syntax_parser_expired(const syntax_parser *parser);
 syntax_text syntax_node_text(TSNode node, const file_contents *file);
 
 /**
+ * @brief Compare a slice of a file with a string.
+ *
+ * @param text The slice.
+ * @param expected The NUL-terminated string.
+ * @return true if they hold the same bytes.
+ */
+bool syntax_text_is(syntax_text text, const char *expected);
+
+/**
  * @brief Compare the type of a node.
  *
  * @param node The node. May be a null node.
@@ -103,5 +123,44 @@ bool syntax_node_is(TSNode node, const char *type);
  * @return The child, or a null node if there is none. Check with ts_node_is_null().
  */
 TSNode syntax_node_field(TSNode node, const char *field);
+
+/**
+ * @brief Find a named child, not counting comments, which can sit between any two nodes.
+ *
+ * @param parent The node. It should have no more children than an expression list can.
+ * @param index The position among such children, from zero.
+ * @param out On success, the child. Untouched on failure.
+ * @return true on success, false if there are not enough children.
+ */
+bool syntax_named_child(TSNode parent, uint32_t index, TSNode *out);
+
+/**
+ * @brief Look through the casts and parentheses around an expression.
+ *
+ * @param expression The expression.
+ * @return The inner expression, which may be @p expression itself.
+ */
+TSNode syntax_unwrap_expression(TSNode expression);
+
+/**
+ * @brief Move a cursor to the next node of a depth-first walk.
+ *
+ * @param cursor The cursor.
+ * @param skip_children true to leave the current node's subtree without entering it.
+ * @return false once the walk is over.
+ */
+bool syntax_cursor_advance(TSTreeCursor *cursor, bool skip_children);
+
+/**
+ * @brief Visit a node and everything under it, in source order.
+ *
+ * The walk keeps its position on the heap, so that deep nesting in a hostile file cannot
+ * overflow the C stack.
+ *
+ * @param root The node to start from.
+ * @param spec What to do with each node.
+ * @return PQSCAN_OK, what a visitor returned, or PQSCAN_ERR_PARSE past the deadline.
+ */
+pqscan_status syntax_walk(TSNode root, const syntax_walk_spec *spec);
 
 #endif /* PQSCAN_SCAN_SYNTAX_PARSER_H */
