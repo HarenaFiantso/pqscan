@@ -1,1 +1,19 @@
+# Build output
+build/
+compile_commands.json
+
+# Private project notes
 CLAUDE.md
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Core dumps. Anchored so these never match the src/core/ directory.
+/core
+core.[0-9]*
+*.core
+vgcore.*
