@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-#ifndef PQSCAN_VERSION_H
-#define PQSCAN_VERSION_H
+#ifndef PQSCAN_CORE_VERSION_H
+#define PQSCAN_CORE_VERSION_H
 
 /**
  * @brief Report the pqscan version.
@@ -10,4 +10,4 @@
  */
 const char *pqscan_version(void);
 
-#endif /* PQSCAN_VERSION_H */
+#endif /* PQSCAN_CORE_VERSION_H */
