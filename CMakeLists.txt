@@ -12,3 +12,8 @@ set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(cmake/warnings.cmake)
+
+add_library(pqscan_core STATIC src/core/version.c)
+target_include_directories(pqscan_core PUBLIC include)
+target_compile_definitions(pqscan_core PRIVATE PQSCAN_VERSION_STRING="${PROJECT_VERSION}")
+target_link_libraries(pqscan_core PRIVATE pqscan_warnings)
