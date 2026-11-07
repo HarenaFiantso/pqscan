@@ -19,7 +19,8 @@ where that cryptography is and how urgently each use needs to be replaced.
 > [!WARNING]
 > Early development. pqscan scans C/C++ source for the OpenSSL identifiers in its rules,
 > through the syntax tree, and follows constants inside a file to find key sizes and algorithm
-> names. A value it can't prove shows as `unknown`.
+> names. A value it can't prove shows as `unknown`. Reports come as text, JSON, a CycloneDX CBOM
+> or SARIF.
 
 ## Build and test
 
@@ -48,13 +49,15 @@ pqscan [OPTIONS] PATH...
 
 Each `PATH` is a file or a directory. Directories are walked recursively, symlinks are
 never followed, and only C and C++ sources are scanned: `.c`, `.h`, `.cpp`, `.hpp`, `.cc`,
-`.cxx`, `.C`, `.hh`, `.hxx`, `.ipp`, `.inl` and `.tcc`. Each finding is one line:
+`.cxx`, `.C`, `.hh`, `.hxx`, `.ipp`, `.inl` and `.tcc`. Each finding is one line, and a last
+line counts them. A clean scan prints nothing:
 
 ```text
 src/keys.c:42: RSA-2048 (QUANTUM_VULNERABLE)
 src/keys.c:51: RSA-1024 (CLASSICALLY_WEAK)
 src/keys.c:57: RSA-unknown (QUANTUM_VULNERABLE)
 src/hash.c:12: MD5 (CLASSICALLY_WEAK)
+4 findings: 2 CLASSICALLY_WEAK, 2 QUANTUM_VULNERABLE
 ```
 
 File names are untrusted input, so control characters, bidirectional marks and invalid UTF-8
@@ -130,6 +133,57 @@ Enum constants aren't followed yet, so they also stay `unknown`.
 > Exit code 0 doesn't prove the code is free of vulnerable cryptography. pqscan only
 > recognizes the identifiers in its rules, in C/C++ source files.
 
+## Reports
+
+`--format` picks what goes to stdout. Warnings always go to stderr, so a report can be
+redirected to a file as it is. The same files give the same bytes: reports hold no date and no
+random identifier.
+
+| Format | What it's for |
+| --- | --- |
+| `text` | Reading in a terminal. |
+| `json` | Scripts. |
+| `cbom` | An inventory of the cryptography in use, as a CycloneDX 1.6 CBOM. |
+| `sarif` | Code scanning services, as SARIF 2.1.0. |
+
+Every format says what a scan left out, so a partial report can't pass for a whole one.
+
+| Format | Where to look |
+| --- | --- |
+| `json` | `complete` and `unanalyzed` |
+| `cbom` | The `pqscan:scan-complete` and `pqscan:unanalyzed` properties in `metadata` |
+| `sarif` | `executionSuccessful` and `toolExecutionNotifications` in `invocations` |
+| `text` | The warnings on stderr |
+
+In `json`, one finding looks like this. `key_size` is a number, `"unknown"` when pqscan can't
+prove it, or `null` when the algorithm has no key size. `symbol` is the rule pattern that
+matched.
+
+```json
+{
+  "path": "src/keys.c",
+  "line": 42,
+  "symbol": "RSA_generate_key_ex",
+  "algorithm": "RSA",
+  "key_size": 2048,
+  "primitive": "unspecified",
+  "risk": "QUANTUM_VULNERABLE"
+}
+```
+
+The `cbom` format has one component for each mix of algorithm, key size and primitive, and its
+occurrences list where that mix is used. CycloneDX has no field for the risk, so it's in the
+`pqscan:risk` property, and an unresolved size is in `pqscan:key-size`.
+
+In `sarif`, each algorithm is one rule, named like `pqscan/RSA`. `CLASSICALLY_WEAK` and
+`QUANTUM_VULNERABLE` are errors, `REVIEW` is a warning and `OK` is a note. Paths are URIs: bytes
+that aren't plain in a URI are percent-encoded, and a leading `./` is dropped so that code
+scanning can match them to the repository.
+
+Text fields use the same `\xNN` escapes as the text report, except for SARIF paths. A `\xNN`
+in a `json` or `cbom` path is literal text, with its backslash, so a parser never sees invalid
+UTF-8.
+
 ## Rules
 
 The built-in rules live in [rules/default.json](rules/default.json) and are compiled into
@@ -175,7 +229,6 @@ at fault.
 
 ## Roadmap
 
-- **Reports:** text, JSON, CycloneDX CBOM and SARIF output.
 - **Configs, certificates and keys:** OpenSSL, nginx, Apache and SSH settings, plus PEM
   and DER files.
 - **ELF binaries:** linked crypto functions found without source code.
