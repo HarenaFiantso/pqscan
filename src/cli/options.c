@@ -3,6 +3,10 @@
 
 #include "pqscan/core/status.h"
 #include "pqscan/core/string_list.h"
+#include "pqscan/report/report_format.h"
+#include "pqscan/report/reporter.h"
+#include "pqscan/report/text_report.h"
+#include "pqscan/risk/risk.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -13,11 +17,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-enum { DECIMAL = 10, OPTION_MAX_TIME = 256 }; /* Past every char, as it has no short form. */
+enum {
+    DECIMAL = 10,
+    OPTION_MAX_TIME = 256, /* Past every char, as these have no short form. */
+    OPTION_FAIL_ON,
+};
 
-static const char SHORT_OPTIONS[] = "hi:r:V";
+static const char SHORT_OPTIONS[] = "f:hi:r:V";
 
 static const struct option LONG_OPTIONS[] = {
+    {"fail-on", required_argument, NULL, OPTION_FAIL_ON},
+    {"format", required_argument, NULL, 'f'},
     {"help", no_argument, NULL, 'h'},
     {"ignore", required_argument, NULL, 'i'},
     {"max-time", required_argument, NULL, OPTION_MAX_TIME},
@@ -46,6 +56,25 @@ static cli_parse_result set_max_seconds(cli_options *options, const char *text) 
     return CLI_PARSE_OK;
 }
 
+static cli_parse_result set_format(cli_options *options, const char *name) {
+    options->format = reporter_find(name);
+    if (options->format == NULL) {
+        (void)fputs("pqscan: --format: unknown format, see --help\n", stderr);
+        return CLI_PARSE_USAGE_ERROR;
+    }
+    return CLI_PARSE_OK;
+}
+
+static cli_parse_result set_fail_on(cli_options *options, const char *name) {
+    if (!risk_level_parse(name, &options->fail_on)) {
+        (void)fputs("pqscan: --fail-on: expected OK, REVIEW, QUANTUM_VULNERABLE or "
+                    "CLASSICALLY_WEAK\n",
+                    stderr);
+        return CLI_PARSE_USAGE_ERROR;
+    }
+    return CLI_PARSE_OK;
+}
+
 static cli_parse_result apply_option(int option, cli_options *options) {
     switch (option) {
     case 'h':
@@ -56,6 +85,10 @@ static cli_parse_result apply_option(int option, cli_options *options) {
         return CLI_PARSE_OK;
     case 'i':
         return add_ignore(options, optarg);
+    case 'f':
+        return set_format(options, optarg);
+    case OPTION_FAIL_ON:
+        return set_fail_on(options, optarg);
     case OPTION_MAX_TIME:
         return set_max_seconds(options, optarg);
     case 'r':
@@ -67,7 +100,9 @@ static cli_parse_result apply_option(int option, cli_options *options) {
 }
 
 cli_parse_result cli_options_parse(int argc, char **argv, cli_options *options) {
-    *options = (cli_options){NULL, NULL, 0, NULL, CLI_DEFAULT_MAX_SECONDS, false, false};
+    *options = (cli_options){
+        NULL,  NULL, 0, NULL, CLI_DEFAULT_MAX_SECONDS, &text_reporter, CLI_DEFAULT_FAIL_ON,
+        false, false};
     options->ignores = string_list_create();
     if (options->ignores == NULL) {
         return CLI_PARSE_NOMEM;

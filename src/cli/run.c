@@ -11,7 +11,7 @@
 #include "pqscan/core/status.h"
 #include "pqscan/core/version.h"
 #include "pqscan/report/reporter.h"
-#include "pqscan/report/text_report.h"
+#include "pqscan/risk/risk.h"
 #include "pqscan/rules/rule_set.h"
 #include "pqscan/scan/file_reader.h"
 #include "pqscan/scan/scanner.h"
@@ -32,16 +32,19 @@ static const char USAGE[] =
     "Options:\n"
     "  -i, --ignore PATTERN  skip paths matching this glob (repeatable; .git is always skipped)\n"
     "  -r, --rules FILE      use the rules in this JSON file instead of the built-in ones\n"
+    "  -f, --format FORMAT   write the report as text\n"
+    "      --fail-on LEVEL   lowest risk level that exits 1: OK, REVIEW, QUANTUM_VULNERABLE or\n"
+    "                        CLASSICALLY_WEAK (default REVIEW)\n"
     "      --max-time SECS   start on no new file after this long (default 3600)\n"
     "  -h, --help            show this help and exit\n"
     "  -V, --version         show the version and exit\n"
     "\n"
     "Exit codes:\n"
-    "  0  no findings\n"
-    "  1  findings reported\n"
+    "  0  no findings at or above --fail-on, and everything was analyzed\n"
+    "  1  findings at or above --fail-on\n"
     "  2  usage error\n"
     "  3  internal error\n"
-    "  4  no findings, but something could not be analyzed\n";
+    "  4  no findings at or above --fail-on, but something could not be analyzed\n";
 
 static const scanner *const SCANNERS[] = {&source_scanner};
 
@@ -50,6 +53,7 @@ typedef struct scan_job {
     const rule_set *rules;
     finding_list *findings;
     skip_list *skipped;     /* Paths in scope that were not analyzed. */
+    risk_level fail_on;     /* The lowest level that counts for the exit code. */
     const char *root;       /* The PATH being walked. */
     time_t deadline;        /* When to stop starting on new files. */
     pqscan_status recorded; /* Whether skipped is whole, as a walk callback cannot fail. */
@@ -125,17 +129,26 @@ static int scan_paths(const cli_options *options, scan_job *job) {
     return PQSCAN_EXIT_CLEAN;
 }
 
+static bool has_finding_at_or_above(const finding_list *findings, risk_level level) {
+    for (size_t i = 0; i < finding_list_count(findings); i++) {
+        if (finding_list_get(findings, i)->risk >= level) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* Findings win over an incomplete scan, because they already need acting on. */
 static int exit_code_of(const scan_job *job) {
-    if (finding_list_count(job->findings) > 0) {
+    if (has_finding_at_or_above(job->findings, job->fail_on)) {
         return PQSCAN_EXIT_FINDINGS;
     }
     return (skip_list_count(job->skipped) > 0) ? PQSCAN_EXIT_INCOMPLETE : PQSCAN_EXIT_CLEAN;
 }
 
-static int report_findings(const scan_job *job) {
+static int report_findings(const scan_job *job, const reporter *format) {
     const scan_report report = {job->findings, job->skipped};
-    if (text_reporter.write(&report, stdout) != PQSCAN_OK) {
+    if (format->write(&report, stdout) != PQSCAN_OK) {
         (void)fprintf(stderr, "pqscan: cannot write the report\n");
         return PQSCAN_EXIT_INTERNAL;
     }
@@ -149,12 +162,15 @@ static int report_findings(const scan_job *job) {
 
 static int scan_and_report(const cli_options *options, scan_job *job) {
     const int code = scan_paths(options, job);
-    return (code == PQSCAN_EXIT_CLEAN) ? report_findings(job) : code;
+    return (code == PQSCAN_EXIT_CLEAN) ? report_findings(job, options->format) : code;
 }
 
 static int scan_with_rules(const cli_options *options, const rule_set *rules) {
     const time_t deadline = pqscan_monotonic_seconds() + (time_t)options->max_seconds;
-    scan_job job = {rules, finding_list_create(), skip_list_create(), NULL, deadline, PQSCAN_OK};
+    scan_job job = {
+        rules,     finding_list_create(), skip_list_create(), options->fail_on, NULL, deadline,
+        PQSCAN_OK,
+    };
     int code = PQSCAN_EXIT_INTERNAL;
     if (job.findings != NULL && job.skipped != NULL) {
         code = scan_and_report(options, &job);
