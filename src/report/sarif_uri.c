@@ -5,12 +5,11 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <string.h>
 
-/* Large enough for "%XX" and its NUL. */
-enum { ENCODED_BYTE_SIZE = 4 };
+enum { HIGH_NIBBLE_SHIFT = 4, LOW_NIBBLE_MASK = 0x0F };
 
+static const char HEX_DIGITS[] = "0123456789ABCDEF";
 static const char FILE_SCHEME[] = "file://";
 static const char CURRENT_DIRECTORY[] = ".";
 
@@ -26,9 +25,10 @@ static void write_uri_byte(json_writer *json, char byte) {
         json_append_raw(json, &byte, 1);
         return;
     }
-    char encoded[ENCODED_BYTE_SIZE];
-    const int len = snprintf(encoded, sizeof(encoded), "%%%02X", (unsigned)(unsigned char)byte);
-    json_append_raw(json, encoded, (size_t)len);
+    const unsigned char value = (unsigned char)byte;
+    const char encoded[] = {'%', HEX_DIGITS[value >> HIGH_NIBBLE_SHIFT],
+                            HEX_DIGITS[value & LOW_NIBBLE_MASK]};
+    json_append_raw(json, encoded, sizeof(encoded));
 }
 
 static const char *skip_current_directory(const char *path) {
