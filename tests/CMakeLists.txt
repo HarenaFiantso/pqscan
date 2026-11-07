@@ -18,7 +18,7 @@ set_target_properties(unity PROPERTIES
 
 function(pqscan_add_unit_test name source)
     add_executable(${name} ${source})
-    target_link_libraries(${name} PRIVATE pqscan_core pqscan_warnings unity)
+    target_link_libraries(${name} PRIVATE pqscan_core pqscan_posix pqscan_warnings unity)
     add_test(NAME ${name} COMMAND ${name})
     if(PQSCAN_ENABLE_MEMCHECK)
         add_test(NAME ${name}_memcheck COMMAND ${PQSCAN_MEMCHECK_COMMAND} $<TARGET_FILE:${name}>)
@@ -26,5 +26,6 @@ function(pqscan_add_unit_test name source)
     endif()
 endfunction()
 
+pqscan_add_unit_test(test_posix core/test_posix.c)
 pqscan_add_unit_test(test_version core/test_version.c)
 target_compile_definitions(test_version PRIVATE PQSCAN_EXPECTED_VERSION="${PROJECT_VERSION}")

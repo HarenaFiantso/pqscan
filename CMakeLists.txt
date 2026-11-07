@@ -11,13 +11,14 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+include(cmake/posix.cmake)
 include(cmake/warnings.cmake)
 include(cmake/memcheck.cmake)
 
 add_library(pqscan_core STATIC src/core/version.c)
 target_include_directories(pqscan_core PUBLIC include)
 target_compile_definitions(pqscan_core PRIVATE PQSCAN_VERSION_STRING="${PROJECT_VERSION}")
-target_link_libraries(pqscan_core PRIVATE pqscan_warnings)
+target_link_libraries(pqscan_core PRIVATE pqscan_posix pqscan_warnings)
 
 enable_testing()
 add_subdirectory(tests)
