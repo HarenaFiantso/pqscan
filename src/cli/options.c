@@ -7,7 +7,6 @@
 #include <getopt.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <unistd.h>
 
 static const char SHORT_OPTIONS[] = "hi:V";
 
