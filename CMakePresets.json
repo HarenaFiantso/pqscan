@@ -1,0 +1,62 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "PQSCAN_DOWNLOAD_DIR": "${sourceDir}/build/.downloads"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "displayName": "Debug with ASan and UBSan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "displayName": "Optimized release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "valgrind",
+      "inherits": "base",
+      "displayName": "Debug without sanitizers, tests also run under a memory checker",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PQSCAN_ENABLE_MEMCHECK": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "valgrind", "configurePreset": "valgrind" }
+  ],
+  "testPresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "configurePreset": "debug",
+      "environment": { "UBSAN_OPTIONS": "print_stacktrace=1" }
+    },
+    { "name": "release", "inherits": "base", "configurePreset": "release" },
+    { "name": "valgrind", "inherits": "base", "configurePreset": "valgrind" }
+  ]
+}
