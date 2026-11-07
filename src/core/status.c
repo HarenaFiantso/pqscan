@@ -19,6 +19,8 @@ const char *pqscan_status_message(pqscan_status status) {
         return "skipped, binary file";
     case PQSCAN_ERR_PARSE:
         return "skipped, cannot parse source in time";
+    case PQSCAN_ERR_RULES:
+        return "invalid rules";
     }
     return "unknown status";
 }
