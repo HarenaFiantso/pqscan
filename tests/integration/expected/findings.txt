@@ -55,3 +55,4 @@ findings/unresolved.c:24: RSA-unknown (QUANTUM_VULNERABLE)
 findings/unresolved.c:30: RSA-unknown (QUANTUM_VULNERABLE)
 findings/unresolved.c:34: RSA-unknown (QUANTUM_VULNERABLE)
 findings/unresolved.c:40: RSA-unknown (QUANTUM_VULNERABLE)
+57 findings: 13 CLASSICALLY_WEAK, 42 QUANTUM_VULNERABLE, 2 REVIEW
