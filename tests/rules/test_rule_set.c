@@ -195,6 +195,15 @@ static void test_a_nul_in_a_string_never_reads_past_the_pattern(void) {
     TEST_ASSERT_NULL(rule_set_find_string(set, text, sizeof(text) - 1));
 }
 
+static void test_a_nul_in_a_name_never_reads_past_the_pattern(void) {
+    add_rule("RSA_new", RULE_FUNCTION, false);
+    add_call("RSA_new", 1, CALL_NO_ARGUMENT);
+    seal();
+    const char text[] = "RSA_new\0abcdefgh";
+    TEST_ASSERT_NULL(rule_set_find_callee(set, text, sizeof(text) - 1));
+    TEST_ASSERT_NULL(rule_set_find_call(set, text, sizeof(text) - 1));
+}
+
 static void test_a_string_and_an_identifier_may_share_a_name(void) {
     add_rule("MD5", RULE_STRING, false);
     add_rule("MD5", RULE_FUNCTION, true);
@@ -251,6 +260,7 @@ int main(void) {
     RUN_TEST(test_strings_match_whole_text_only);
     RUN_TEST(test_strings_stay_apart_from_identifiers);
     RUN_TEST(test_a_nul_in_a_string_never_reads_past_the_pattern);
+    RUN_TEST(test_a_nul_in_a_name_never_reads_past_the_pattern);
     RUN_TEST(test_a_string_and_an_identifier_may_share_a_name);
     RUN_TEST(test_finds_calls_in_any_order);
     RUN_TEST(test_seal_reports_duplicate_identifiers);

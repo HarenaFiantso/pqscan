@@ -152,7 +152,9 @@ bool syntax_named_child(TSNode parent, uint32_t index, TSNode *out) {
         const TSNode child = ts_tree_cursor_current_node(&cursor);
         if (ts_node_is_named(child) && !syntax_node_is(child, "comment")) {
             found = seen == index;
-            *out = found ? child : *out;
+            if (found) {
+                *out = child;
+            }
             seen++;
         }
         more = ts_tree_cursor_goto_next_sibling(&cursor);

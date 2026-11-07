@@ -131,6 +131,10 @@ static int compare_exact(const text_key *key, const char *name) {
     if (order != 0) {
         return order;
     }
+    /* strncmp() stops at a NUL in both, so the name may be shorter than the key. */
+    if (strnlen(name, key->len) < key->len) {
+        return 1;
+    }
     /* The first len bytes are equal, so a longer name sorts after the key. */
     return (name[key->len] == '\0') ? 0 : -1;
 }
