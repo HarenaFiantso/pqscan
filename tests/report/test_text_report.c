@@ -8,7 +8,9 @@
 #include <stdio.h>
 #include <string.h>
 
-enum { OUTPUT_SIZE = 256, SAMPLE_LINE = 12 };
+enum { OUTPUT_SIZE = 256, SAMPLE_LINE = 12, SAMPLE_BITS = 2048 };
+
+static const key_size NO_KEY_SIZE = {KEY_SIZE_NOT_APPLICABLE, 0};
 
 static finding_list *findings;
 static FILE *out;
@@ -41,8 +43,8 @@ static void test_no_findings_write_nothing(void) {
 }
 
 static void test_writes_one_line_per_finding(void) {
-    const finding first = {"src/a.c", SAMPLE_LINE, "RSA", RISK_QUANTUM_VULNERABLE};
-    const finding second = {"b.h", 1, "MD5", RISK_CLASSICALLY_WEAK};
+    const finding first = {"src/a.c", SAMPLE_LINE, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE};
+    const finding second = {"b.h", 1, "MD5", RISK_CLASSICALLY_WEAK, NO_KEY_SIZE};
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &first));
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &second));
 
@@ -54,8 +56,22 @@ static void test_writes_one_line_per_finding(void) {
                              output);
 }
 
+static void test_appends_the_key_size_to_the_algorithm(void) {
+    const finding known = {"a.c", 1, "RSA", RISK_QUANTUM_VULNERABLE, {KEY_SIZE_KNOWN, SAMPLE_BITS}};
+    const finding unknown = {"a.c", 2, "RSA", RISK_QUANTUM_VULNERABLE, {KEY_SIZE_UNKNOWN, 0}};
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &known));
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &unknown));
+
+    char output[OUTPUT_SIZE];
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(findings, out));
+    read_back(output, sizeof(output));
+    TEST_ASSERT_EQUAL_STRING("a.c:1: RSA-2048 (QUANTUM_VULNERABLE)\n"
+                             "a.c:2: RSA-unknown (QUANTUM_VULNERABLE)\n",
+                             output);
+}
+
 static void test_reports_a_failed_write(void) {
-    const finding item = {"a.c", 1, "RSA", RISK_QUANTUM_VULNERABLE};
+    const finding item = {"a.c", 1, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE};
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
 
     FILE *read_only = fopen("/dev/null", "r");
@@ -70,6 +86,7 @@ int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_no_findings_write_nothing);
     RUN_TEST(test_writes_one_line_per_finding);
+    RUN_TEST(test_appends_the_key_size_to_the_algorithm);
     RUN_TEST(test_reports_a_failed_write);
     return UNITY_END();
 }
