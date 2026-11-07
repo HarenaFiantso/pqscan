@@ -21,7 +21,10 @@ add_library(pqscan_core STATIC
     src/core/status.c
     src/core/string_list.c
     src/core/version.c
-    src/risk/risk.c)
+    src/risk/risk.c
+    src/walk/file_type.c
+    src/walk/ignore.c
+    src/walk/walker.c)
 target_include_directories(pqscan_core PUBLIC include)
 target_compile_definitions(pqscan_core PRIVATE PQSCAN_VERSION_STRING="${PROJECT_VERSION}")
 target_link_libraries(pqscan_core PRIVATE pqscan_posix pqscan_warnings)
