@@ -12,10 +12,11 @@ void setUp(void) { opterr = 0; }
 
 void tearDown(void) { cli_options_destroy(&options); }
 
-#define ARG_COUNT(argv) ((int)(sizeof(argv) / sizeof((argv)[0])))
+/* Like a real argv, the arrays below end in NULL, which getopt_long may rely on. */
+#define ARG_COUNT(argv) ((int)(sizeof(argv) / sizeof((argv)[0])) - 1)
 
 static void test_only_the_program_name_gives_no_paths(void) {
-    char *argv[] = {"pqscan"};
+    char *argv[] = {"pqscan", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
     TEST_ASSERT_EQUAL_size_t(0, options.path_count);
     TEST_ASSERT_FALSE(options.show_help);
@@ -23,7 +24,7 @@ static void test_only_the_program_name_gives_no_paths(void) {
 }
 
 static void test_parses_paths(void) {
-    char *argv[] = {"pqscan", "src", "lib"};
+    char *argv[] = {"pqscan", "src", "lib", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
     TEST_ASSERT_EQUAL_size_t(2, options.path_count);
     TEST_ASSERT_EQUAL_STRING("src", options.paths[0]);
@@ -31,21 +32,21 @@ static void test_parses_paths(void) {
 }
 
 static void test_git_directory_is_ignored_by_default(void) {
-    char *argv[] = {"pqscan", "src"};
+    char *argv[] = {"pqscan", "src", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
     TEST_ASSERT_EQUAL_size_t(1, string_list_count(options.ignores));
     TEST_ASSERT_EQUAL_STRING(".git", string_list_get(options.ignores, 0));
 }
 
 static void test_parses_help_and_version_flags(void) {
-    char *long_argv[] = {"pqscan", "--help", "--version"};
+    char *long_argv[] = {"pqscan", "--help", "--version", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK,
                           cli_options_parse(ARG_COUNT(long_argv), long_argv, &options));
     TEST_ASSERT_TRUE(options.show_help);
     TEST_ASSERT_TRUE(options.show_version);
     cli_options_destroy(&options);
 
-    char *short_argv[] = {"pqscan", "-h", "-V"};
+    char *short_argv[] = {"pqscan", "-h", "-V", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK,
                           cli_options_parse(ARG_COUNT(short_argv), short_argv, &options));
     TEST_ASSERT_TRUE(options.show_help);
@@ -53,7 +54,7 @@ static void test_parses_help_and_version_flags(void) {
 }
 
 static void test_ignore_is_repeatable(void) {
-    char *argv[] = {"pqscan", "--ignore", "a", "-i", "b", "--ignore=c", "src"};
+    char *argv[] = {"pqscan", "--ignore", "a", "-i", "b", "--ignore=c", "src", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
     TEST_ASSERT_EQUAL_size_t(4, string_list_count(options.ignores));
     TEST_ASSERT_EQUAL_STRING("c", string_list_get(options.ignores, 3));
@@ -61,7 +62,7 @@ static void test_ignore_is_repeatable(void) {
 }
 
 static void test_options_may_follow_paths(void) {
-    char *argv[] = {"pqscan", "src", "--ignore", "a"};
+    char *argv[] = {"pqscan", "src", "--ignore", "a", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
     TEST_ASSERT_EQUAL_size_t(1, options.path_count);
     TEST_ASSERT_EQUAL_STRING("src", options.paths[0]);
@@ -69,20 +70,20 @@ static void test_options_may_follow_paths(void) {
 }
 
 static void test_double_dash_ends_options(void) {
-    char *argv[] = {"pqscan", "--", "--help"};
+    char *argv[] = {"pqscan", "--", "--help", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
     TEST_ASSERT_FALSE(options.show_help);
     TEST_ASSERT_EQUAL_STRING("--help", options.paths[0]);
 }
 
 static void test_unknown_option_is_a_usage_error(void) {
-    char *argv[] = {"pqscan", "--nope", "src"};
+    char *argv[] = {"pqscan", "--nope", "src", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_USAGE_ERROR,
                           cli_options_parse(ARG_COUNT(argv), argv, &options));
 }
 
 static void test_ignore_without_a_pattern_is_a_usage_error(void) {
-    char *argv[] = {"pqscan", "--ignore"};
+    char *argv[] = {"pqscan", "--ignore", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_USAGE_ERROR,
                           cli_options_parse(ARG_COUNT(argv), argv, &options));
 }
