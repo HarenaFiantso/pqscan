@@ -13,3 +13,12 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+# Fixtures are test input: editors must keep them byte-exact, even invalid UTF-8.
+[tests/fixtures/**]
+charset = unset
+end_of_line = unset
+indent_style = unset
+indent_size = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
