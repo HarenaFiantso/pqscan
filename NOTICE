@@ -1,0 +1,26 @@
+pqscan
+Copyright 2026 Harena Fiantso
+
+This product is licensed under the Apache License, Version 2.0. See LICENSE.
+
+Third-party dependencies:
+
+Used today:
+
+  Unity v2.6.1 (test framework, not shipped in the pqscan binary)
+  https://github.com/ThrowTheSwitch/Unity
+  License: MIT
+
+Planned, added in the roadmap phase shown:
+
+  Tree-sitter, tree-sitter-c, tree-sitter-cpp (phase 2)
+  https://github.com/tree-sitter
+  License: MIT
+
+  cJSON (phase 3)
+  https://github.com/DaveGamble/cJSON
+  License: MIT
+
+  OpenSSL libcrypto (phase 6)
+  https://www.openssl.org
+  License: Apache-2.0
