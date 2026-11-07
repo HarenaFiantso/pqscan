@@ -4,7 +4,19 @@
 
 #include "pqscan/core/status.h"
 
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
+
+/**
+ * @brief Receives one piece of safe text.
+ *
+ * @param bytes The piece. Not NUL-terminated, and valid only during the call.
+ * @param len The number of bytes.
+ * @param context The context given to safe_text_visit().
+ * @return true to continue, false to stop.
+ */
+typedef bool (*safe_text_sink)(const char *bytes, size_t len, void *context);
 
 /**
  * @brief Write text from a scanned repository so that it can only ever be read as text.
@@ -20,5 +32,17 @@
  * @return PQSCAN_OK, or PQSCAN_ERR_IO if a write fails.
  */
 pqscan_status safe_text_write(FILE *out, const char *text);
+
+/**
+ * @brief Pass the safe form of a text to a sink, for output that has its own encoding.
+ *
+ * The pieces, put together, are exactly what safe_text_write() writes.
+ *
+ * @param text The text, NUL-terminated.
+ * @param sink Receives each piece, in order.
+ * @param context Passed to @p sink, unchanged.
+ * @return true if the sink accepted every piece.
+ */
+bool safe_text_visit(const char *text, safe_text_sink sink, void *context);
 
 #endif /* PQSCAN_CORE_SAFE_TEXT_H */
