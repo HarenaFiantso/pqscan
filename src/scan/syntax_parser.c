@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/scan/syntax_parser.h"
 
+#include "pqscan/core/clock.h"
 #include "pqscan/core/status.h"
 #include "pqscan/scan/file_reader.h"
 #include "pqscan/walk/file_type.h"
@@ -33,11 +34,6 @@ struct syntax_parser {
     time_t deadline;
 };
 
-static time_t monotonic_seconds(void) {
-    struct timespec now;
-    return (clock_gettime(CLOCK_MONOTONIC, &now) == 0) ? now.tv_sec : 0;
-}
-
 static const TSLanguage *language_for(source_language language) {
     return (language == SOURCE_LANGUAGE_C) ? tree_sitter_c() : tree_sitter_cpp();
 }
@@ -52,7 +48,7 @@ pqscan_status syntax_parser_create(const syntax_source *source, syntax_parser **
     }
     parser->parser = ts_parser_new();
     parser->file = source->file;
-    parser->deadline = monotonic_seconds() + (time_t)source->budget_seconds;
+    parser->deadline = pqscan_monotonic_seconds() + (time_t)source->budget_seconds;
     if (!ts_parser_set_language(parser->parser, language_for(source->language))) {
         syntax_parser_destroy(parser);
         return PQSCAN_ERR_PARSE;
@@ -70,7 +66,7 @@ void syntax_parser_destroy(syntax_parser *parser) {
 }
 
 bool syntax_parser_expired(const syntax_parser *parser) {
-    return monotonic_seconds() >= parser->deadline;
+    return pqscan_monotonic_seconds() >= parser->deadline;
 }
 
 /* Tree-sitter dictates the signatures of this callback and the next one. */

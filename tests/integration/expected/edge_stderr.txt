@@ -1,1 +1,2 @@
 pqscan: warning: edge/binary.c: skipped, binary file
+pqscan: scan incomplete: 1 path could not be analyzed

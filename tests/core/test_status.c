@@ -13,6 +13,8 @@ static void test_every_status_has_a_distinct_message(void) {
     TEST_ASSERT_EQUAL_STRING("skipped, cannot parse source in time",
                              pqscan_status_message(PQSCAN_ERR_PARSE));
     TEST_ASSERT_EQUAL_STRING("invalid rules", pqscan_status_message(PQSCAN_ERR_RULES));
+    TEST_ASSERT_EQUAL_STRING("skipped, scan time budget used up",
+                             pqscan_status_message(PQSCAN_ERR_BUDGET));
 }
 
 int main(void) {

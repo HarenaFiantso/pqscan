@@ -38,6 +38,35 @@ static void test_git_directory_is_ignored_by_default(void) {
     TEST_ASSERT_EQUAL_STRING(".git", string_list_get(options.ignores, 0));
 }
 
+static void test_the_time_budget_has_a_default(void) {
+    char *argv[] = {"pqscan", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_EQUAL_UINT(CLI_DEFAULT_MAX_SECONDS, options.max_seconds);
+}
+
+static void test_parses_the_time_budget(void) {
+    char *argv[] = {"pqscan", "--max-time", "90", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_EQUAL_UINT(90, options.max_seconds);
+}
+
+static void assert_refuses_budget(char *value) {
+    char *argv[] = {"pqscan", "--max-time", value, "src", NULL};
+    TEST_ASSERT_EQUAL_INT_MESSAGE(CLI_PARSE_USAGE_ERROR,
+                                  cli_options_parse(ARG_COUNT(argv), argv, &options), value);
+    cli_options_destroy(&options);
+}
+
+static void test_refuses_a_bad_time_budget(void) {
+    assert_refuses_budget("");
+    assert_refuses_budget("ten");
+    assert_refuses_budget("10s");
+    assert_refuses_budget("-1");
+    assert_refuses_budget(" 1");
+    assert_refuses_budget("99999999999999999999");
+    assert_refuses_budget("2147483648");
+}
+
 static void test_parses_help_and_version_flags(void) {
     char *long_argv[] = {"pqscan", "--help", "--version", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK,
@@ -125,6 +154,9 @@ int main(void) {
     RUN_TEST(test_only_the_program_name_gives_no_paths);
     RUN_TEST(test_parses_paths);
     RUN_TEST(test_git_directory_is_ignored_by_default);
+    RUN_TEST(test_the_time_budget_has_a_default);
+    RUN_TEST(test_parses_the_time_budget);
+    RUN_TEST(test_refuses_a_bad_time_budget);
     RUN_TEST(test_parses_help_and_version_flags);
     RUN_TEST(test_rules_path_is_absent_by_default);
     RUN_TEST(test_parses_the_rules_path);

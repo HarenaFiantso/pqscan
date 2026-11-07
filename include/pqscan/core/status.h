@@ -13,6 +13,7 @@ typedef enum pqscan_status {
     PQSCAN_ERR_BINARY,
     PQSCAN_ERR_PARSE,
     PQSCAN_ERR_RULES,
+    PQSCAN_ERR_BUDGET,
 } pqscan_status;
 
 /**

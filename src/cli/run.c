@@ -5,6 +5,7 @@
 #include "pqscan/cli/exit_code.h"
 #include "pqscan/cli/options.h"
 #include "pqscan/cli/rule_option.h"
+#include "pqscan/core/clock.h"
 #include "pqscan/core/finding.h"
 #include "pqscan/core/status.h"
 #include "pqscan/core/version.h"
@@ -16,8 +17,11 @@
 #include "pqscan/scan/source_scanner.h"
 #include "pqscan/walk/walker.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
+#include <time.h>
 
 static const char USAGE[] =
     "Usage: pqscan [OPTIONS] PATH...\n"
@@ -27,6 +31,7 @@ static const char USAGE[] =
     "Options:\n"
     "  -i, --ignore PATTERN  skip paths matching this glob (repeatable; .git is always skipped)\n"
     "  -r, --rules FILE      use the rules in this JSON file instead of the built-in ones\n"
+    "      --max-time SECS   start on no new file after this long (default 3600)\n"
     "  -h, --help            show this help and exit\n"
     "  -V, --version         show the version and exit\n"
     "\n"
@@ -34,7 +39,8 @@ static const char USAGE[] =
     "  0  no findings\n"
     "  1  findings reported\n"
     "  2  usage error\n"
-    "  3  internal error\n";
+    "  3  internal error\n"
+    "  4  no findings, but something could not be analyzed\n";
 
 static const scanner *const SCANNERS[] = {&source_scanner};
 
@@ -42,14 +48,24 @@ static const scanner *const SCANNERS[] = {&source_scanner};
 typedef struct scan_job {
     const rule_set *rules;
     finding_list *findings;
+    const char *root;  /* The PATH being walked. */
+    size_t unanalyzed; /* Paths in scope that were not analyzed. */
+    time_t deadline;   /* When to stop starting on new files. */
 } scan_job;
 
-static void warn_skipped(const char *path, pqscan_status reason, void *context) {
-    (void)context;
-    cli_print_diagnostic("pqscan: warning: ", path, pqscan_status_message(reason));
+/* A symlink or device inside a tree is left out by design. The same thing given as a PATH was
+ * asked for by name, so a run that skips it has not done what it was told. */
+static bool is_in_scope(const scan_job *job, const char *path, pqscan_status reason) {
+    return reason != PQSCAN_ERR_NOT_REGULAR || strcmp(path, job->root) == 0;
 }
 
-static pqscan_status scan_with(const scanner *active, const char *path, const scan_job *job) {
+static void warn_skipped(const char *path, pqscan_status reason, void *context) {
+    scan_job *job = context;
+    cli_print_diagnostic("pqscan: warning: ", path, pqscan_status_message(reason));
+    job->unanalyzed += is_in_scope(job, path, reason) ? 1 : 0;
+}
+
+static pqscan_status scan_with(const scanner *active, const char *path, scan_job *job) {
     file_contents *file = NULL;
     pqscan_status status = file_contents_read(path, &file);
     if (status == PQSCAN_OK) {
@@ -60,18 +76,24 @@ static pqscan_status scan_with(const scanner *active, const char *path, const sc
     if (status == PQSCAN_OK || status == PQSCAN_ERR_NOMEM) {
         return status;
     }
-    warn_skipped(path, status, NULL);
+    warn_skipped(path, status, job);
     return PQSCAN_OK;
 }
 
-/* The walker's callback type passes a mutable context, which this one only reads from. */
-// cppcheck-suppress constParameterCallback
-// cppcheck-suppress constParameterPointer
+/* The budget of each file already bounds how far past the deadline a run can go. */
+static pqscan_status scan_or_skip(const scanner *active, const char *path, scan_job *job) {
+    if (pqscan_monotonic_seconds() < job->deadline) {
+        return scan_with(active, path, job);
+    }
+    warn_skipped(path, PQSCAN_ERR_BUDGET, job);
+    return PQSCAN_OK;
+}
+
 static pqscan_status scan_file(const char *path, void *context) {
-    const scan_job *job = context;
+    scan_job *job = context;
     for (size_t i = 0; i < sizeof(SCANNERS) / sizeof(SCANNERS[0]); i++) {
         if (SCANNERS[i]->accepts(path)) {
-            const pqscan_status status = scan_with(SCANNERS[i], path, job);
+            const pqscan_status status = scan_or_skip(SCANNERS[i], path, job);
             if (status != PQSCAN_OK) {
                 return status;
             }
@@ -89,6 +111,7 @@ static int fail_on_path(const char *path, pqscan_status status) {
 static int scan_paths(const cli_options *options, scan_job *job) {
     const walk_callbacks callbacks = {scan_file, warn_skipped, job};
     for (size_t i = 0; i < options->path_count; i++) {
+        job->root = options->paths[i];
         const pqscan_status status = walk_tree(options->paths[i], options->ignores, &callbacks);
         if (status != PQSCAN_OK) {
             return fail_on_path(options->paths[i], status);
@@ -97,12 +120,24 @@ static int scan_paths(const cli_options *options, scan_job *job) {
     return PQSCAN_EXIT_CLEAN;
 }
 
-static int report_findings(const finding_list *findings) {
-    if (text_reporter.write(findings, stdout) != PQSCAN_OK) {
+/* Findings win over an incomplete scan, because they already need acting on. */
+static int exit_code_of(const scan_job *job) {
+    if (finding_list_count(job->findings) > 0) {
+        return PQSCAN_EXIT_FINDINGS;
+    }
+    return (job->unanalyzed > 0) ? PQSCAN_EXIT_INCOMPLETE : PQSCAN_EXIT_CLEAN;
+}
+
+static int report_findings(const scan_job *job) {
+    if (text_reporter.write(job->findings, stdout) != PQSCAN_OK) {
         (void)fprintf(stderr, "pqscan: cannot write the report\n");
         return PQSCAN_EXIT_INTERNAL;
     }
-    return (finding_list_count(findings) > 0) ? PQSCAN_EXIT_FINDINGS : PQSCAN_EXIT_CLEAN;
+    if (job->unanalyzed > 0) {
+        (void)fprintf(stderr, "pqscan: scan incomplete: %zu path%s could not be analyzed\n",
+                      job->unanalyzed, (job->unanalyzed == 1) ? "" : "s");
+    }
+    return exit_code_of(job);
 }
 
 static int scan_with_rules(const cli_options *options, const rule_set *rules) {
@@ -111,10 +146,11 @@ static int scan_with_rules(const cli_options *options, const rule_set *rules) {
         (void)fprintf(stderr, "pqscan: %s\n", pqscan_status_message(PQSCAN_ERR_NOMEM));
         return PQSCAN_EXIT_INTERNAL;
     }
-    scan_job job = {rules, findings};
+    const time_t deadline = pqscan_monotonic_seconds() + (time_t)options->max_seconds;
+    scan_job job = {rules, findings, NULL, 0, deadline};
     int code = scan_paths(options, &job);
     if (code == PQSCAN_EXIT_CLEAN) {
-        code = report_findings(findings);
+        code = report_findings(&job);
     }
     finding_list_destroy(findings);
     return code;
