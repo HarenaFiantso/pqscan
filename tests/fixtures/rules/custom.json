@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "algorithms": [
+    {"name": "HOME-GROWN", "risk": "REVIEW", "weak_below_bits": 512}
+  ],
+  "rules": [
+    {"pattern": "my_keygen", "kind": "function", "algorithm": "HOME-GROWN", "primitive": "signature"}
+  ],
+  "calls": [
+    {"name": "my_keygen", "key_bits_argument": 0}
+  ]
+}

@@ -12,6 +12,7 @@ typedef struct cli_options {
     string_list *ignores; /**< Patterns, including the defaults. Owned by this struct. */
     char **paths;         /**< Paths to scan. Borrowed from argv. */
     size_t path_count;
+    const char *rules_path; /**< File given to --rules, or NULL. Borrowed from argv. */
     bool show_help;
     bool show_version;
 } cli_options;

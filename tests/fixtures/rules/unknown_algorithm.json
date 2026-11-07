@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "algorithms": [],
+  "rules": [
+    {"pattern": "RSA_new", "kind": "function", "algorithm": "RSA", "primitive": "unspecified"}
+  ],
+  "calls": []
+}

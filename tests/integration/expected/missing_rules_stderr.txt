@@ -1,0 +1,1 @@
+pqscan: ../rules/no-such-file.json: no such file or directory

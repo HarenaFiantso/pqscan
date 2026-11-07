@@ -53,6 +53,38 @@ static void test_parses_help_and_version_flags(void) {
     TEST_ASSERT_TRUE(options.show_version);
 }
 
+static void test_rules_path_is_absent_by_default(void) {
+    char *argv[] = {"pqscan", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_NULL(options.rules_path);
+}
+
+static void test_parses_the_rules_path(void) {
+    char *long_argv[] = {"pqscan", "--rules", "a.json", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK,
+                          cli_options_parse(ARG_COUNT(long_argv), long_argv, &options));
+    TEST_ASSERT_EQUAL_STRING("a.json", options.rules_path);
+    TEST_ASSERT_EQUAL_size_t(1, options.path_count);
+    cli_options_destroy(&options);
+
+    char *short_argv[] = {"pqscan", "-r", "b.json", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK,
+                          cli_options_parse(ARG_COUNT(short_argv), short_argv, &options));
+    TEST_ASSERT_EQUAL_STRING("b.json", options.rules_path);
+}
+
+static void test_the_last_rules_path_wins(void) {
+    char *argv[] = {"pqscan", "--rules=a.json", "--rules=b.json", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_EQUAL_STRING("b.json", options.rules_path);
+}
+
+static void test_rules_without_a_path_is_a_usage_error(void) {
+    char *argv[] = {"pqscan", "src", "--rules", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_USAGE_ERROR,
+                          cli_options_parse(ARG_COUNT(argv), argv, &options));
+}
+
 static void test_ignore_is_repeatable(void) {
     char *argv[] = {"pqscan", "--ignore", "a", "-i", "b", "--ignore=c", "src", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
@@ -94,6 +126,10 @@ int main(void) {
     RUN_TEST(test_parses_paths);
     RUN_TEST(test_git_directory_is_ignored_by_default);
     RUN_TEST(test_parses_help_and_version_flags);
+    RUN_TEST(test_rules_path_is_absent_by_default);
+    RUN_TEST(test_parses_the_rules_path);
+    RUN_TEST(test_the_last_rules_path_wins);
+    RUN_TEST(test_rules_without_a_path_is_a_usage_error);
     RUN_TEST(test_ignore_is_repeatable);
     RUN_TEST(test_options_may_follow_paths);
     RUN_TEST(test_double_dash_ends_options);

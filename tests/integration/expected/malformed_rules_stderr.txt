@@ -1,0 +1,1 @@
+pqscan: ../rules/malformed.json: line 2: invalid JSON

@@ -65,6 +65,18 @@ pqscan_add_cli_test(ignore_everything EXIT 0
 pqscan_add_cli_test(edge_cases EXIT 1 ARGS edge STDOUT "${expected}/edge_stdout.txt"
     STDERR "${expected}/edge_stderr.txt")
 
+pqscan_add_cli_test(custom_rules EXIT 1 ARGS --rules ../rules/custom.json custom
+    STDOUT "${expected}/custom_rules.txt" STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(custom_rules_replace_the_built_in_ones EXIT 0
+    ARGS --rules ../rules/custom.json findings STDOUT "${expected}/empty.txt")
+pqscan_add_cli_test(malformed_rules EXIT 2 ARGS --rules ../rules/malformed.json findings
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/malformed_rules_stderr.txt")
+pqscan_add_cli_test(invalid_rules EXIT 2 ARGS --rules ../rules/unknown_algorithm.json findings
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/unknown_algorithm_rules_stderr.txt")
+pqscan_add_cli_test(missing_rules EXIT 2 ARGS --rules ../rules/no-such-file.json findings
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/missing_rules_stderr.txt")
+pqscan_add_cli_test(rules_without_file EXIT 2 ARGS findings --rules STDOUT "${expected}/empty.txt")
+
 # /dev/full fails every write. macOS does not have it.
 if(EXISTS /dev/full)
     pqscan_add_cli_test(unwritable_report EXIT 3 ARGS findings STDOUT_SINK /dev/full)
