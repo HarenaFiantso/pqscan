@@ -36,6 +36,9 @@ static const struct option LONG_OPTIONS[] = {
 
 static const char DEFAULT_IGNORE[] = ".git";
 
+/* An OK finding needs no action, so it does not fail a run unless asked to. */
+static const risk_level DEFAULT_FAIL_ON = RISK_REVIEW;
+
 static cli_parse_result add_ignore(cli_options *options, const char *pattern) {
     const pqscan_status status = string_list_add(options->ignores, pattern);
     return (status == PQSCAN_OK) ? CLI_PARSE_OK : CLI_PARSE_NOMEM;
@@ -99,8 +102,7 @@ static cli_parse_result apply_option(int option, cli_options *options) {
 
 cli_parse_result cli_options_parse(int argc, char **argv, cli_options *options) {
     *options = (cli_options){
-        NULL,  NULL,  0, NULL, CLI_DEFAULT_MAX_SECONDS, &text_reporter, CLI_DEFAULT_FAIL_ON,
-        false, false,
+        NULL, NULL, 0, NULL, CLI_DEFAULT_MAX_SECONDS, &text_reporter, DEFAULT_FAIL_ON, false, false,
     };
     options->ignores = string_list_create();
     if (options->ignores == NULL) {
