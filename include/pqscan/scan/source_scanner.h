@@ -7,8 +7,9 @@
 /**
  * A syntax-aware scanner for C and C++ source, built on Tree-sitter.
  *
- * It reports uses of known identifiers, including inside macro bodies, and reads literal key
- * sizes and algorithm names from the arguments of known calls. It ignores comments, strings
+ * It reports uses of known identifiers, including inside macro bodies, and reads key sizes
+ * and algorithm names from the arguments of known calls, resolving constants within the file
+ * where the value can be proved. It ignores comments, strings
  * outside those arguments, declarations of a name, struct fields, methods, and code under
  * a literal #if 0. Syntax errors are tolerated, so broken code is still scanned.
  *
