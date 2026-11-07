@@ -28,7 +28,8 @@ static void test_add_copies_the_path(void) {
     char *path = strdup("a.c");
     TEST_ASSERT_NOT_NULL(path);
     const finding item = {
-        path, SAMPLE_LINE, "RSA", RISK_QUANTUM_VULNERABLE, {KEY_SIZE_KNOWN, SAMPLE_BITS}};
+        path, SAMPLE_LINE, "RSA", RISK_QUANTUM_VULNERABLE, {KEY_SIZE_KNOWN, SAMPLE_BITS},
+    };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(list, &item));
     free(path);
 
@@ -45,7 +46,8 @@ static void test_add_copies_the_path(void) {
 static void test_grows_and_keeps_order(void) {
     for (size_t line = 1; line <= MANY_FINDINGS; line++) {
         const finding item = {
-            "a.c", line, "MD5", RISK_CLASSICALLY_WEAK, {KEY_SIZE_NOT_APPLICABLE, 0}};
+            "a.c", line, "MD5", RISK_CLASSICALLY_WEAK, {KEY_SIZE_NOT_APPLICABLE, 0},
+        };
         TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(list, &item));
     }
     TEST_ASSERT_EQUAL_size_t(MANY_FINDINGS, finding_list_count(list));
