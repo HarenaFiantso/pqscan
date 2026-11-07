@@ -4,7 +4,6 @@
 #include "pqscan/core/status.h"
 #include "pqscan/core/string_list.h"
 #include "pqscan/report/report_format.h"
-#include "pqscan/report/reporter.h"
 #include "pqscan/report/text_report.h"
 #include "pqscan/risk/risk.h"
 
@@ -17,11 +16,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-enum {
-    DECIMAL = 10,
-    OPTION_MAX_TIME = 256, /* Past every char, as these have no short form. */
-    OPTION_FAIL_ON,
-};
+enum { DECIMAL = 10 };
+
+/* Past every char, as these have no short form. */
+enum { OPTION_MAX_TIME = 256, OPTION_FAIL_ON };
 
 static const char SHORT_OPTIONS[] = "f:hi:r:V";
 
@@ -101,8 +99,9 @@ static cli_parse_result apply_option(int option, cli_options *options) {
 
 cli_parse_result cli_options_parse(int argc, char **argv, cli_options *options) {
     *options = (cli_options){
-        NULL,  NULL, 0, NULL, CLI_DEFAULT_MAX_SECONDS, &text_reporter, CLI_DEFAULT_FAIL_ON,
-        false, false};
+        NULL,  NULL,  0, NULL, CLI_DEFAULT_MAX_SECONDS, &text_reporter, CLI_DEFAULT_FAIL_ON,
+        false, false,
+    };
     options->ignores = string_list_create();
     if (options->ignores == NULL) {
         return CLI_PARSE_NOMEM;

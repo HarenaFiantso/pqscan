@@ -98,16 +98,23 @@ static bool send_escaped(unsigned char byte, safe_text_sink sink, void *context)
     return len > 0 && sink(escaped, (size_t)len, context);
 }
 
+/* Sends the next character of the text. Tells how many bytes it took, or 0 if the sink stopped. */
+static size_t send_next(const unsigned char *text, safe_text_sink sink, void *context) {
+    const size_t len = is_plain_ascii(*text) ? 1 : safe_sequence_len(text);
+    if (len == 0) {
+        return send_escaped(*text, sink, context) ? 1 : 0;
+    }
+    return sink((const char *)text, len, context) ? len : 0;
+}
+
 bool safe_text_visit(const char *text, safe_text_sink sink, void *context) {
     const unsigned char *rest = (const unsigned char *)text;
     while (*rest != '\0') {
-        const size_t len = is_plain_ascii(*rest) ? 1 : safe_sequence_len(rest);
-        const bool sent = (len == 0) ? send_escaped(*rest, sink, context)
-                                     : sink((const char *)rest, len, context);
-        if (!sent) {
+        const size_t len = send_next(rest, sink, context);
+        if (len == 0) {
             return false;
         }
-        rest += (len == 0) ? 1 : len;
+        rest += len;
     }
     return true;
 }

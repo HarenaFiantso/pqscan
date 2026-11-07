@@ -40,7 +40,8 @@ pqscan_status skip_list_add(skip_list *list, const char *path, pqscan_status rea
     if (copy == NULL) {
         return PQSCAN_ERR_NOMEM;
     }
-    list->items[list->count] = (skipped_path){copy, reason};
+    list->items[list->count].path = copy;
+    list->items[list->count].reason = reason;
     list->count++;
     return PQSCAN_OK;
 }
