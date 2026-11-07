@@ -1,0 +1,2 @@
+pqscan: missing PATH
+Try 'pqscan --help' for more information.

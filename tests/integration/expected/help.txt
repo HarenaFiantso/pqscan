@@ -1,0 +1,14 @@
+Usage: pqscan [OPTIONS] PATH...
+
+Find quantum-vulnerable cryptography in C/C++ source files.
+
+Options:
+  -i, --ignore PATTERN  skip paths matching this glob (repeatable; .git is always skipped)
+  -h, --help            show this help and exit
+  -V, --version         show the version and exit
+
+Exit codes:
+  0  no findings
+  1  findings reported
+  2  usage error
+  3  internal error
