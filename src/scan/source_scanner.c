@@ -3,62 +3,278 @@
 
 #include "pqscan/core/finding.h"
 #include "pqscan/core/status.h"
+#include "pqscan/scan/call_arguments.h"
 #include "pqscan/scan/file_reader.h"
 #include "pqscan/scan/openssl_identifiers.h"
 #include "pqscan/scan/scanner.h"
+#include "pqscan/scan/syntax_parser.h"
 #include "pqscan/walk/file_type.h"
 
-#include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
+#include <tree_sitter/api.h>
 
-typedef struct source_cursor {
+/* A CI job must not hang on one hostile file, and real sources parse in milliseconds. */
+enum { PARSE_BUDGET_SECONDS = 30, DEADLINE_CHECK_INTERVAL = 1024 };
+
+typedef struct source_walk {
     const char *path;
-    size_t line;
+    const file_contents *file;
+    syntax_parser *parser;
     finding_list *findings;
-} source_cursor;
+    uint32_t skip_until; /* Nodes that start before this offset are not visited. */
+    size_t visited;
+    bool in_macro_body;
+} source_walk;
 
-/* Bytes above 0x7F are not identifier characters, which also makes non-UTF-8 input harmless. */
-static bool is_identifier_char(char byte) {
-    return isalnum((unsigned char)byte) != 0 || byte == '_';
+typedef pqscan_status (*node_visitor)(source_walk *walk, TSNode node, const char *field);
+
+typedef struct node_handler {
+    const char *type;
+    node_visitor visit;
+} node_handler;
+
+static pqscan_status walk_nodes(source_walk *walk, TSNode root);
+
+static bool field_is(const char *field, const char *name) {
+    return field != NULL && strcmp(field, name) == 0;
 }
 
-static size_t find_token_end(const file_contents *file, size_t start) {
-    size_t end = start;
-    while (end < file->len && is_identifier_char(file->data[end])) {
-        end++;
-    }
-    return end;
+/* Tree-sitter puts the name being declared in one of these two fields of its parent. */
+static bool is_declared_name(const char *field) {
+    return field_is(field, "declarator") || field_is(field, "name");
 }
 
-static pqscan_status report_token(const source_cursor *cursor, const char *token, size_t len) {
-    const crypto_identifier *known = openssl_identifier_find(token, len);
+static finding finding_at(const source_walk *walk, TSNode node, const crypto_identifier *known) {
+    const finding item = {
+        walk->path,
+        (size_t)ts_node_start_point(node).row + 1,
+        known->algorithm,
+        known->risk,
+        {KEY_SIZE_NOT_APPLICABLE, 0},
+    };
+    return item;
+}
+
+static const crypto_identifier *find_identifier(const source_walk *walk, TSNode node) {
+    const syntax_text name = syntax_node_text(node, walk->file);
+    return openssl_identifier_find(name.data, name.len);
+}
+
+static pqscan_status report_identifier(const source_walk *walk, TSNode node) {
+    const crypto_identifier *known = find_identifier(walk, node);
     if (known == NULL) {
         return PQSCAN_OK;
     }
-    const finding item = {
-        cursor->path, cursor->line, known->algorithm, known->risk, {KEY_SIZE_NOT_APPLICABLE, 0}};
-    return finding_list_add(cursor->findings, &item);
+    const finding item = finding_at(walk, node, known);
+    return finding_list_add(walk->findings, &item);
 }
 
-static pqscan_status scan_tokens(source_cursor *cursor, const file_contents *file) {
-    size_t position = 0;
-    while (position < file->len) {
-        const char byte = file->data[position];
-        if (!is_identifier_char(byte)) {
-            cursor->line += (byte == '\n') ? 1 : 0;
-            position++;
-            continue;
+static key_size signature_key_size(const source_walk *walk, TSNode call,
+                                   const call_signature *signature) {
+    if (signature->key_bits_argument == CALL_NO_ARGUMENT) {
+        const key_size none = {KEY_SIZE_NOT_APPLICABLE, 0};
+        return none;
+    }
+    return call_key_size(call, (uint32_t)signature->key_bits_argument, walk->file);
+}
+
+static const call_signature *find_signature(const source_walk *walk, TSNode name) {
+    const syntax_text text = syntax_node_text(name, walk->file);
+    return openssl_call_find(text.data, text.len);
+}
+
+static pqscan_status report_callee(const source_walk *walk, TSNode call, TSNode name) {
+    const crypto_identifier *known = find_identifier(walk, name);
+    if (known == NULL) {
+        return PQSCAN_OK;
+    }
+    finding item = finding_at(walk, name, known);
+    const call_signature *signature = find_signature(walk, name);
+    if (signature != NULL) {
+        item.size = signature_key_size(walk, call, signature);
+    }
+    return finding_list_add(walk->findings, &item);
+}
+
+static pqscan_status report_algorithm_argument(const source_walk *walk, TSNode call, TSNode name) {
+    const call_signature *signature = find_signature(walk, name);
+    TSNode argument;
+    if (signature == NULL || signature->algorithm_argument == CALL_NO_ARGUMENT ||
+        !call_string_argument(call, (uint32_t)signature->algorithm_argument, &argument)) {
+        return PQSCAN_OK;
+    }
+    const syntax_text text = syntax_node_text(argument, walk->file);
+    const crypto_identifier *known = openssl_algorithm_name_find(text.data, text.len);
+    if (known == NULL) {
+        return PQSCAN_OK;
+    }
+    finding item = finding_at(walk, argument, known);
+    item.size = signature_key_size(walk, call, signature);
+    return finding_list_add(walk->findings, &item);
+}
+
+/* ns::a::name nests one qualified_identifier in the name field of the previous one. */
+static TSNode strip_qualifiers(TSNode name) {
+    TSNode inner = name;
+    while (syntax_node_is(inner, "qualified_identifier")) {
+        inner = syntax_node_field(inner, "name");
+    }
+    return inner;
+}
+
+static pqscan_status visit_call(source_walk *walk, TSNode node, const char *field) {
+    (void)field;
+    const TSNode callee = syntax_node_field(node, "function");
+    const TSNode name = strip_qualifiers(callee);
+    if (!syntax_node_is(name, "identifier")) {
+        return PQSCAN_OK;
+    }
+    walk->skip_until = ts_node_end_byte(callee);
+    const pqscan_status status = report_callee(walk, node, name);
+    if (status != PQSCAN_OK) {
+        return status;
+    }
+    return report_algorithm_argument(walk, node, name);
+}
+
+/* Every visitor shares one signature, even one that does not modify the walk. */
+// cppcheck-suppress constParameterCallback
+static pqscan_status visit_identifier(source_walk *walk, TSNode node, const char *field) {
+    return is_declared_name(field) ? PQSCAN_OK : report_identifier(walk, node);
+}
+
+static pqscan_status skip_subtree(source_walk *walk, TSNode node, const char *field) {
+    (void)field;
+    walk->skip_until = ts_node_end_byte(node);
+    return PQSCAN_OK;
+}
+
+static pqscan_status visit_qualified_identifier(source_walk *walk, TSNode node, const char *field) {
+    walk->skip_until = ts_node_end_byte(node);
+    const TSNode name = strip_qualifiers(node);
+    if (is_declared_name(field) || !syntax_node_is(name, "identifier")) {
+        return PQSCAN_OK;
+    }
+    return report_identifier(walk, name);
+}
+
+/* The name in int (RSA_new)(void), written that way to avoid macro expansion, has no field. */
+static pqscan_status visit_parenthesized_declarator(source_walk *walk, TSNode node,
+                                                    const char *field) {
+    return syntax_node_is(ts_node_named_child(node, 0), "identifier")
+               ? skip_subtree(walk, node, field)
+               : PQSCAN_OK;
+}
+
+static bool is_literal_zero(const source_walk *walk, TSNode condition) {
+    if (!syntax_node_is(condition, "number_literal")) {
+        return false;
+    }
+    const syntax_text text = syntax_node_text(condition, walk->file);
+    return text.len == 1 && text.data[0] == '0';
+}
+
+/* Skipping by offset rather than by recursing into the #else keeps the walk iterative, so
+ * thousands of nested conditionals cannot exhaust the stack. */
+static pqscan_status visit_conditional(source_walk *walk, TSNode node, const char *field) {
+    if (!is_literal_zero(walk, syntax_node_field(node, "condition"))) {
+        return PQSCAN_OK;
+    }
+    const TSNode alternative = syntax_node_field(node, "alternative");
+    if (ts_node_is_null(alternative)) {
+        return skip_subtree(walk, node, field);
+    }
+    walk->skip_until = ts_node_start_byte(alternative);
+    return PQSCAN_OK;
+}
+
+/* A body can contain the text of another #define, so this must only ever go one level deep:
+ * following those would let a hostile file recurse once per directive. */
+static pqscan_status visit_macro_body(source_walk *walk, TSNode node, const char *field) {
+    if (walk->in_macro_body || !field_is(field, "value")) {
+        return PQSCAN_OK;
+    }
+    TSTree *tree = NULL;
+    pqscan_status status = syntax_parser_parse_node(walk->parser, node, &tree);
+    if (status != PQSCAN_OK) {
+        return status;
+    }
+    source_walk body = *walk;
+    body.in_macro_body = true;
+    body.skip_until = 0;
+    status = walk_nodes(&body, ts_tree_root_node(tree));
+    walk->visited = body.visited;
+    ts_tree_delete(tree);
+    return status;
+}
+
+static const node_handler HANDLERS[] = {
+    {"call_expression", visit_call},
+    {"identifier", visit_identifier},
+    {"parenthesized_declarator", visit_parenthesized_declarator},
+    {"preproc_arg", visit_macro_body},
+    {"preproc_defined", skip_subtree},
+    {"preproc_elif", visit_conditional},
+    {"preproc_if", visit_conditional},
+    {"preproc_params", skip_subtree},
+    {"qualified_identifier", visit_qualified_identifier},
+};
+
+static pqscan_status visit_node(source_walk *walk, TSNode node, const char *field) {
+    walk->visited++;
+    if (walk->visited % DEADLINE_CHECK_INTERVAL == 0 && syntax_parser_expired(walk->parser)) {
+        return PQSCAN_ERR_PARSE;
+    }
+    const char *type = ts_node_type(node);
+    for (size_t i = 0; i < sizeof(HANDLERS) / sizeof(HANDLERS[0]); i++) {
+        if (strcmp(type, HANDLERS[i].type) == 0) {
+            return HANDLERS[i].visit(walk, node, field);
         }
-        const size_t end = find_token_end(file, position);
-        const pqscan_status status = report_token(cursor, file->data + position, end - position);
-        if (status != PQSCAN_OK) {
-            return status;
-        }
-        position = end;
     }
     return PQSCAN_OK;
+}
+
+static bool advance_cursor(TSTreeCursor *cursor, bool skip_children) {
+    if (!skip_children && ts_tree_cursor_goto_first_child(cursor)) {
+        return true;
+    }
+    while (!ts_tree_cursor_goto_next_sibling(cursor)) {
+        if (!ts_tree_cursor_goto_parent(cursor)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* A cursor keeps its position on the heap. Recursing over the tree instead would let deeply
+ * nested input overflow the C stack. */
+static pqscan_status walk_nodes(source_walk *walk, TSNode root) {
+    TSTreeCursor cursor = ts_tree_cursor_new(root);
+    pqscan_status status = PQSCAN_OK;
+    bool more = true;
+    while (more && status == PQSCAN_OK) {
+        const TSNode node = ts_tree_cursor_current_node(&cursor);
+        const bool skipped = ts_node_start_byte(node) < walk->skip_until;
+        if (!skipped) {
+            status = visit_node(walk, node, ts_tree_cursor_current_field_name(&cursor));
+        }
+        more = advance_cursor(&cursor, skipped);
+    }
+    ts_tree_cursor_delete(&cursor);
+    return status;
+}
+
+static pqscan_status parse_and_walk(source_walk *walk) {
+    TSTree *tree = NULL;
+    pqscan_status status = syntax_parser_parse_file(walk->parser, &tree);
+    if (status == PQSCAN_OK) {
+        status = walk_nodes(walk, ts_tree_root_node(tree));
+        ts_tree_delete(tree);
+    }
+    return status;
 }
 
 static pqscan_status scan_source(const char *path, const file_contents *file,
@@ -66,8 +282,16 @@ static pqscan_status scan_source(const char *path, const file_contents *file,
     if (memchr(file->data, '\0', file->len) != NULL) {
         return PQSCAN_ERR_BINARY;
     }
-    source_cursor cursor = {path, 1, findings};
-    return scan_tokens(&cursor, file);
+    const syntax_source source = {file_type_source_language(path), file, PARSE_BUDGET_SECONDS};
+    syntax_parser *parser = NULL;
+    pqscan_status status = syntax_parser_create(&source, &parser);
+    if (status != PQSCAN_OK) {
+        return status;
+    }
+    source_walk walk = {path, file, parser, findings, 0, 0, false};
+    status = parse_and_walk(&walk);
+    syntax_parser_destroy(parser);
+    return status;
 }
 
 const scanner source_scanner = {"source", file_type_is_source, scan_source};
