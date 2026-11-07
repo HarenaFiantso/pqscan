@@ -12,8 +12,9 @@ cryptography is and how urgently each use needs to be replaced.
 
 ## Status
 
-Early development. The build, test and CI tooling is in place, but pqscan cannot scan
-anything yet.
+Early development. pqscan scans C/C++ source for known OpenSSL identifiers. The scan is a
+plain text match for now, so it also reports identifiers in comments and strings, and it
+does not read key sizes yet.
 
 ## Build and test
 
@@ -24,11 +25,42 @@ have Docker, `docker compose run --rm dev` opens a Linux shell with everything i
 cmake --preset debug
 cmake --build --preset debug
 ctest --preset debug
+./build/debug/pqscan --help
 ```
 
 The `debug` preset builds with ASan and UBSan, `release` is optimized, and `valgrind` also
 runs each test under a memory checker. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
 full developer setup.
+
+## Usage
+
+```sh
+pqscan [OPTIONS] PATH...
+```
+
+Each `PATH` is a file or a directory. Directories are walked recursively, symlinks are
+never followed, and only `.c`, `.h`, `.cpp` and `.hpp` files are scanned. Each finding is
+one line:
+
+```text
+src/keys.c:42: RSA (QUANTUM_VULNERABLE)
+```
+
+| Option | Meaning |
+| --- | --- |
+| `-i`, `--ignore PATTERN` | Skip paths matching a glob. Repeatable. `.git` is always skipped. |
+| `-h`, `--help` | Show the help and exit. |
+| `-V`, `--version` | Show the version and exit. |
+
+Paths that can't be read are skipped with a warning on stderr, as are files that contain
+a NUL byte or exceed 64 MiB.
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | No findings |
+| 1 | Findings reported |
+| 2 | Usage error, such as a path that doesn't exist |
+| 3 | Internal error |
 
 ## Roadmap
 
