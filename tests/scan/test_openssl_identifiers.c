@@ -71,6 +71,10 @@ static const crypto_identifier *find_algorithm(const char *text) {
     return openssl_algorithm_name_find(text, strlen(text));
 }
 
+static const crypto_identifier *find_call_only(const char *text) {
+    return openssl_call_only_find(text, strlen(text));
+}
+
 static void test_call_table_is_sorted_without_duplicates(void) {
     size_t count = 0;
     const call_signature *table = openssl_call_table(&count);
@@ -102,6 +106,33 @@ static void test_unknown_call_is_not_found(void) {
     TEST_ASSERT_NULL(find_call("EVP_MD_fetc"));
 }
 
+static void test_call_only_table_is_sorted_without_duplicates(void) {
+    size_t count = 0;
+    const crypto_identifier *table = openssl_call_only_table(&count);
+    TEST_ASSERT_GREATER_THAN_size_t(0, count);
+    for (size_t i = 1; i < count; i++) {
+        TEST_ASSERT_LESS_THAN_INT_MESSAGE(0, strcmp(table[i - 1].name, table[i].name),
+                                          table[i].name);
+    }
+}
+
+static void test_every_call_only_entry_can_be_found(void) {
+    size_t count = 0;
+    const crypto_identifier *table = openssl_call_only_table(&count);
+    for (size_t i = 0; i < count; i++) {
+        TEST_ASSERT_EQUAL_PTR_MESSAGE(&table[i], find_call_only(table[i].name), table[i].name);
+    }
+}
+
+static void test_one_shot_hashes_are_only_known_as_calls(void) {
+    TEST_ASSERT_EQUAL_STRING("MD5", find_call_only("MD5")->algorithm);
+    TEST_ASSERT_EQUAL_STRING("SHA-1", find_call_only("SHA1")->algorithm);
+    TEST_ASSERT_NULL(find_text("MD5"));
+    TEST_ASSERT_NULL(find_text("SHA1"));
+    TEST_ASSERT_NULL(find_call_only("MD"));
+    TEST_ASSERT_NULL(find_call_only("MD5_Init"));
+}
+
 static void test_algorithm_names_ignore_case(void) {
     TEST_ASSERT_EQUAL_STRING("SHA-1", find_algorithm("sha1")->algorithm);
     TEST_ASSERT_EQUAL_STRING("SHA-1", find_algorithm("SHA-1")->algorithm);
@@ -131,6 +162,9 @@ int main(void) {
     RUN_TEST(test_every_call_can_be_found);
     RUN_TEST(test_call_reads_the_right_arguments);
     RUN_TEST(test_unknown_call_is_not_found);
+    RUN_TEST(test_call_only_table_is_sorted_without_duplicates);
+    RUN_TEST(test_every_call_only_entry_can_be_found);
+    RUN_TEST(test_one_shot_hashes_are_only_known_as_calls);
     RUN_TEST(test_algorithm_names_ignore_case);
     RUN_TEST(test_algorithm_names_match_whole_strings);
     return UNITY_END();

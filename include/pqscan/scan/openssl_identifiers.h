@@ -41,6 +41,26 @@ const crypto_identifier *openssl_identifier_find(const char *name, size_t len);
 const crypto_identifier *openssl_identifier_table(size_t *count);
 
 /**
+ * @brief Look up a function that counts only when it is called.
+ *
+ * Short names such as MD5 are also common enum values and variables, so unlike the entries of
+ * openssl_identifier_find(), merely mentioning one proves nothing.
+ *
+ * @param name The start of the function name. It need not be NUL-terminated.
+ * @param len The length of the name.
+ * @return The entry, which has static storage duration, or NULL if it is not known.
+ */
+const crypto_identifier *openssl_call_only_find(const char *name, size_t len);
+
+/**
+ * @brief Get every function that counts only when it is called, sorted by name.
+ *
+ * @param count Out: the number of entries.
+ * @return The table, which has static storage duration.
+ */
+const crypto_identifier *openssl_call_only_table(size_t *count);
+
+/**
  * @brief Look up the signature of a call.
  *
  * @param name The start of the function name. It need not be NUL-terminated.

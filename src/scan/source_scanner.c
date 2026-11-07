@@ -86,8 +86,17 @@ static const call_signature *find_signature(const source_walk *walk, TSNode name
     return openssl_call_find(text.data, text.len);
 }
 
-static pqscan_status report_callee(const source_walk *walk, TSNode call, TSNode name) {
+static const crypto_identifier *find_callee(const source_walk *walk, TSNode name) {
     const crypto_identifier *known = find_identifier(walk, name);
+    if (known != NULL) {
+        return known;
+    }
+    const syntax_text text = syntax_node_text(name, walk->file);
+    return openssl_call_only_find(text.data, text.len);
+}
+
+static pqscan_status report_callee(const source_walk *walk, TSNode call, TSNode name) {
+    const crypto_identifier *known = find_callee(walk, name);
     if (known == NULL) {
         return PQSCAN_OK;
     }
