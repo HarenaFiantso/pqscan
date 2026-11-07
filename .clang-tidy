@@ -19,5 +19,9 @@ WarningsAsErrors: '*'
 HeaderFilterRegex: '(include|src|tests)/.*'
 FormatStyle: file
 CheckOptions:
+  # cert-err33-c only sees these when the return value is ignored, so ban them by name.
+  # gets is already covered by the check's defaults.
+  bugprone-unsafe-functions.CustomFunctions: '^::(sprintf|vsprintf|strcpy|strcat)$,a bounded function such as snprintf,is forbidden by the project style;'
+  readability-function-size.ParameterThreshold: 3
   # Unity's macros live in this internal header; tests include the public unity.h.
   misc-include-cleaner.IgnoreHeaders: '.*unity_internals\.h'
