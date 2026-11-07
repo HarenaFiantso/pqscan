@@ -136,6 +136,12 @@ pqscan_add_cli_test(rules_cannot_forge_a_diagnostic EXIT 2
 # /dev/full fails every write. macOS does not have it.
 if(EXISTS /dev/full)
     pqscan_add_cli_test(unwritable_report EXIT 3 ARGS findings STDOUT_SINK /dev/full)
+    pqscan_add_cli_test(unwritable_json_report EXIT 3 ARGS -f json findings
+        STDOUT_SINK /dev/full)
+    pqscan_add_cli_test(unwritable_cbom_report EXIT 3 ARGS -f cbom findings
+        STDOUT_SINK /dev/full)
+    pqscan_add_cli_test(unwritable_sarif_report EXIT 3 ARGS -f sarif findings
+        STDOUT_SINK /dev/full)
 endif()
 
 if(PQSCAN_CHECK_REPORT_SCHEMAS)
