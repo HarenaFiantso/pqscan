@@ -151,6 +151,18 @@ because it scans memory conservatively, so CI's Valgrind job is the final check.
 
 To run just the memory-checked tests, use `ctest --preset valgrind -L valgrind`.
 
+## Updating the README demo
+
+The GIF in the README is recorded from `assets/demo.tape` with [VHS](https://github.com/charmbracelet/vhs).
+Record it again when the CLI's output changes:
+
+```sh
+brew install vhs                         # also installs ttyd and ffmpeg
+cmake --preset release
+cmake --build --preset release
+vhs assets/demo.tape
+```
+
 ## Reporting a false positive or false negative
 
 Open a [detection report](https://github.com/HarenaFiantso/pqscan/issues/new?template=detection_report.yml)
