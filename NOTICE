@@ -12,15 +12,15 @@ Used today:
   https://github.com/tree-sitter
   License: MIT
 
+  cJSON v1.7.19 (compiled into the pqscan binary)
+  https://github.com/DaveGamble/cJSON
+  License: MIT
+
   Unity v2.6.1 (test framework, not shipped in the pqscan binary)
   https://github.com/ThrowTheSwitch/Unity
   License: MIT
 
 Planned, added in the roadmap phase shown:
-
-  cJSON (phase 3)
-  https://github.com/DaveGamble/cJSON
-  License: MIT
 
   OpenSSL libcrypto (phase 6)
   https://www.openssl.org
