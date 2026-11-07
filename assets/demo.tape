@@ -16,7 +16,7 @@ Set Theme "Catppuccin Mocha"
 Set TypingSpeed 45ms
 
 Hide
-Type "export PATH=$PWD/build/release:$PATH && clear"
+Type "export PATH=$PWD/build/release:$PATH && cd tests/fixtures/scan && clear"
 Enter
 Sleep 300ms
 Show
@@ -27,7 +27,7 @@ Sleep 300ms
 Enter
 Sleep 1500ms
 
-Type "pqscan tests/fixtures/scan/findings"
+Type "pqscan findings/key_sizes.c"
 Sleep 300ms
 Enter
 Sleep 3s
@@ -37,12 +37,7 @@ Sleep 300ms
 Enter
 Sleep 1500ms
 
-Type "pqscan --ignore '*.hpp' tests/fixtures/scan/findings"
-Sleep 300ms
-Enter
-Sleep 3s
-
-Type "pqscan tests/fixtures/scan/clean; echo $?"
+Type "pqscan clean; echo $?"
 Sleep 300ms
 Enter
 Sleep 3s

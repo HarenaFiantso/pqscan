@@ -105,7 +105,7 @@ below enforce what they can, and reviewers check the rest.
 * Unit tests for every module, and integration tests that run the binary on `tests/fixtures/` and compare against the expected output.
 * Test edge cases: empty, missing or unreadable files, huge lines, non-UTF-8 input, and identifiers in comments, strings and macros. For binaries and certificates, also test truncated or malformed input.
 * When a false positive or false negative shows up, add a fixture that reproduces it before fixing it.
-* Every parser (source, config, PEM/DER handling, ELF) gets a fuzz target.
+* Every parser (source, config, PEM/DER handling, ELF) gets a fuzz target, by phase 10 at the latest.
 * Tests must be fast, independent and deterministic.
 
 ## Commit messages
