@@ -2,7 +2,9 @@
 #include "pqscan/core/finding.h"
 #include "pqscan/core/key_size.h"
 #include "pqscan/core/primitive.h"
+#include "pqscan/core/skip_list.h"
 #include "pqscan/core/status.h"
+#include "pqscan/report/reporter.h"
 #include "pqscan/report/text_report.h"
 #include "pqscan/risk/risk.h"
 #include "unity.h"
@@ -15,11 +17,16 @@ enum { OUTPUT_SIZE = 256, SAMPLE_LINE = 12, SAMPLE_BITS = 2048 };
 static const key_size NO_KEY_SIZE = {KEY_SIZE_NOT_APPLICABLE, 0};
 
 static finding_list *findings;
+static skip_list *skipped;
+static scan_report report;
 static FILE *out;
 
 void setUp(void) {
     findings = finding_list_create();
     TEST_ASSERT_NOT_NULL(findings);
+    skipped = skip_list_create();
+    TEST_ASSERT_NOT_NULL(skipped);
+    report = (scan_report){findings, skipped};
     out = tmpfile();
     TEST_ASSERT_NOT_NULL(out);
 }
@@ -27,6 +34,7 @@ void setUp(void) {
 void tearDown(void) {
     const int closed = fclose(out);
     TEST_ASSERT_EQUAL_INT(0, closed);
+    skip_list_destroy(skipped);
     finding_list_destroy(findings);
 }
 
@@ -39,7 +47,7 @@ static void read_back(char *buffer, size_t size) {
 
 static void test_no_findings_write_nothing(void) {
     char output[OUTPUT_SIZE];
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(findings, out));
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(&report, out));
     read_back(output, sizeof(output));
     TEST_ASSERT_EQUAL_STRING("", output);
 }
@@ -56,7 +64,7 @@ static void test_writes_one_line_per_finding(void) {
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &second));
 
     char output[OUTPUT_SIZE];
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(findings, out));
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(&report, out));
     read_back(output, sizeof(output));
     TEST_ASSERT_EQUAL_STRING("src/a.c:12: RSA (QUANTUM_VULNERABLE)\n"
                              "b.h:1: MD5 (CLASSICALLY_WEAK)\n",
@@ -80,7 +88,7 @@ static void test_appends_the_key_size_to_the_algorithm(void) {
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &unknown));
 
     char output[OUTPUT_SIZE];
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(findings, out));
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(&report, out));
     read_back(output, sizeof(output));
     TEST_ASSERT_EQUAL_STRING("a.c:1: RSA-2048 (QUANTUM_VULNERABLE)\n"
                              "a.c:2: RSA-unknown (QUANTUM_VULNERABLE)\n",
@@ -100,7 +108,7 @@ static void test_a_file_name_cannot_forge_a_line(void) {
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
 
     char output[OUTPUT_SIZE];
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(findings, out));
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(&report, out));
     read_back(output, sizeof(output));
     TEST_ASSERT_EQUAL_STRING("evil\\x0afake.c:1: AES-256 (OK)\\x0a\\x1b[2K.c:7: RSA "
                              "(QUANTUM_VULNERABLE)\n",
@@ -115,7 +123,7 @@ static void test_reports_a_failed_write(void) {
 
     FILE *read_only = fopen("/dev/null", "r");
     TEST_ASSERT_NOT_NULL(read_only);
-    const pqscan_status status = text_reporter.write(findings, read_only);
+    const pqscan_status status = text_reporter.write(&report, read_only);
     const int closed = fclose(read_only);
     TEST_ASSERT_EQUAL_INT(0, closed);
     TEST_ASSERT_EQUAL_INT(PQSCAN_ERR_IO, status);

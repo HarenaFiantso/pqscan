@@ -23,7 +23,8 @@ static void format_key_suffix(const key_size *size, char *suffix) {
     }
 }
 
-static pqscan_status write_text(const finding_list *findings, FILE *out) {
+static pqscan_status write_text(const scan_report *report, FILE *out) {
+    const finding_list *findings = report->findings;
     for (size_t i = 0; i < finding_list_count(findings); i++) {
         const finding *item = finding_list_get(findings, i);
         char key_suffix[KEY_SUFFIX_SIZE];
