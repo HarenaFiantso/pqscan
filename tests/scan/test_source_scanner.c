@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/core/finding.h"
-#include "pqscan/core/key_size.h"
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/status.h"
 #include "pqscan/risk/risk.h"
@@ -10,6 +9,7 @@
 #include "pqscan/scan/file_reader.h"
 #include "pqscan/scan/scanner.h"
 #include "pqscan/scan/source_scanner.h"
+#include "scan_support.h"
 #include "unity.h"
 
 #include <stddef.h>
@@ -63,33 +63,9 @@ static void assert_finding_count(size_t expected) {
     TEST_ASSERT_EQUAL_size_t(expected, finding_list_count(findings));
 }
 
-/* Writes one "line:label" word per finding, where a label carries any key size. */
-static void describe_findings(char *description) {
-    size_t used = 0;
-    for (size_t i = 0; i < finding_list_count(findings); i++) {
-        const finding *item = finding_list_get(findings, i);
-        const char *separator = (i == 0) ? "" : " ";
-        const size_t left = DESCRIPTION_SIZE - used;
-        int written = 0;
-        if (item->size.kind == KEY_SIZE_KNOWN) {
-            written = snprintf(description + used, left, "%s%zu:%s-%u", separator, item->line,
-                               item->algorithm, item->size.bits);
-        } else if (item->size.kind == KEY_SIZE_UNKNOWN) {
-            written = snprintf(description + used, left, "%s%zu:%s-unknown", separator, item->line,
-                               item->algorithm);
-        } else {
-            written = snprintf(description + used, left, "%s%zu:%s", separator, item->line,
-                               item->algorithm);
-        }
-        TEST_ASSERT_TRUE(written > 0 && (size_t)written < left);
-        used += (size_t)written;
-    }
-    description[used] = '\0';
-}
-
 static void assert_findings(const char *expected) {
     char actual[DESCRIPTION_SIZE];
-    describe_findings(actual);
+    describe_findings(findings, actual, sizeof(actual));
     TEST_ASSERT_EQUAL_STRING(expected, actual);
 }
 
