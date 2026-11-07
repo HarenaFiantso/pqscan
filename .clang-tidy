@@ -25,8 +25,9 @@ CheckOptions:
   readability-function-size.ParameterThreshold: 3
   # Unity's macros live in this internal header; tests include the public unity.h.
   # Systems declare POSIX names in private headers, such as O_* flags in sys/fcntl.h and
-  # strdup in _string.h on macOS, or E* errors in asm-generic/ and getopt_long in bits/ on
-  # Linux. Code must include the portable headers fcntl.h, string.h, errno.h and getopt.h.
-  misc-include-cleaner.IgnoreHeaders: '.*unity_internals\.h;.*sys/(dirent|errno|fcntl|types)\.h;.*/_[a-z_]+\.h;.*/asm(-generic)?/.*\.h;.*/(bits/getopt_[a-z]+|getopt)\.h'
+  # strdup in _string.h on macOS, or E* errors in asm-generic/ and getopt_long or CLOCK_* in
+  # bits/ on Linux. Code must include the portable headers fcntl.h, string.h, errno.h,
+  # getopt.h and time.h.
+  misc-include-cleaner.IgnoreHeaders: '.*unity_internals\.h;.*sys/(dirent|errno|fcntl|types)\.h;.*/_[a-z_]+\.h;.*/asm(-generic)?/.*\.h;.*/(bits/getopt_[a-z]+|bits/time|bits/types/struct_timespec|getopt)\.h'
   # In C the result of && and || has type int, so this would flag bool b = x && y.
   readability-implicit-bool-conversion.AllowLogicalOperatorConversion: true
