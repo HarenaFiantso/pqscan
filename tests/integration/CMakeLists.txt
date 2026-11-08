@@ -188,6 +188,47 @@ pqscan_add_cli_test(project_without_file EXIT 2 ARGS priority --project
 pqscan_add_cli_test(year_must_be_a_year EXIT 2 ARGS --as-of 26 priority
     STDOUT "${expected}/empty.txt" STDERR "${expected}/bad_year_stderr.txt")
 
+set(baselines "${PROJECT_SOURCE_DIR}/tests/fixtures/baselines")
+add_test(NAME cli_a_written_baseline_accepts_the_scan_it_came_from
+    COMMAND "${CMAKE_COMMAND}"
+        "-DPQSCAN=$<TARGET_FILE:pqscan>"
+        "-DCASE_ARGS=--as-of|${pinned_year}|findings"
+        "-DBASELINE=${CMAKE_CURRENT_BINARY_DIR}/written_baseline.json"
+        "-DEXPECTED_BASELINE=${baselines}/findings.json"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/run_baseline_case.cmake"
+    WORKING_DIRECTORY "${fixtures}")
+if(PQSCAN_ENABLE_MEMCHECK)
+    pqscan_add_memcheck_case(write_baseline
+        "--write-baseline|${CMAKE_CURRENT_BINARY_DIR}/memcheck_baseline.json|findings"
+        "${fixtures}")
+endif()
+pqscan_add_cli_test(diff_against_a_full_baseline_finds_nothing_new EXIT 0
+    ARGS --diff ../baselines/findings.json findings
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(diff_ignores_a_leading_current_directory EXIT 0
+    ARGS --diff ../baselines/findings.json ./findings
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(diff_reports_new_findings_and_stale_entries EXIT 1
+    ARGS --diff ../baselines/partial.json findings
+    STDOUT "${expected}/diff_new_findings.txt" STDERR "${expected}/diff_stale_stderr.txt")
+pqscan_add_cli_test(diff_below_the_threshold_does_not_fail EXIT 0
+    ARGS --fail-on CLASSICALLY_WEAK --diff ../baselines/partial.json findings
+    STDOUT "${expected}/diff_new_findings.txt")
+pqscan_add_cli_test(diff_of_an_incomplete_scan_is_not_clean EXIT 4
+    ARGS --diff ../baselines/findings.json findings edge/binary.c
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/incomplete_stderr.txt")
+pqscan_add_cli_test(invalid_baseline EXIT 2 ARGS --diff ../baselines/unknown_field.json findings
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/unknown_field_baseline_stderr.txt")
+pqscan_add_cli_test(missing_baseline EXIT 2 ARGS --diff ../baselines/no-such-file.json findings
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/missing_baseline_stderr.txt")
+pqscan_add_cli_test(diff_without_file EXIT 2 ARGS findings --diff STDOUT "${expected}/empty.txt")
+pqscan_add_cli_test(diff_and_write_baseline_together EXIT 2
+    ARGS --diff ../baselines/findings.json --write-baseline new.json findings
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/diff_and_write_baseline_stderr.txt")
+pqscan_add_cli_test(uncreatable_baseline EXIT 2
+    ARGS --write-baseline no-such-dir/baseline.json findings/rsa.c
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/uncreatable_baseline_stderr.txt")
+
 # /dev/full fails every write. macOS does not have it.
 if(EXISTS /dev/full)
     pqscan_add_cli_test(unwritable_report EXIT 3 ARGS findings STDOUT_SINK /dev/full)
@@ -197,6 +238,7 @@ if(EXISTS /dev/full)
         STDOUT_SINK /dev/full)
     pqscan_add_cli_test(unwritable_sarif_report EXIT 3 ARGS -f sarif findings
         STDOUT_SINK /dev/full)
+    pqscan_add_cli_test(unwritable_baseline EXIT 3 ARGS --write-baseline /dev/full findings)
 endif()
 
 if(PQSCAN_CHECK_REPORT_SCHEMAS)

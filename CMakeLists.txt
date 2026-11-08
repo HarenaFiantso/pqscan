@@ -29,6 +29,7 @@ add_library(pqscan_core STATIC
     src/baseline/baseline.c
     src/baseline/baseline_format.c
     src/baseline/baseline_writer.c
+    src/cli/baseline_option.c
     src/cli/diagnostic.c
     src/cli/options.c
     src/cli/project_option.c
