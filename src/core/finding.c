@@ -3,6 +3,7 @@
 
 #include "pqscan/core/memory.h"
 #include "pqscan/core/status.h"
+#include "pqscan/risk/priority.h"
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -43,6 +44,18 @@ pqscan_status finding_list_add(finding_list *list, const finding *item) {
     list->items[list->count].path = path;
     list->count++;
     return PQSCAN_OK;
+}
+
+void finding_list_set_priority(finding_list *list, size_t index, priority value) {
+    if (index < list->count) {
+        list->items[index].priority = value;
+    }
+}
+
+void finding_list_sort(finding_list *list, int (*compare)(const void *left, const void *right)) {
+    if (list->count > 1) {
+        qsort(list->items, list->count, sizeof(list->items[0]), compare);
+    }
 }
 
 size_t finding_list_count(const finding_list *list) { return list->count; }

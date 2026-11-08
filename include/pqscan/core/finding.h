@@ -6,6 +6,7 @@
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/status.h"
 #include "pqscan/core/utc_time.h"
+#include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 
 #include <stddef.h>
@@ -20,6 +21,7 @@ typedef struct finding {
     crypto_primitive primitive; /**< What the use of the algorithm does. */
     const char *symbol;         /**< What matched in the file. Borrowed like the algorithm. */
     utc_time expires;           /**< When the certificate it belongs to stops being valid. */
+    priority priority;          /**< How soon to migrate it. Scanners leave priority_none(). */
 } finding;
 
 /** A growable list of findings, in the order they were added. */
@@ -69,6 +71,24 @@ size_t finding_list_count(const finding_list *list);
  *         stays valid until the next finding_list_add() or finding_list_destroy().
  */
 const finding *finding_list_get(const finding_list *list, size_t index);
+
+/**
+ * @brief Set the priority of one finding, which is all that may change after it is added.
+ *
+ * @param list The list.
+ * @param index The position, from zero. Nothing happens if it is out of range.
+ * @param value The priority. Its component is borrowed, so it must outlive the list.
+ */
+void finding_list_set_priority(finding_list *list, size_t index, priority value);
+
+/**
+ * @brief Reorder the findings.
+ *
+ * @param list The list.
+ * @param compare A qsort() comparison, called with two pointers to findings. It must order
+ *                every pair, as qsort() does not keep equal findings in their order.
+ */
+void finding_list_sort(finding_list *list, int (*compare)(const void *left, const void *right));
 
 /**
  * @brief Point at every finding, so that a reader can sort them without touching the list.

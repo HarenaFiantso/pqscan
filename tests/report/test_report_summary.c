@@ -5,6 +5,7 @@
 #include "pqscan/core/status.h"
 #include "pqscan/core/utc_time.h"
 #include "pqscan/report/report_summary.h"
+#include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 #include "unity.h"
 
@@ -14,8 +15,15 @@ void tearDown(void) {}
 
 static void add_finding(finding_list *list, risk_level risk) {
     const finding item = {
-        "a.c",           1, "X", risk, {KEY_SIZE_NOT_APPLICABLE, 0}, PRIMITIVE_UNSPECIFIED, "x",
+        "a.c",
+        1,
+        "X",
+        risk,
+        {KEY_SIZE_NOT_APPLICABLE, 0},
+        PRIMITIVE_UNSPECIFIED,
+        "x",
         utc_time_none(),
+        priority_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(list, &item));
 }

@@ -6,6 +6,7 @@
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/status.h"
 #include "pqscan/core/utc_time.h"
+#include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 #include "pqscan/rules/rule_set.h"
 #include "pqscan/scan/config_lexer.h"
@@ -143,6 +144,7 @@ static pqscan_status report_match(const config_match *match, void *context) {
         rule->primitive,
         rule->pattern,
         utc_time_none(),
+        priority_none(),
     };
     return finding_list_add(walk->findings, &item);
 }
@@ -215,6 +217,7 @@ static pqscan_status read_default_bits(const config_walk *walk, const config_sta
         PRIMITIVE_UNSPECIFIED,
         DEFAULT_BITS_SYMBOL,
         utc_time_none(),
+        priority_none(),
     };
     return finding_list_add(walk->findings, &item);
 }

@@ -9,6 +9,7 @@
 #include "pqscan/core/version.h"
 #include "pqscan/report/cbom_report.h"
 #include "pqscan/report/reporter.h"
+#include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 #include "unity.h"
 
@@ -34,6 +35,7 @@ static const finding CERTIFICATE_KEY = {
     PRIMITIVE_SIGNATURE,
     "rsaEncryption",
     {true, SAMPLE_YEAR, 5, 1, 12, 0, 0},
+    {0, NULL, {false, 0, 0, 0, 0, IR8547_ACCEPTABLE}},
 };
 
 static finding_list *findings;
@@ -60,8 +62,8 @@ static void add(const finding *item) {
 
 static void add_use(const char *algorithm, key_size size, crypto_primitive primitive) {
     const finding item = {
-        "a.c", SAMPLE_LINE, algorithm,    RISK_QUANTUM_VULNERABLE,
-        size,  primitive,   "the_symbol", utc_time_none(),
+        "a.c",     SAMPLE_LINE,  algorithm,       RISK_QUANTUM_VULNERABLE, size,
+        primitive, "the_symbol", utc_time_none(), priority_none(),
     };
     add(&item);
 }
@@ -218,22 +220,25 @@ static void test_bits_only_count_when_they_are_known(void) {
 
 static void test_occurrences_are_sorted_whatever_the_scan_order(void) {
     const finding later = {
-        "b.c",       1,
-        "RSA",       RISK_QUANTUM_VULNERABLE,
-        NO_KEY_SIZE, PRIMITIVE_SIGNATURE,
-        "second",    utc_time_none(),
+        "b.c",           1,
+        "RSA",           RISK_QUANTUM_VULNERABLE,
+        NO_KEY_SIZE,     PRIMITIVE_SIGNATURE,
+        "second",        utc_time_none(),
+        priority_none(),
     };
     const finding earlier = {
-        "a.c",       2,
-        "RSA",       RISK_QUANTUM_VULNERABLE,
-        NO_KEY_SIZE, PRIMITIVE_SIGNATURE,
-        "z_first",   utc_time_none(),
+        "a.c",           2,
+        "RSA",           RISK_QUANTUM_VULNERABLE,
+        NO_KEY_SIZE,     PRIMITIVE_SIGNATURE,
+        "z_first",       utc_time_none(),
+        priority_none(),
     };
     const finding earliest = {
-        "a.c",       2,
-        "RSA",       RISK_QUANTUM_VULNERABLE,
-        NO_KEY_SIZE, PRIMITIVE_SIGNATURE,
-        "a_first",   utc_time_none(),
+        "a.c",           2,
+        "RSA",           RISK_QUANTUM_VULNERABLE,
+        NO_KEY_SIZE,     PRIMITIVE_SIGNATURE,
+        "a_first",       utc_time_none(),
+        priority_none(),
     };
     add(&later);
     add(&earlier);
@@ -276,6 +281,7 @@ static void test_a_hostile_file_name_stays_inside_its_string(void) {
         PRIMITIVE_SIGNATURE,
         "x",
         utc_time_none(),
+        priority_none(),
     };
     add(&item);
     write_and_parse();

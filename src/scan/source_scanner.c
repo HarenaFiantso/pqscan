@@ -7,6 +7,7 @@
 #include "pqscan/core/utc_time.h"
 #include "pqscan/flow/constant_flow.h"
 #include "pqscan/flow/flow_source.h"
+#include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 #include "pqscan/rules/rule_set.h"
 #include "pqscan/scan/call_arguments.h"
@@ -64,6 +65,7 @@ static finding finding_at(const source_walk *walk, TSNode node, const crypto_rul
         rule->primitive,
         rule->pattern,
         utc_time_none(),
+        priority_none(),
     };
     return item;
 }

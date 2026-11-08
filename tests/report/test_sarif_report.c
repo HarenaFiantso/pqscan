@@ -9,6 +9,7 @@
 #include "pqscan/core/version.h"
 #include "pqscan/report/reporter.h"
 #include "pqscan/report/sarif_report.h"
+#include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 #include "unity.h"
 
@@ -33,6 +34,7 @@ static const finding CERTIFICATE_KEY = {
     PRIMITIVE_SIGNATURE,
     "rsaEncryption",
     {true, SAMPLE_YEAR, 5, 1, 12, 0, 0},
+    {0, NULL, {false, 0, 0, 0, 0, IR8547_ACCEPTABLE}},
 };
 
 static finding_list *findings;
@@ -55,8 +57,8 @@ void tearDown(void) {
 
 static void add_finding(const char *algorithm, key_size size, risk_level risk) {
     const finding item = {
-        "./src/a.c", SAMPLE_LINE,         algorithm,    risk,
-        size,        PRIMITIVE_SIGNATURE, "the_symbol", utc_time_none(),
+        "./src/a.c",  SAMPLE_LINE,     algorithm,       risk, size, PRIMITIVE_SIGNATURE,
+        "the_symbol", utc_time_none(), priority_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
 }
@@ -212,6 +214,7 @@ static void test_a_hostile_file_name_stays_inside_its_string(void) {
         PRIMITIVE_SIGNATURE,
         "x",
         utc_time_none(),
+        priority_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
     write_and_parse();
