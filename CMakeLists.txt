@@ -15,6 +15,10 @@ option(PQSCAN_ENABLE_LIBFUZZER "Build the libFuzzer targets, which needs a Clang
 # Off where pqscan is only being built or installed, such as in the GitHub Action or a package,
 # so that the test framework is not downloaded.
 option(PQSCAN_BUILD_TESTS "Build the tests and the fuzz replays" ON)
+# A release binary that runs where OpenSSL is not installed. On Linux it is fully static, which
+# needs musl: glibc loads parts of itself at run time, so it cannot be linked in whole. macOS has
+# no static C library, so there only libcrypto is linked in.
+option(PQSCAN_STATIC "Link libcrypto into the binary, and on Linux everything else too" OFF)
 
 include(cmake/posix.cmake)
 include(cmake/warnings.cmake)
@@ -95,6 +99,9 @@ target_link_libraries(pqscan_core
 
 add_executable(pqscan src/cli/main.c)
 target_link_libraries(pqscan PRIVATE pqscan_core pqscan_posix pqscan_warnings)
+if(PQSCAN_STATIC AND NOT APPLE)
+    target_link_options(pqscan PRIVATE -static)
+endif()
 
 include(cmake/install.cmake)
 

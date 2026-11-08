@@ -29,6 +29,15 @@
       }
     },
     {
+      "name": "static",
+      "inherits": "base",
+      "displayName": "Optimized release that runs where OpenSSL is not installed",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PQSCAN_STATIC": "ON"
+      }
+    },
+    {
       "name": "valgrind",
       "inherits": "base",
       "displayName": "Debug without sanitizers, tests also run under a memory checker",
@@ -51,6 +60,7 @@
   "buildPresets": [
     { "name": "debug", "configurePreset": "debug" },
     { "name": "release", "configurePreset": "release" },
+    { "name": "static", "configurePreset": "static" },
     { "name": "valgrind", "configurePreset": "valgrind" },
     { "name": "fuzz", "configurePreset": "fuzz" }
   ],
@@ -68,6 +78,7 @@
       "environment": { "UBSAN_OPTIONS": "print_stacktrace=1" }
     },
     { "name": "release", "inherits": "base", "configurePreset": "release" },
+    { "name": "static", "inherits": "base", "configurePreset": "static" },
     {
       "name": "valgrind",
       "inherits": "base",

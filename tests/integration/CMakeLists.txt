@@ -66,6 +66,12 @@ add_test(NAME install_puts_every_file_in_place
         "-DEXPECTED=${expected}/install_manifest.txt" "-DVERSION=${PROJECT_VERSION}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/check_install.cmake")
 
+if(PQSCAN_STATIC)
+    add_test(NAME static_binary_needs_no_shared_openssl
+        COMMAND "${CMAKE_COMMAND}" "-DPQSCAN=$<TARGET_FILE:pqscan>"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/check_static.cmake")
+endif()
+
 # macOS ships mandoc, and CI installs it on Linux. Style notes are left out: one of them says
 # whether the pages SEE ALSO names are installed, which depends on the machine.
 find_program(PQSCAN_MANDOC_PROGRAM mandoc)
