@@ -13,8 +13,10 @@
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
+#include <openssl/obj_mac.h>
 #include <openssl/objects.h>
 #include <openssl/pem.h>
+#include <openssl/types.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <stdbool.h>
@@ -178,6 +180,13 @@ static utc_time expiry_of(const X509 *cert) {
     return expires;
 }
 
+static crypto_primitive primitive_of_usage(bool signs, bool encrypts) {
+    if (signs) {
+        return PRIMITIVE_SIGNATURE;
+    }
+    return encrypts ? PRIMITIVE_ENCRYPTION : PRIMITIVE_KEY_EXCHANGE;
+}
+
 /* A key that only signs is reported as a signature key, and so on. One that does several
  * things keeps what its rule says. */
 static void read_key_usage(X509 *cert, object_context *context) {
@@ -192,9 +201,7 @@ static void read_key_usage(X509 *cert, object_context *context) {
         return;
     }
     context->has_usage = true;
-    context->usage = signs      ? PRIMITIVE_SIGNATURE
-                     : encrypts ? PRIMITIVE_ENCRYPTION
-                                : PRIMITIVE_KEY_EXCHANGE;
+    context->usage = primitive_of_usage(signs, encrypts);
 }
 
 /* A certificate can carry a key this OpenSSL cannot load. Its algorithm is still named. */
