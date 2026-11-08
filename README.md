@@ -21,12 +21,16 @@ The [website](https://harenafiantso.github.io/pqscan/) is a guided tour of every
 > [!WARNING]
 > Early development. pqscan scans C/C++ source for the OpenSSL identifiers in its rules,
 > through the syntax tree, and follows constants inside a file to find key sizes and algorithm
-> names. A value it can't prove shows as `unknown`. Reports come as text, JSON, a CycloneDX CBOM
-> or SARIF.
+> names. It also reads the TLS and SSH settings of OpenSSL, nginx, Apache and OpenSSH, and
+> certificates and keys in PEM or DER. A value it can't prove shows as `unknown`. Reports come
+> as text, JSON, a CycloneDX CBOM or SARIF.
 
 ## Build and test
 
-You need CMake 3.20 or newer and a C11 compiler (GCC or Clang), on Linux or macOS.
+You need CMake 3.20 or newer, a C11 compiler (GCC or Clang) and OpenSSL 3.0 or newer with its
+headers, on Linux or macOS: `brew install openssl@3` or `apt-get install libssl-dev`. On macOS
+CMake finds Homebrew's OpenSSL by itself. Elsewhere, set `OPENSSL_ROOT_DIR` if it's not in a
+standard place.
 
 > [!TIP]
 > If you have Docker, `docker compose run --rm dev` opens a Linux shell with everything
@@ -49,17 +53,26 @@ full developer setup.
 pqscan [OPTIONS] PATH...
 ```
 
-Each `PATH` is a file or a directory. Directories are walked recursively, symlinks are
-never followed, and only C and C++ sources are scanned: `.c`, `.h`, `.cpp`, `.hpp`, `.cc`,
-`.cxx`, `.C`, `.hh`, `.hxx`, `.ipp`, `.inl` and `.tcc`. Each finding is one line, and a last
-line counts them. A clean scan prints nothing:
+Each `PATH` is a file or a directory. Directories are walked recursively and symlinks are
+never followed. pqscan reads three kinds of files, chosen by name, and skips every other file:
+
+| Kind | Files |
+| --- | --- |
+| C and C++ source | `.c`, `.h`, `.cpp`, `.hpp`, `.cc`, `.cxx`, `.C`, `.hh`, `.hxx`, `.ipp`, `.inl` and `.tcc` |
+| Configuration | `.conf`, `.cnf`, `sshd_config`, `ssh_config`, `.htaccess`, and any file in a `sites-available` or `sites-enabled` directory |
+| Certificates and keys | `.pem`, `.crt`, `.cer`, `.der`, `.key` and `.csr` |
+
+Each finding is one line, and a last line counts them. A clean scan prints nothing:
 
 ```text
 src/keys.c:42: RSA-2048 (QUANTUM_VULNERABLE)
 src/keys.c:51: RSA-1024 (CLASSICALLY_WEAK)
 src/keys.c:57: RSA-unknown (QUANTUM_VULNERABLE)
 src/hash.c:12: MD5 (CLASSICALLY_WEAK)
-4 findings: 2 CLASSICALLY_WEAK, 2 QUANTUM_VULNERABLE
+etc/ssh/sshd_config:4: SHA-1 (CLASSICALLY_WEAK)
+tls/server.pem:1: RSA-2048 (QUANTUM_VULNERABLE, expires 2031-05-01)
+tls/ca.der: EC-256 (QUANTUM_VULNERABLE, expires 2035-01-01)
+7 findings: 3 CLASSICALLY_WEAK, 4 QUANTUM_VULNERABLE
 ```
 
 File names are untrusted input, so control characters, bidirectional marks and invalid UTF-8
@@ -68,6 +81,8 @@ in them print as `\xNN`, and a backslash prints doubled.
 The number is the key size. `unknown` means the algorithm has one, but pqscan can't prove its
 value. RSA, DSA and DH keys under 2048 bits are `CLASSICALLY_WEAK`, because they are already
 unsafe today. An `unknown` size keeps the algorithm's usual level.
+
+### Source
 
 pqscan parses each file with [Tree-sitter](https://tree-sitter.github.io), so broken code
 is still scanned:
@@ -106,6 +121,50 @@ It follows locals in order, `#define`s, `const` and `constexpr` globals, strings
 
 Enum constants aren't followed yet, so they also stay `unknown`.
 
+### Configuration
+
+pqscan reads the settings that list algorithms, and looks each name up in its rules:
+
+| Software | Settings |
+| --- | --- |
+| OpenSSL (`openssl.cnf`) | `CipherString`, `Ciphersuites`, `Groups`, `Curves`, `SignatureAlgorithms`, `ClientSignatureAlgorithms`, and `default_bits` and `default_md` for `openssl req` |
+| nginx | `ssl_ciphers`, `ssl_ecdh_curve`, `proxy_ssl_ciphers`, `grpc_ssl_ciphers`, and the OpenSSL settings above through `ssl_conf_command` and its `proxy_` and `grpc_` forms |
+| Apache | `SSLCipherSuite`, `SSLProxyCipherSuite`, and the OpenSSL settings above through `SSLOpenSSLConfCmd` |
+| OpenSSH | `KexAlgorithms`, `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms`, `HostbasedAcceptedAlgorithms`, `CASignatureAlgorithms`, `Ciphers` and `MACs`, and their older `KeyTypes` names |
+
+Comments, quotes, `key = value`, statements that span lines and backslash continuations are
+all understood, and setting names ignore case. In OpenSSL lists, a full cipher name is split
+into its parts, so `ECDHE-RSA-AES128-GCM-SHA256` reports ECDH, RSA and AES-128. A name that a
+setting takes away is not reported: `!RSA` and `-SHA1` in OpenSSL lists, and a whole OpenSSH
+list that starts with `-`. Hybrid post-quantum groups such as `X25519MLKEM768` and
+`mlkem768x25519-sha256` have no rule, so they report nothing, but a classical group listed next
+to them still does.
+
+Where one name stands for two weaknesses, pqscan reports the more severe. `ssh-rsa` signs
+with SHA-1, so it is `SHA-1 (CLASSICALLY_WEAK)` rather than RSA, while `rsa-sha2-256` is RSA.
+
+> [!NOTE]
+> pqscan reports only the names a file writes out. Aliases such as `DEFAULT`, `HIGH` or `ALL`
+> are not expanded, because what they mean depends on the OpenSSL build that reads them. For
+> the same reason, a TLS 1.2 cipher with no key exchange in its name, such as `AES128-SHA`,
+> reports AES-128 and SHA-1 but not the RSA key exchange it implies.
+
+### Certificates and keys
+
+pqscan decodes certificates, certificate requests, public and private keys, and DH, DSA and
+EC parameters with OpenSSL's libcrypto, in PEM or DER. A PEM file can hold any number of
+blocks, such as a bundle or a certificate with its key, and each finding names the line of its
+`-----BEGIN` marker. A DER file has no lines, so its findings name only the file.
+
+* **A certificate** reports its key, with its size and its expiry, and the algorithm that signed
+  it. A key used only to sign is a `signature`, and so on, from the certificate's key usage.
+  A signature made with SHA-1 or MD5 also reports that digest.
+* **A key** reports its algorithm and size. An encrypted key in OpenSSL's traditional form still
+  names its algorithm, with an `unknown` size. An encrypted PKCS#8 key hides its algorithm, so
+  the file is not analyzed. pqscan never asks for a passphrase.
+
+OpenSSL starts without reading `OPENSSL_CONF`, so a scan never depends on its environment.
+
 | Option | Meaning |
 | --- | --- |
 | `-i`, `--ignore PATTERN` | Skip paths matching a glob, tried on the file name, the path, and the path relative to `PATH`. Repeatable. `.git` is always skipped. |
@@ -117,9 +176,11 @@ Enum constants aren't followed yet, so they also stay `unknown`.
 | `-V`, `--version` | Show the version and exit. |
 
 > [!NOTE]
-> Paths that can't be read are skipped with a warning on stderr, as are files that contain
-> a NUL byte, exceed 64 MiB, or take more than 30 seconds to scan. A scan that skips any of
-> them is incomplete, and can't exit 0. If a file is skipped on purpose, leave it out with
+> Paths that can't be read are skipped with a warning on stderr, as are files over 64 MiB,
+> source and configuration files that contain a NUL byte, source files that take more than 30
+> seconds to parse, encrypted PKCS#8 keys, and certificate or key files that can't be decoded.
+> A scan that skips any of them is incomplete, and can't exit 0. A PEM file with one bad block
+> still reports the others. If a file is skipped on purpose, leave it out with
 > `--ignore`. Symlinks inside a directory are skipped by design and don't count, but a
 > `PATH` that is one does.
 
@@ -133,7 +194,7 @@ Enum constants aren't followed yet, so they also stay `unknown`.
 
 > [!CAUTION]
 > Exit code 0 doesn't prove the code is free of vulnerable cryptography. pqscan only
-> recognizes the identifiers in its rules, in C/C++ source files.
+> recognizes the names in its rules, in the kinds of files listed above.
 
 ## Reports
 
@@ -159,7 +220,10 @@ Every format says what a scan left out, so a partial report can't pass for a who
 
 In `json`, one finding looks like this. `key_size` is a number, `"unknown"` when pqscan can't
 prove it, or `null` when the algorithm has no key size. `symbol` is the rule pattern that
-matched.
+matched, or for a certificate's signature, the signature algorithm, such as
+`sha256WithRSAEncryption`. `line` is `null` for a finding about a whole file, such as a DER
+certificate. `expires` is when the certificate stops being valid, in UTC, and `null` for
+anything that isn't a certificate.
 
 ```json
 {
@@ -169,18 +233,23 @@ matched.
   "algorithm": "RSA",
   "key_size": 2048,
   "primitive": "unspecified",
-  "risk": "QUANTUM_VULNERABLE"
+  "risk": "QUANTUM_VULNERABLE",
+  "expires": null
 }
 ```
 
+The document's `schema_version` is 2. It went up from 1 when `line` could become `null`.
+
 The `cbom` format has one component for each mix of algorithm, key size and primitive, and its
 occurrences list where that mix is used. CycloneDX has no field for the risk, so it's in the
-`pqscan:risk` property, and an unresolved size is in `pqscan:key-size`.
+`pqscan:risk` property, and an unresolved size is in `pqscan:key-size`. An occurrence from a
+certificate says when it expires in `additionalContext`, as `expires 2031-05-01T12:00:00Z`.
 
 In `sarif`, each algorithm is one rule, named like `pqscan/RSA`. `CLASSICALLY_WEAK` and
 `QUANTUM_VULNERABLE` are errors, `REVIEW` is a warning and `OK` is a note. Paths are URIs: bytes
 that aren't plain in a URI are percent-encoded, and a leading `./` is dropped so that code
-scanning can match them to the repository.
+scanning can match them to the repository. A result about a whole file has no `region`, and one
+from a certificate has its expiry in `properties.expires`.
 
 Text fields use the same `\xNN` escapes as the text report, except for SARIF paths. A `\xNN`
 in a `json` or `cbom` path is literal text, with its backslash, so a parser never sees invalid
@@ -202,7 +271,9 @@ the binary. `--rules FILE` replaces them with a file of the same format:
     {"pattern": "RSA_sign", "kind": "function", "algorithm": "RSA", "primitive": "signature"},
     {"pattern": "EVP_PKEY_RSA", "kind": "constant", "algorithm": "RSA", "primitive": "unspecified"},
     {"pattern": "MD5", "kind": "function", "algorithm": "MD5", "primitive": "hash", "call_only": true},
-    {"pattern": "RSA", "kind": "string", "algorithm": "RSA", "primitive": "unspecified"}
+    {"pattern": "RSA", "kind": "string", "algorithm": "RSA", "primitive": "unspecified"},
+    {"pattern": "ffdhe2048", "kind": "config", "algorithm": "DH", "primitive": "key_exchange", "key_bits": 2048},
+    {"pattern": "rsaEncryption", "kind": "key", "algorithm": "RSA", "primitive": "unspecified"}
   ],
   "calls": [
     {"name": "RSA_generate_key_ex", "key_bits_argument": 1},
@@ -216,23 +287,25 @@ the binary. `--rules FILE` replaces them with a file of the same format:
 | `algorithms` | `name` | The normalized name shown in reports. |
 | | `risk` | `OK`, `REVIEW`, `QUANTUM_VULNERABLE` or `CLASSICALLY_WEAK`. |
 | | `weak_below_bits` | Optional. Shorter keys are `CLASSICALLY_WEAK`. |
-| `rules` | `pattern` | The identifier or string to find. |
-| | `kind` | `function`, `constant`, `macro` or `string`. |
+| `rules` | `pattern` | The identifier, string or name to find. |
+| | `kind` | `function`, `constant` or `macro` for source identifiers, `string` for an algorithm name passed to a call, `config` for a name in a TLS or SSH setting, or `key` for OpenSSL's short name of a key or digest type in a certificate or key. |
 | | `algorithm` | A name declared in `algorithms`. |
 | | `primitive` | `signature`, `key_exchange`, `encryption`, `hash` or `unspecified`. |
 | | `call_only` | Optional, for functions. Count the name only when it's called. |
+| | `key_bits` | Optional, for `config` rules. The key size the name itself fixes, as in `ffdhe2048`. |
 | `calls` | `name` | A function whose arguments are worth reading. |
 | | `key_bits_argument` | Optional. Position of the key size, from 0. |
 | | `algorithm_argument` | Optional. Position of a string naming an algorithm, from 0. |
 
-A `string` pattern only counts as an argument of a call listed in `calls`, and ignores case.
+A `string` pattern only counts as an argument of a call listed in `calls`. `string`, `config`
+and `key` patterns ignore case, and each kind has its own names, so one pattern can mean one
+thing in source and another in a config file. A `key` pattern is the name OpenSSL gives the
+type, such as `rsaEncryption`, `id-ecPublicKey`, `ED25519` or `SHA1`.
 pqscan refuses the whole file on any mistake, such as an unknown field, and names the entry
 at fault.
 
 ## Roadmap
 
-- **Configs, certificates and keys:** OpenSSL, nginx, Apache and SSH settings, plus PEM
-  and DER files.
 - **ELF binaries:** linked crypto functions found without source code.
 - **Prioritization and CI:** urgency scoring from the NIST IR 8547 dates and Mosca's
   theorem, and a gate that blocks new vulnerable crypto in pull requests.
