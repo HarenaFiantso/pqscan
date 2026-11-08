@@ -1,3 +1,3 @@
-crypto/broken/good-then-cut.pem:1: EC-384 (QUANTUM_VULNERABLE)
 crypto/broken/good-then-cut.pem:1: EC (QUANTUM_VULNERABLE)
+crypto/broken/good-then-cut.pem:1: EC-384 (QUANTUM_VULNERABLE)
 2 findings: 2 QUANTUM_VULNERABLE

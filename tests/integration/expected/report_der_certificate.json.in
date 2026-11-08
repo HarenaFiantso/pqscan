@@ -18,9 +18,9 @@
     {
       "path": "crypto/certs/ec-p256.der",
       "line": null,
-      "symbol": "id-ecPublicKey",
+      "symbol": "ecdsa-with-SHA256",
       "algorithm": "EC",
-      "key_size": 256,
+      "key_size": null,
       "primitive": "signature",
       "risk": "QUANTUM_VULNERABLE",
       "expires": "2031-05-01T12:00:00Z"
@@ -28,9 +28,9 @@
     {
       "path": "crypto/certs/ec-p256.der",
       "line": null,
-      "symbol": "ecdsa-with-SHA256",
+      "symbol": "id-ecPublicKey",
       "algorithm": "EC",
-      "key_size": null,
+      "key_size": 256,
       "primitive": "signature",
       "risk": "QUANTUM_VULNERABLE",
       "expires": "2031-05-01T12:00:00Z"
