@@ -35,6 +35,8 @@ const char *pqscan_status_message(pqscan_status status) {
         return "skipped, ELF file without a symbol table";
     case PQSCAN_ERR_PROJECT:
         return "invalid project file";
+    case PQSCAN_ERR_BASELINE:
+        return "invalid baseline";
     }
     return "unknown status";
 }

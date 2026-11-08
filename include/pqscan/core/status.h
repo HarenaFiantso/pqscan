@@ -20,6 +20,7 @@ typedef enum pqscan_status {
     PQSCAN_ERR_ELF_UNSUPPORTED,
     PQSCAN_ERR_ELF_NO_SYMBOLS,
     PQSCAN_ERR_PROJECT,
+    PQSCAN_ERR_BASELINE,
 } pqscan_status;
 
 /**
