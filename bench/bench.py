@@ -34,6 +34,8 @@ SOURCE_SUFFIXES = (".c", ".h", ".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx", ".C
 # pqscan exits 0, 1 or 4 when it has written a report.
 REPORT_EXIT_CODES = (0, 1, 4)
 CHUNK = 1 << 20
+DOWNLOAD_ATTEMPTS = 3
+DOWNLOAD_RETRY_SECONDS = 10
 MEBIBYTE = 1 << 20
 
 
@@ -58,18 +60,42 @@ def sha256_of(path):
     return digest.hexdigest()
 
 
-def download(project, archive):
-    url = f"https://codeload.github.com/{project['repository']}/tar.gz/refs/tags/{project['tag']}"
-    partial = archive.with_suffix(".part")
+def archive_urls(project):
+    """GitHub serves the same tag archive from two hosts, and either can fail for a while."""
+    repository, tag = project["repository"], project["tag"]
+    return (
+        f"https://codeload.github.com/{repository}/tar.gz/refs/tags/{tag}",
+        f"https://github.com/{repository}/archive/refs/tags/{tag}.tar.gz",
+    )
+
+
+def download_once(url, partial):
+    """Saves url to partial and returns its SHA-256, or None if the download failed."""
     request = urllib.request.Request(url, headers={"User-Agent": "pqscan-bench"})
-    with urllib.request.urlopen(request, timeout=120) as response, open(partial, "wb") as file:
-        for chunk in iter(lambda: response.read(CHUNK), b""):
-            file.write(chunk)
-    found = sha256_of(partial)
-    if found != project["sha256"]:
-        partial.unlink()
-        sys.exit(f"bench: {url}: SHA-256 {found}, expected {project['sha256']}")
-    partial.rename(archive)
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response, open(partial, "wb") as file:
+            for chunk in iter(lambda: response.read(CHUNK), b""):
+                file.write(chunk)
+    except OSError as error:
+        print(f"bench: {url}: {error}", file=sys.stderr)
+        return None
+    return sha256_of(partial)
+
+
+def download(project, archive):
+    partial = archive.with_suffix(".part")
+    for attempt in range(DOWNLOAD_ATTEMPTS):
+        if attempt > 0:
+            time.sleep(DOWNLOAD_RETRY_SECONDS * attempt)
+        for url in archive_urls(project):
+            found = download_once(url, partial)
+            if found == project["sha256"]:
+                partial.rename(archive)
+                return
+            if found is not None:
+                print(f"bench: {url}: SHA-256 {found}, expected {project['sha256']}", file=sys.stderr)
+    partial.unlink(missing_ok=True)
+    sys.exit(f"bench: no download of {project['name']} {project['tag']} matched its SHA-256")
 
 
 def safe_members(archive):
