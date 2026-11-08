@@ -13,7 +13,7 @@ get_target_property(unity_include_dirs unity INTERFACE_INCLUDE_DIRECTORIES)
 set_target_properties(unity PROPERTIES
     INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${unity_include_dirs}")
 
-add_library(pqscan_test_support STATIC support/scan_support.c support/temp_tree.c)
+add_library(pqscan_test_support STATIC support/elf_builder.c support/scan_support.c support/temp_tree.c)
 target_include_directories(pqscan_test_support PUBLIC support)
 target_link_libraries(pqscan_test_support PUBLIC pqscan_core unity PRIVATE pqscan_posix pqscan_warnings)
 
@@ -34,6 +34,7 @@ pqscan_add_unit_test(test_config_lexer scan/test_config_lexer.c)
 pqscan_add_unit_test(test_config_list scan/test_config_list.c)
 pqscan_add_unit_test(test_config_scanner scan/test_config_scanner.c)
 pqscan_add_unit_test(test_default_rules rules/test_default_rules.c)
+pqscan_add_unit_test(test_elf_reader scan/test_elf_reader.c)
 pqscan_add_unit_test(test_constant_eval flow/test_constant_eval.c)
 pqscan_add_unit_test(test_constant_flow flow/test_constant_flow.c)
 pqscan_add_unit_test(test_constant_table flow/test_constant_table.c)

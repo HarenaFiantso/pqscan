@@ -62,6 +62,7 @@ add_library(pqscan_core STATIC
     src/scan/config_list.c
     src/scan/config_scanner.c
     src/scan/crypto_object.c
+    src/scan/elf_reader.c
     src/scan/file_reader.c
     src/scan/pem_blocks.c
     src/scan/source_scanner.c
