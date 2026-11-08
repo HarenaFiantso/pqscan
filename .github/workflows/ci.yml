@@ -38,7 +38,7 @@ jobs:
           path: build/.downloads
           key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
       - run: pip install -r requirements-dev.txt
-      - run: sudo apt-get update && sudo apt-get install --yes cppcheck
+      - run: sudo apt-get update && sudo apt-get install --yes cppcheck libssl-dev
       - run: cmake --preset debug
       - run: scripts/run-static-analysis.sh
 
@@ -60,6 +60,8 @@ jobs:
         with:
           path: build/.downloads
           key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes libssl-dev
       - run: cmake --preset debug
       - run: cmake --build --preset debug --parallel
       - run: ctest --preset debug
@@ -82,6 +84,7 @@ jobs:
           path: build/.downloads
           key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake', 'cmake/report_schemas.cmake') }}
       - run: pip install -r requirements-dev.txt
+      - run: sudo apt-get update && sudo apt-get install --yes libssl-dev
       - run: cmake --preset debug -DPQSCAN_CHECK_REPORT_SCHEMAS=ON
       - run: cmake --build --preset debug --parallel
       - run: ctest --preset debug -L schema
@@ -95,7 +98,7 @@ jobs:
         with:
           path: build/.downloads
           key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
-      - run: sudo apt-get update && sudo apt-get install --yes valgrind
+      - run: sudo apt-get update && sudo apt-get install --yes libssl-dev valgrind
       - run: cmake --preset valgrind
       - run: cmake --build --preset valgrind --parallel
       - run: ctest --preset valgrind
