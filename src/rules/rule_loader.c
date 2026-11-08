@@ -62,7 +62,7 @@ static const char *const DOCUMENT_FIELDS[] = {
 };
 static const char *const ALGORITHM_FIELDS[] = {"name", "risk", "weak_below_bits", NULL};
 static const char *const RULE_FIELDS[] = {
-    "pattern", "kind", "algorithm", "primitive", "call_only", NULL,
+    "pattern", "kind", "algorithm", "primitive", "call_only", "key_bits", NULL,
 };
 static const char *const CALL_FIELDS[] = {
     "name",
@@ -72,10 +72,8 @@ static const char *const CALL_FIELDS[] = {
 };
 
 static const kind_name KINDS[] = {
-    {"function", RULE_FUNCTION},
-    {"constant", RULE_CONSTANT},
-    {"macro", RULE_MACRO},
-    {"string", RULE_STRING},
+    {"function", RULE_FUNCTION}, {"constant", RULE_CONSTANT}, {"macro", RULE_MACRO},
+    {"string", RULE_STRING},     {"config", RULE_CONFIG},     {"key", RULE_KEY},
 };
 
 static pqscan_status reject(const loader *load, const char *field, const char *reason) {
@@ -260,6 +258,22 @@ static pqscan_status read_call_only(const loader *load, const cJSON *entry, cryp
     return PQSCAN_OK;
 }
 
+/* A key type gets its size from the key itself, and source gets it from the call's arguments. */
+static pqscan_status read_fixed_key_bits(const loader *load, const cJSON *entry,
+                                         crypto_rule *rule) {
+    const int_field field = {entry, "key_bits", 1, MAX_KEY_BITS, 0};
+    int bits = 0;
+    const pqscan_status status = read_int(load, &field, &bits);
+    if (status != PQSCAN_OK) {
+        return status;
+    }
+    if (bits != 0 && rule->kind != RULE_CONFIG) {
+        return reject(load, field.name, "only a config token fixes a key size");
+    }
+    rule->key_bits = (unsigned)bits;
+    return PQSCAN_OK;
+}
+
 static pqscan_status read_rule(const loader *load, const cJSON *entry, crypto_rule *rule) {
     const name_field pattern = {entry, "pattern"};
     pqscan_status status = read_name(load, &pattern, &rule->pattern);
@@ -272,11 +286,14 @@ static pqscan_status read_rule(const loader *load, const cJSON *entry, crypto_ru
     if (status == PQSCAN_OK) {
         status = read_primitive(load, entry, rule);
     }
-    return (status == PQSCAN_OK) ? read_call_only(load, entry, rule) : status;
+    if (status == PQSCAN_OK) {
+        status = read_call_only(load, entry, rule);
+    }
+    return (status == PQSCAN_OK) ? read_fixed_key_bits(load, entry, rule) : status;
 }
 
 static pqscan_status load_rule(loader *load, const cJSON *entry) {
-    crypto_rule rule = {NULL, RULE_FUNCTION, NULL, PRIMITIVE_UNSPECIFIED, false};
+    crypto_rule rule = {NULL, RULE_FUNCTION, NULL, PRIMITIVE_UNSPECIFIED, false, 0};
     pqscan_status status = check_fields(load, entry, RULE_FIELDS);
     if (status == PQSCAN_OK) {
         status = read_rule(load, entry, &rule);

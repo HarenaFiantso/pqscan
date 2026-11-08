@@ -27,7 +27,7 @@ void setUp(void) {
 void tearDown(void) { rule_set_destroy(set); }
 
 static void add_rule(const char *pattern, rule_kind kind, bool call_only) {
-    const crypto_rule rule = {pattern, kind, rsa, PRIMITIVE_SIGNATURE, call_only};
+    const crypto_rule rule = {pattern, kind, rsa, PRIMITIVE_SIGNATURE, call_only, 0};
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, rule_set_add_rule(set, &rule));
 }
 
@@ -52,6 +52,10 @@ static const crypto_rule *find_callee(const char *name) {
 
 static const crypto_rule *find_string(const char *text) {
     return rule_set_find_string(set, text, strlen(text));
+}
+
+static const crypto_rule *find_config_token(const char *text) {
+    return rule_set_find_config_token(set, text, strlen(text));
 }
 
 static const call_signature *find_call(const char *name) {
@@ -237,6 +241,53 @@ static void test_seal_reports_duplicate_strings_ignoring_case(void) {
     TEST_ASSERT_NOT_NULL(duplicate);
 }
 
+static void test_config_tokens_ignore_case_and_stay_in_their_family(void) {
+    add_rule("ssh-rsa", RULE_CONFIG, false);
+    add_rule("ECDHE", RULE_CONFIG, false);
+    seal();
+    TEST_ASSERT_NOT_NULL(find_config_token("SSH-RSA"));
+    TEST_ASSERT_NOT_NULL(find_config_token("ecdhe"));
+    TEST_ASSERT_NULL(find_config_token("ssh-rs"));
+    TEST_ASSERT_NULL(find_string("ssh-rsa"));
+    TEST_ASSERT_NULL(find_callee("ECDHE"));
+    TEST_ASSERT_NULL(rule_set_find_key_type(set, "ECDHE"));
+}
+
+static void test_key_types_ignore_case_and_stay_in_their_family(void) {
+    add_rule("rsaEncryption", RULE_KEY, false);
+    seal();
+    TEST_ASSERT_NOT_NULL(rule_set_find_key_type(set, "RSAENCRYPTION"));
+    TEST_ASSERT_NULL(rule_set_find_key_type(set, "rsa"));
+    TEST_ASSERT_NULL(find_config_token("rsaEncryption"));
+    TEST_ASSERT_NULL(find_mention("rsaEncryption"));
+}
+
+static void test_every_family_may_share_one_name(void) {
+    add_rule("RSA", RULE_FUNCTION, false);
+    add_rule("RSA", RULE_STRING, false);
+    add_rule("RSA", RULE_CONFIG, false);
+    add_rule("RSA", RULE_KEY, false);
+    seal();
+    TEST_ASSERT_NOT_NULL(find_callee("RSA"));
+    TEST_ASSERT_NOT_NULL(find_string("RSA"));
+    TEST_ASSERT_NOT_NULL(find_config_token("RSA"));
+    TEST_ASSERT_NOT_NULL(rule_set_find_key_type(set, "RSA"));
+}
+
+static void test_seal_reports_duplicate_config_tokens_ignoring_case(void) {
+    add_rule("ssh-rsa", RULE_CONFIG, false);
+    add_rule("SSH-RSA", RULE_CONFIG, false);
+    const char *duplicate = NULL;
+    TEST_ASSERT_EQUAL_INT(PQSCAN_ERR_RULES, rule_set_seal(set, &duplicate));
+    TEST_ASSERT_NOT_NULL(duplicate);
+}
+
+static void test_seal_reports_duplicate_key_types(void) {
+    add_rule("ED25519", RULE_KEY, false);
+    add_rule("ED25519", RULE_KEY, false);
+    assert_seal_finds_duplicate("ED25519");
+}
+
 static void test_seal_reports_duplicate_calls(void) {
     add_call("EVP_RSA_gen", 0, CALL_NO_ARGUMENT);
     add_call("EVP_RSA_gen", 1, CALL_NO_ARGUMENT);
@@ -265,6 +316,11 @@ int main(void) {
     RUN_TEST(test_finds_calls_in_any_order);
     RUN_TEST(test_seal_reports_duplicate_identifiers);
     RUN_TEST(test_seal_reports_duplicate_strings_ignoring_case);
+    RUN_TEST(test_config_tokens_ignore_case_and_stay_in_their_family);
+    RUN_TEST(test_key_types_ignore_case_and_stay_in_their_family);
+    RUN_TEST(test_every_family_may_share_one_name);
+    RUN_TEST(test_seal_reports_duplicate_config_tokens_ignoring_case);
+    RUN_TEST(test_seal_reports_duplicate_key_types);
     RUN_TEST(test_seal_reports_duplicate_calls);
     return UNITY_END();
 }

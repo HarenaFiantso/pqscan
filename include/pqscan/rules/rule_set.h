@@ -21,6 +21,8 @@ typedef enum rule_kind {
     RULE_CONSTANT,
     RULE_MACRO,
     RULE_STRING, /**< An algorithm name passed to a call. Ignores case, as OpenSSL does. */
+    RULE_CONFIG, /**< One word of a TLS or SSH setting, such as "ssh-rsa". Ignores case. */
+    RULE_KEY,    /**< OpenSSL's short name for a key or digest type, such as "rsaEncryption". */
 } rule_kind;
 
 /** Maps a pattern to what it means. Strings are not owned by this struct. */
@@ -29,7 +31,8 @@ typedef struct crypto_rule {
     rule_kind kind;
     const algorithm_policy *algorithm; /**< Must belong to the set the rule is added to. */
     crypto_primitive primitive;
-    bool call_only; /**< Count it only when called, for names that are also ordinary words. */
+    bool call_only;    /**< Count it only when called, for names that are also ordinary words. */
+    unsigned key_bits; /**< The key size the pattern fixes, as "ffdhe2048" does. 0 if none. */
 } crypto_rule;
 
 /** Which arguments of a known call are worth reading. */
@@ -106,8 +109,9 @@ pqscan_status rule_set_add_call(rule_set *set, const call_signature *call);
  * @param set The set.
  * @param duplicate On PQSCAN_ERR_RULES, the name that appears twice, owned by the set.
  *                  Untouched otherwise.
- * @return PQSCAN_OK, or PQSCAN_ERR_RULES if two rules or two calls share a name. String
- *         patterns are compared ignoring case.
+ * @return PQSCAN_OK, or PQSCAN_ERR_RULES if two rules of the same kind family or two calls
+ *         share a name. Source identifiers form one family, and each other kind forms its own.
+ *         Every pattern but a source identifier is compared ignoring case.
  */
 pqscan_status rule_set_seal(rule_set *set, const char **duplicate);
 
@@ -140,6 +144,25 @@ const crypto_rule *rule_set_find_callee(const rule_set *set, const char *name, s
  * @return The rule, owned by the set, or NULL if none applies.
  */
 const crypto_rule *rule_set_find_string(const rule_set *set, const char *text, size_t len);
+
+/**
+ * @brief Find the rule for one word of a list in a configuration file, ignoring case.
+ *
+ * @param set A sealed set.
+ * @param text The start of the word. It need not be NUL-terminated.
+ * @param len The length of the word.
+ * @return The rule, owned by the set, or NULL if none applies.
+ */
+const crypto_rule *rule_set_find_config_token(const rule_set *set, const char *text, size_t len);
+
+/**
+ * @brief Find the rule for a key or digest type, by OpenSSL's short name, ignoring case.
+ *
+ * @param set A sealed set.
+ * @param name The short name, such as "id-ecPublicKey". NUL-terminated.
+ * @return The rule, owned by the set, or NULL if none applies.
+ */
+const crypto_rule *rule_set_find_key_type(const rule_set *set, const char *name);
 
 /**
  * @brief Find the signature of a call.
