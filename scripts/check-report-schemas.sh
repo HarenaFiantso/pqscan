@@ -1,8 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
 #
-# Runs pqscan on trees with hostile file names, and checks every report against the official
-# schemas. Unit tests decide what a report says. This decides whether other tools can read it.
+# Runs pqscan on trees with hostile file names and on the config and certificate fixtures,
+# and checks every report against the official schemas. Unit tests decide what a report says.
+# This decides whether other tools can read it.
 #
 # Usage: check-report-schemas.sh PQSCAN CYCLONEDX_SCHEMA_DIR SARIF_SCHEMA
 
@@ -11,6 +12,7 @@ set -eu
 pqscan=$1
 cyclonedx_dir=$2
 sarif_schema=$3
+fixtures=$(cd "$(dirname "$0")/../tests/fixtures/scan" && pwd)
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -53,7 +55,7 @@ write_report() {
 }
 
 check_tree() {
-    tree=$work/$1
+    tree=$1
 
     write_report cbom "$tree" "$work/report.cbom.json"
     check-jsonschema --base-uri "file://$cyclonedx_dir/" \
@@ -66,6 +68,9 @@ check_tree() {
     python3 -I -m json.tool "$work/report.json" >/dev/null
 }
 
+# The fixtures add findings of whole files and certificates that expire.
 make_trees
-check_tree clean
-check_tree hostile
+check_tree "$work/clean"
+check_tree "$work/hostile"
+check_tree "$fixtures/configs"
+check_tree "$fixtures/crypto"

@@ -57,6 +57,7 @@ add_library(pqscan_core STATIC
     src/rules/rule_loader.c
     src/rules/rule_set.c
     src/scan/call_arguments.c
+    src/scan/cert_scanner.c
     src/scan/config_lexer.c
     src/scan/config_list.c
     src/scan/config_scanner.c

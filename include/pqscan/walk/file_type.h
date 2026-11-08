@@ -30,6 +30,14 @@ bool file_type_is_source(const char *path);
 bool file_type_is_config(const char *path);
 
 /**
+ * @brief Tell whether a path names a certificate, key or certificate request, by its extension.
+ *
+ * @param path The path. It is not opened.
+ * @return true for .pem, .crt, .cer, .der, .key and .csr files. The match is case-sensitive.
+ */
+bool file_type_is_crypto_object(const char *path);
+
+/**
  * @brief Choose the grammar for a source file, by its extension.
  *
  * A .h file may be C or C++, and nothing in its name says which. It gets the C++ grammar

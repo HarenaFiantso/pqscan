@@ -83,6 +83,19 @@ static void test_rejects_other_files_as_config(void) {
     }
 }
 
+static void test_accepts_certificates_and_keys(void) {
+    static const char *const PATHS[] = {
+        "ca.pem", "certs/server.crt", "a.cer", "a.der", "tls/server.key", "a.csr",
+    };
+    for (size_t i = 0; i < sizeof(PATHS) / sizeof(PATHS[0]); i++) {
+        TEST_ASSERT_TRUE_MESSAGE(file_type_is_crypto_object(PATHS[i]), PATHS[i]);
+    }
+    static const char *const OTHERS[] = {"a.c", "a.PEM", "a.pem.bak", "id_rsa", "a.pub", ""};
+    for (size_t i = 0; i < sizeof(OTHERS) / sizeof(OTHERS[0]); i++) {
+        TEST_ASSERT_FALSE_MESSAGE(file_type_is_crypto_object(OTHERS[i]), OTHERS[i]);
+    }
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_accepts_c_and_cpp_extensions);
@@ -92,5 +105,6 @@ int main(void) {
     RUN_TEST(test_headers_and_cpp_files_use_the_cpp_grammar);
     RUN_TEST(test_accepts_config_files);
     RUN_TEST(test_rejects_other_files_as_config);
+    RUN_TEST(test_accepts_certificates_and_keys);
     return UNITY_END();
 }
