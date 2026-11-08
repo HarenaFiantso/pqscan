@@ -141,11 +141,13 @@ def found_groups(report):
     groups = collections.defaultdict(list)
     for item in report["findings"]:
         place = (item["path"], item["line"], item["algorithm"])
-        if is_source(item["path"]):
-            if not groups[place]:
-                groups[place].append(None)
-        else:
-            groups[place].append(key_size_of(item["key_size"]))
+        size = key_size_of(item["key_size"])
+        if not is_source(item["path"]):
+            groups[place].append(size)
+        elif not groups[place]:
+            groups[place].append(size)
+        elif groups[place][0] is None:
+            groups[place][0] = size
     return groups
 
 
@@ -229,8 +231,17 @@ def score_files(expected_groups, found_by_place, score):
     score.counts["file_fp"] += len(found - expected)
 
 
-def evaluate_project(pqscan, name):
-    files = load_json(BENCH / "labels" / f"{name}.json")["files"]
+# Two sets of labels. The rules were extended after reading the misses on the first, so its
+# scores are optimistic. The second was labeled afterwards, from files no rule was tuned on.
+LABEL_SETS = (
+    ("Tuned on", BENCH / "labels"),
+    ("Held out", BENCH / "labels" / "held-out"),
+)
+
+
+def evaluate_project(pqscan, labels):
+    name = labels.stem
+    files = load_json(labels)["files"]
     report = run_pqscan(pqscan, sorted(files))
     unanalyzed = [entry["path"] for entry in report["unanalyzed"]]
     if unanalyzed:
@@ -276,32 +287,34 @@ def miss_list(scores):
     return "\n".join(lines) if lines else "None."
 
 
-def evaluate(args):
-    scores = [(p["name"], evaluate_project(args.pqscan, p["name"])) for p in corpus() if p["labeled"]]
+def evaluate_set(pqscan, directory):
+    """Scores every project that has labels in a directory, and their total."""
+    names = {p["name"] for p in corpus() if p["labeled"]}
+    scores = [(path.stem, evaluate_project(pqscan, path)) for path in sorted(directory.glob("*.json")) if path.stem in names]
     total = Score()
     for _, score in scores:
         total.add(score)
-    table = evaluation_table(scores, total)
-    misses = miss_list(scores)
-    print(table)
-    print()
-    print(misses)
+    return scores, total
+
+
+def evaluate(args):
+    sections = []
+    for title, directory in LABEL_SETS:
+        scores, total = evaluate_set(args.pqscan, directory)
+        sections.append(f"## {title}\n\n{evaluation_table(scores, total)}\n\n### What pqscan got wrong\n\n{miss_list(scores)}")
+    text = "\n\n".join(sections)
+    print(text)
     if args.write:
-        write_evaluation(table, misses)
+        write_evaluation(text)
     return 0
 
 
-def write_evaluation(table, misses):
-    text = (
+def write_evaluation(text):
+    header = (
         "# Evaluation results\n\n"
         "Written by `python3 bench/bench.py evaluate --write`. Do not edit by hand.\n\n"
-        f"{table}\n\n"
-        "## What pqscan got wrong\n\n"
-        f"{misses}\n"
     )
-    (BENCH / "results.md").write_text(text, encoding="utf-8")
-
-
+    (BENCH / "results.md").write_text(header + text + "\n", encoding="utf-8")
 # ---------------------------------------------------------------------------------------------
 # perf
 
