@@ -210,6 +210,11 @@ python3 bench/bench.py evaluate --write   # precision and recall, written to ben
 python3 bench/bench.py perf               # time and memory against bench/perf.json
 ```
 
+A project is downloaded from GitHub's archive of its tag, unless its entry names a `url`. Give
+a `url` to the project's own release archive when its `.gitattributes` marks a file
+`export-subst`: GitHub fills such a file in when it builds the archive, and the result differs
+between its servers, so the archive's SHA-256 does too. HAProxy is pinned this way.
+
 `bench/labels/` holds the labels the rules were tuned on, and `bench/labels/held-out/` labels made
 afterwards from files no rule was tuned on. Keep it that way: when a held-out miss leads to a new
 rule, say in the commit that the set is no longer blind, and label fresh files for the next
