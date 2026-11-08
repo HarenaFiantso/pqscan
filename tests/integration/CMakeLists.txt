@@ -81,6 +81,10 @@ pqscan_add_cli_test(a_truncated_certificate_is_not_a_clean_result EXIT 4
 pqscan_add_cli_test(an_encrypted_key_is_not_a_clean_result EXIT 4
     ARGS crypto/keys/rsa-2048-encrypted.key
     STDOUT "${expected}/empty.txt" STDERR "${expected}/encrypted_key_stderr.txt")
+pqscan_add_cli_test(elf_binaries EXIT 1 ARGS elf/bin STDOUT "${expected}/elf.txt"
+    STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(unreadable_elf_files_are_not_a_clean_result EXIT 4 ARGS elf/broken
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/elf_broken_stderr.txt")
 pqscan_add_cli_test(edge_cases EXIT 1 ARGS edge STDOUT "${expected}/edge_stdout.txt"
     STDERR "${expected}/edge_stderr.txt")
 
