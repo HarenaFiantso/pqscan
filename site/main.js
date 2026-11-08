@@ -3,20 +3,50 @@
 // Everything here adds to a page that already reads well without it.
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const lightScheme = window.matchMedia("(prefers-color-scheme: light)");
 
 const byId = (id) => document.getElementById(id);
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const clamp = (value, low, high) => Math.min(Math.max(value, low), high);
+
+/* Runs every scroll handler once per frame, however often the page scrolls. */
+const scrollHandlers = [];
+function onScroll(handler) {
+  scrollHandlers.push(handler);
+  handler();
+}
+let scrollScheduled = false;
+function runScrollHandlers() {
+  scrollScheduled = false;
+  scrollHandlers.forEach((handler) => handler());
+}
+window.addEventListener(
+  "scroll",
+  () => {
+    if (!scrollScheduled) {
+      scrollScheduled = true;
+      requestAnimationFrame(runScrollHandlers);
+    }
+  },
+  { passive: true },
+);
+window.addEventListener("resize", runScrollHandlers);
 
 /* A lattice, the structure ML-KEM and ML-DSA are built on. It drifts, and bends near the pointer. */
 function startLattice() {
   const canvas = byId("lattice");
   const context = canvas.getContext("2d");
-  const spacing = 58;
-  const pointerReach = 170;
+  const spacing = 64;
+  const pointerReach = 180;
   const pointer = { x: -1000, y: -1000 };
+  let color = "255, 255, 255";
   let width = 0;
   let height = 0;
   let running = false;
+
+  function readColor() {
+    color = getComputedStyle(document.documentElement).getPropertyValue("--lattice").trim();
+  }
 
   function resize() {
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
@@ -31,19 +61,19 @@ function startLattice() {
     const baseX = column * spacing + (row % 2) * (spacing / 2);
     const baseY = row * spacing * 0.86;
     const phase = column * 0.7 + row * 1.3;
-    let x = baseX + Math.sin(time * 0.5 + phase) * 7;
-    let y = baseY + Math.cos(time * 0.4 + phase) * 7;
+    let x = baseX + Math.sin(time * 0.4 + phase) * 6;
+    let y = baseY + Math.cos(time * 0.3 + phase) * 6;
     const dx = x - pointer.x;
     const dy = y - pointer.y;
     const distance = Math.hypot(dx, dy) || 1;
     const push = Math.max(0, 1 - distance / pointerReach);
-    x += (dx / distance) * push * 26;
-    y += (dy / distance) * push * 26;
+    x += (dx / distance) * push * 24;
+    y += (dy / distance) * push * 24;
     return { x, y, glow: push };
   }
 
   function drawEdge(from, to) {
-    context.strokeStyle = `rgba(203, 166, 247, ${0.1 + Math.max(from.glow, to.glow) * 0.4})`;
+    context.strokeStyle = `rgba(${color}, ${0.07 + Math.max(from.glow, to.glow) * 0.3})`;
     context.beginPath();
     context.moveTo(from.x, from.y);
     context.lineTo(to.x, to.y);
@@ -60,9 +90,9 @@ function startLattice() {
         const step = row % 2;
         if (column + 1 < columns) drawEdge(node, nodeAt(column + 1, row, time));
         if (row + 1 < rows) drawEdge(node, nodeAt(column + step, row + 1, time));
-        context.fillStyle = `rgba(180, 190, 254, ${0.2 + node.glow * 0.7})`;
+        context.fillStyle = `rgba(${color}, ${0.16 + node.glow * 0.6})`;
         context.beginPath();
-        context.arc(node.x, node.y, 1.6 + node.glow * 2, 0, Math.PI * 2);
+        context.arc(node.x, node.y, 1.4 + node.glow * 1.8, 0, Math.PI * 2);
         context.fill();
       }
     }
@@ -80,9 +110,14 @@ function startLattice() {
     if (running) requestAnimationFrame(frame);
   }
 
+  readColor();
   resize();
   window.addEventListener("resize", () => {
     resize();
+    if (reducedMotion) draw(0);
+  });
+  lightScheme.addEventListener("change", () => {
+    readColor();
     if (reducedMotion) draw(0);
   });
 
@@ -91,12 +126,13 @@ function startLattice() {
     return;
   }
 
-  byId("top").addEventListener("pointermove", (event) => {
+  const hero = byId("top");
+  hero.addEventListener("pointermove", (event) => {
     const box = canvas.getBoundingClientRect();
     pointer.x = event.clientX - box.left;
     pointer.y = event.clientY - box.top;
   });
-  byId("top").addEventListener("pointerleave", () => {
+  hero.addEventListener("pointerleave", () => {
     pointer.x = -1000;
     pointer.y = -1000;
   });
@@ -106,9 +142,47 @@ function startLattice() {
   new IntersectionObserver(([entry]) => {
     onScreen = entry.isIntersecting;
     setRunning(onScreen && !document.hidden);
-  }).observe(canvas);
+  }).observe(hero);
   document.addEventListener("visibilitychange", () => setRunning(onScreen && !document.hidden));
   setRunning(true);
+}
+
+/* Depth. "fixed" layers float on a slow wave as the page scrolls, "lag" layers fall behind the
+   page, and the rest drift from the middle of the screen in proportion to their speed. */
+function startParallax() {
+  if (reducedMotion) return;
+  const layers = [...document.querySelectorAll("[data-parallax]")].map((element, index) => ({
+    element,
+    index,
+    speed: Number(element.dataset.parallax),
+    mode: element.closest(".backdrop") ? "fixed" : element.dataset.parallaxMode || "float",
+  }));
+
+  function offsetOf(layer) {
+    const scroll = window.scrollY;
+    if (layer.mode === "fixed") return Math.sin((scroll * layer.speed) / 260 + layer.index * 2) * 140;
+    if (layer.mode === "lag") return Math.min(scroll, window.innerHeight * 1.2) * layer.speed;
+    const box = layer.element.getBoundingClientRect();
+    if (box.bottom < -200 || box.top > window.innerHeight + 200) return null;
+    return (box.top + box.height / 2 - window.innerHeight / 2) * layer.speed;
+  }
+
+  onScroll(() => {
+    layers.forEach((layer) => {
+      const offset = offsetOf(layer);
+      if (offset !== null) layer.element.style.translate = `0 ${offset.toFixed(1)}px`;
+    });
+  });
+}
+
+/* How far the hero has scrolled, from 0 to 1, which tilts the terminal flat and lifts the title. */
+function startHeroProgress() {
+  const root = document.documentElement;
+  if (reducedMotion) return;
+  onScroll(() => {
+    const progress = clamp(window.scrollY / (window.innerHeight * 0.55), 0, 1);
+    root.style.setProperty("--hero-progress", progress.toFixed(3));
+  });
 }
 
 /* Replays the real output that is already in the page, line by line. */
@@ -123,7 +197,7 @@ function startTerminal() {
     typed.textContent = "";
     typed.classList.add("is-typing");
     line.style.visibility = "visible";
-    await wait(380);
+    await wait(420);
     for (const letter of command) {
       if (run !== current) return;
       typed.textContent += letter;
@@ -158,12 +232,18 @@ function startTerminal() {
   play();
 }
 
+/* Tiles that share a grid come in one after another. */
 function startReveals() {
   const items = document.querySelectorAll(".reveal");
   if (reducedMotion || !("IntersectionObserver" in window)) {
     items.forEach((item) => item.classList.add("is-visible"));
     return;
   }
+  document.querySelectorAll(".bento, .kinds, .levels, .releases").forEach((grid) => {
+    [...grid.children].forEach((child, index) => {
+      child.style.setProperty("--delay", `${(index % 4) * 80}ms`);
+    });
+  });
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -173,69 +253,78 @@ function startReveals() {
         }
       });
     },
-    { threshold: 0.12, rootMargin: "0px 0px -6% 0px" },
+    { threshold: 0.1, rootMargin: "0px 0px -6% 0px" },
   );
   items.forEach((item) => observer.observe(item));
 }
 
-function startScrollEffects() {
-  const bar = byId("progress-bar");
-  const topbar = byId("topbar");
-  let scheduled = false;
-
-  function update() {
-    scheduled = false;
-    const range = document.documentElement.scrollHeight - window.innerHeight;
-    bar.style.transform = `scaleX(${range > 0 ? window.scrollY / range : 0})`;
-    topbar.classList.toggle("is-scrolled", window.scrollY > 40);
-  }
-
-  window.addEventListener(
-    "scroll",
-    () => {
-      if (!scheduled) {
-        scheduled = true;
-        requestAnimationFrame(update);
-      }
-    },
-    { passive: true },
-  );
-  update();
+/* Moves a lens to sit under an element of the same scroll container. */
+function placeLens(lens, target) {
+  lens.style.width = `${target.offsetWidth}px`;
+  lens.style.transform = `translateX(${target.offsetLeft}px)`;
 }
 
-function startScrollSpy() {
+/* The nav grows a shadow once the page moves, and its lens follows the section in view. */
+function startNav() {
+  const nav = byId("nav");
+  const list = byId("nav-links");
+  const lens = byId("nav-lens");
   const links = new Map(
-    [...document.querySelectorAll(".topnav a")].map((link) => [link.hash.slice(1), link]),
+    [...list.querySelectorAll("a")].map((link) => [link.hash.slice(1), link]),
   );
+  let current = null;
+
+  onScroll(() => nav.classList.toggle("is-scrolled", window.scrollY > 24));
+
+  function show(link) {
+    links.forEach((other) => other.classList.toggle("is-current", other === link));
+    current = link;
+    if (!link) {
+      lens.classList.remove("is-on");
+      return;
+    }
+    placeLens(lens, link);
+    lens.classList.add("is-on");
+    list.scrollTo({ left: link.offsetLeft - 48, behavior: reducedMotion ? "auto" : "smooth" });
+  }
+
+  const visible = new Set();
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        const link = links.get(entry.target.id);
-        link.classList.toggle("is-current", entry.isIntersecting);
-        if (entry.isIntersecting) {
-          link.parentElement.parentElement.scrollTo({ left: link.offsetLeft - 40 });
-        }
+        if (entry.isIntersecting) visible.add(entry.target.id);
+        else visible.delete(entry.target.id);
       });
+      const id = [...links.keys()].find((key) => visible.has(key));
+      show(id ? links.get(id) : null);
     },
     { rootMargin: "-45% 0px -50% 0px" },
   );
   links.forEach((_, id) => observer.observe(byId(id)));
+  window.addEventListener("resize", () => current && placeLens(lens, current));
 }
 
 function startCounters() {
   if (reducedMotion) return;
-  document.querySelectorAll("[data-count]").forEach((counter) => {
-    const target = Number(counter.dataset.count);
-    const start = performance.now();
-    const duration = 1400;
-    function tick(now) {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - (1 - progress) ** 3;
-      counter.textContent = String(Math.round(target * eased));
-      if (progress < 1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
+  const counters = document.querySelectorAll("[data-count]");
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      observer.unobserve(entry.target);
+      const counter = entry.target;
+      const target = Number(counter.dataset.count);
+      const start = performance.now();
+      const duration = 1600;
+      function tick(now) {
+        const progress = Math.min((now - start) / duration, 1);
+        const eased = 1 - (1 - progress) ** 4;
+        counter.textContent = String(Math.round(target * eased));
+        if (progress < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
   });
+  counters.forEach((counter) => observer.observe(counter));
 }
 
 function startTimeline() {
@@ -243,7 +332,7 @@ function startTimeline() {
   const first = Date.UTC(2024, 0, 1);
   const last = Date.UTC(2036, 0, 1);
   const position = (Date.now() - first) / (last - first);
-  today.style.left = `${Math.min(Math.max(position, 0), 1) * 100}%`;
+  today.style.left = `${clamp(position, 0, 1) * 100}%`;
   today.hidden = false;
 }
 
@@ -251,7 +340,13 @@ function startTimeline() {
 function priorityOf(x, y, q) {
   const end = new Date().getUTCFullYear() + y;
   const deadline = end > 2035 ? 20 : end > 2030 ? 10 : 0;
-  return 50 + deadline + Math.min(Math.max(10 + x + y - q, 0), 29);
+  return 50 + deadline + clamp(10 + x + y - q, 0, 29);
+}
+
+/* Fills a range track up to its thumb, which WebKit cannot do by itself. */
+function fillRange(input) {
+  const share = (input.value - input.min) / (input.max - input.min);
+  input.style.setProperty("--fill", `${share * 100}%`);
 }
 
 function startMosca() {
@@ -264,6 +359,7 @@ function startMosca() {
     const x = Number(inputs.x.value);
     const y = Number(inputs.y.value);
     const q = Number(inputs.q.value);
+    Object.values(inputs).forEach(fillRange);
     byId("x-value").textContent = x;
     byId("y-value").textContent = y;
     byId("q-value").textContent = q;
@@ -318,40 +414,39 @@ function startFlow() {
   ).observe(flow);
 }
 
+/* Segmented controls. Panels are only hidden here, so that all of them show without JavaScript. */
 function startTabs() {
-  const tabs = [...document.querySelectorAll('[role="tab"]')];
-  const indicator = byId("tab-indicator");
+  document.querySelectorAll("[data-tabs]").forEach((group) => {
+    const tabs = [...group.querySelectorAll('[role="tab"]')];
+    const lens = group.querySelector(".segmented-lens");
 
-  function moveIndicator(tab) {
-    indicator.style.width = `${tab.offsetWidth}px`;
-    indicator.style.transform = `translateX(${tab.offsetLeft}px)`;
-  }
+    function select(tab, focus) {
+      tabs.forEach((other) => {
+        const selected = other === tab;
+        other.setAttribute("aria-selected", String(selected));
+        other.tabIndex = selected ? 0 : -1;
+        byId(other.getAttribute("aria-controls")).hidden = !selected;
+      });
+      placeLens(lens, tab);
+      if (focus) tab.focus();
+    }
 
-  function select(tab, focus) {
-    tabs.forEach((other) => {
-      const selected = other === tab;
-      other.setAttribute("aria-selected", String(selected));
-      other.tabIndex = selected ? 0 : -1;
-      byId(other.getAttribute("aria-controls")).hidden = !selected;
+    tabs.forEach((tab, index) => {
+      tab.addEventListener("click", () => select(tab, false));
+      tab.addEventListener("keydown", (event) => {
+        const moves = { ArrowRight: 1, ArrowLeft: -1 };
+        if (event.key in moves) {
+          event.preventDefault();
+          select(tabs[(index + moves[event.key] + tabs.length) % tabs.length], true);
+        }
+      });
     });
-    moveIndicator(tab);
-    if (focus) tab.focus();
-  }
 
-  tabs.forEach((tab, index) => {
-    tab.addEventListener("click", () => select(tab, false));
-    tab.addEventListener("keydown", (event) => {
-      const moves = { ArrowRight: 1, ArrowLeft: -1 };
-      if (event.key in moves) {
-        event.preventDefault();
-        select(tabs[(index + moves[event.key] + tabs.length) % tabs.length], true);
-      }
-    });
+    const selected = () => tabs.find((tab) => tab.tabIndex === 0);
+    window.addEventListener("resize", () => placeLens(lens, selected()));
+    document.fonts?.ready.then(() => placeLens(lens, selected()));
+    select(tabs[0], false);
   });
-
-  window.addEventListener("resize", () => moveIndicator(tabs.find((tab) => tab.tabIndex === 0)));
-  document.fonts?.ready.then(() => moveIndicator(tabs.find((tab) => tab.tabIndex === 0)));
-  moveIndicator(tabs[0]);
 }
 
 /* The same decision as exit_code_of() in src/cli/run.c. */
@@ -421,7 +516,7 @@ function highlightJson() {
 function startCopyButtons() {
   document.querySelectorAll(".copy").forEach((button) => {
     button.addEventListener("click", async () => {
-      const text = button.closest(".code-block").querySelector("pre").textContent;
+      const text = button.closest(".code").querySelector("pre").textContent;
       try {
         await navigator.clipboard.writeText(text);
         button.textContent = "Copied";
@@ -437,22 +532,24 @@ function startCopyButtons() {
   });
 }
 
-function startCardGlow() {
-  document.querySelectorAll(".card").forEach((card) => {
-    card.addEventListener("pointermove", (event) => {
-      const box = card.getBoundingClientRect();
-      card.style.setProperty("--mx", `${event.clientX - box.left}px`);
-      card.style.setProperty("--my", `${event.clientY - box.top}px`);
+/* The sheen on the glass follows the pointer. */
+function startGlassLight() {
+  document.querySelectorAll(".glass").forEach((surface) => {
+    surface.addEventListener("pointermove", (event) => {
+      const box = surface.getBoundingClientRect();
+      surface.style.setProperty("--mx", `${event.clientX - box.left}px`);
+      surface.style.setProperty("--my", `${event.clientY - box.top}px`);
     });
   });
 }
 
 highlightJson();
 startLattice();
+startParallax();
+startHeroProgress();
 startTerminal();
 startReveals();
-startScrollEffects();
-startScrollSpy();
+startNav();
 startCounters();
 startTimeline();
 startMosca();
@@ -460,4 +557,4 @@ startFlow();
 startTabs();
 startExitCodes();
 startCopyButtons();
-startCardGlow();
+startGlassLight();
