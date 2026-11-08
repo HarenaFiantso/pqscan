@@ -14,7 +14,7 @@ inputs:
   baseline:
     description: >-
       A baseline file written by `pqscan --write-baseline`. When set, only the findings it does
-      not accept are reported and can fail the job.
+      not accept fail the job. Code scanning still gets every finding.
     default: ""
   fail-on:
     description: The lowest risk level that fails the job, OK, REVIEW, QUANTUM_VULNERABLE or CLASSICALLY_WEAK.
@@ -34,10 +34,12 @@ inputs:
 
 outputs:
   exit-code:
-    description: The exit code of pqscan, 0 for clean, 1 for findings, 4 for an incomplete scan.
-    value: ${{ steps.scan.outputs.exit-code }}
+    description: >-
+      The exit code the gate went by: 0 for clean, 1 for findings, new ones only with a
+      baseline, and 4 for an incomplete scan.
+    value: ${{ steps.gate.outputs.exit-code }}
   sarif-file:
-    description: The SARIF report.
+    description: The SARIF report, with every finding.
     value: ${{ inputs.sarif-file }}
 
 runs:
@@ -62,27 +64,29 @@ runs:
         cmake --build "$build" --target pqscan --parallel
         echo "PQSCAN=$build/pqscan" >> "$GITHUB_ENV"
 
-    # The step never fails, so that the report is uploaded before the gate decides.
+    # The report has every finding, even with a baseline: code scanning compares a pull request
+    # with its base branch by itself, and a report without the accepted findings would close
+    # their alerts. The step never fails, so that the report is uploaded before the gate decides.
     - name: Scan
       id: scan
       shell: bash
       env:
         INPUT_PATHS: ${{ inputs.paths }}
-        INPUT_BASELINE: ${{ inputs.baseline }}
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
         INPUT_ARGS: ${{ inputs.args }}
         INPUT_SARIF_FILE: ${{ inputs.sarif-file }}
       run: |
         set -f
-        options=(--format sarif --fail-on "$INPUT_FAIL_ON")
-        if [ -n "$INPUT_BASELINE" ]; then
-          options+=(--diff "$INPUT_BASELINE")
-        fi
         # Word splitting is wanted here: these inputs are lists. set -f stops globbing.
         # shellcheck disable=SC2206
-        options+=($INPUT_ARGS -- $INPUT_PATHS)
+        options=(--format sarif --fail-on "$INPUT_FAIL_ON" $INPUT_ARGS -- $INPUT_PATHS)
+        # File names come from the repository, and a warning that starts with one could pass for
+        # a workflow command, so the runner stops reading commands while pqscan runs.
+        token=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+        echo "::stop-commands::$token"
         code=0
         "$PQSCAN" "${options[@]}" > "$INPUT_SARIF_FILE" || code=$?
+        echo "::$token::"
         echo "exit-code=$code" >> "$GITHUB_OUTPUT"
 
     # Exit codes 2 and 3 leave no report worth showing.
@@ -95,16 +99,33 @@ runs:
         sarif_file: ${{ inputs.sarif-file }}
         category: ${{ inputs.category }}
 
+    # With a baseline, the gate scans again with --diff, and its text report shows in the log.
     - name: Gate
+      id: gate
       shell: bash
       env:
-        EXIT_CODE: ${{ steps.scan.outputs.exit-code }}
+        SCAN_EXIT_CODE: ${{ steps.scan.outputs.exit-code }}
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_BASELINE: ${{ inputs.baseline }}
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_ARGS: ${{ inputs.args }}
       run: |
-        case "$EXIT_CODE" in
-        0) echo "pqscan: no findings at or above $INPUT_FAIL_ON" ;;
-        1) echo "::error title=pqscan::findings at or above $INPUT_FAIL_ON, see the SARIF report" ;;
-        4) echo "::error title=pqscan::the scan is incomplete, see the warnings of the Scan step" ;;
-        *) echo "::error title=pqscan::pqscan failed with exit code $EXIT_CODE" ;;
+        set -f
+        code=$SCAN_EXIT_CODE
+        if [ -n "$INPUT_BASELINE" ]; then
+          # shellcheck disable=SC2206
+          options=(--diff "$INPUT_BASELINE" --fail-on "$INPUT_FAIL_ON" $INPUT_ARGS -- $INPUT_PATHS)
+          token=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+          echo "::stop-commands::$token"
+          code=0
+          "$PQSCAN" "${options[@]}" || code=$?
+          echo "::$token::"
+        fi
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        case "$code" in
+        0) echo "pqscan: nothing to block at or above $INPUT_FAIL_ON" ;;
+        1) echo "::error title=pqscan::findings at or above $INPUT_FAIL_ON" ;;
+        4) echo "::error title=pqscan::the scan is incomplete, see the warnings above" ;;
+        *) echo "::error title=pqscan::pqscan failed with exit code $code" ;;
         esac
-        exit "$EXIT_CODE"
+        exit "$code"

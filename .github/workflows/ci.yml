@@ -148,6 +148,7 @@ jobs:
         run: >-
           jq '.findings |= map(select(.path != "tests/fixtures/scan/findings/rsa.c"))'
           "$RUNNER_TEMP/baseline.json" > "$RUNNER_TEMP/partial.json"
+      # Code scanning still gets every finding: only the gate goes by the baseline.
       - name: Diff against the smaller baseline, which must fail the job
         id: new
         continue-on-error: true
@@ -166,7 +167,6 @@ jobs:
         run: |
           test "$WRITE_EXIT" = 0
           test "$SAME_EXIT" = 0
-          test "$(jq '.runs[0].results | length' pqscan.sarif)" = 0
           test "$NEW_EXIT" = 1
           test "$NEW_OUTCOME" = failure
-          test "$(jq -r '[.runs[0].results[].locations[0].physicalLocation.artifactLocation.uri] | join(" ")' new.sarif)" = tests/fixtures/scan/findings/rsa.c
+          test "$(jq '.runs[0].results | length' new.sarif)" = 57
