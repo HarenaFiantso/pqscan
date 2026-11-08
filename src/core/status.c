@@ -27,6 +27,12 @@ const char *pqscan_status_message(pqscan_status status) {
         return "skipped, encrypted key";
     case PQSCAN_ERR_MALFORMED:
         return "skipped, not a certificate or key that can be read";
+    case PQSCAN_ERR_ELF_MALFORMED:
+        return "skipped, malformed ELF file";
+    case PQSCAN_ERR_ELF_UNSUPPORTED:
+        return "skipped, not a 64-bit ELF file";
+    case PQSCAN_ERR_ELF_NO_SYMBOLS:
+        return "skipped, ELF file without a symbol table";
     }
     return "unknown status";
 }
