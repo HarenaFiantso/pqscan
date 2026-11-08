@@ -6,6 +6,7 @@
       {"line": 368, "algorithm": "DH"},
       {"line": 1608, "algorithm": "DH"},
       {"line": 1616, "algorithm": "DH"},
+      {"line": 1643, "algorithm": "DH"},
       {"line": 1788, "algorithm": "ECDH"},
       {"line": 1792, "algorithm": "ECDH"},
       {"line": 1825, "algorithm": "EC"},
