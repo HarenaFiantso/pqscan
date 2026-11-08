@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
 include(FetchContent)
 
+# Built from its one source file, as the other dependencies are: Unity's own CMakeLists.txt has
+# install rules, which would make `cmake --install` put a test framework next to pqscan.
 pqscan_declare_github_archive(unity
     REPOSITORY ThrowTheSwitch/Unity TAG v2.6.1
-    SHA256 b41a66d45a6b99758fb3202ace6178177014d52fc524bf1f72687d93e9867292)
+    SHA256 b41a66d45a6b99758fb3202ace6178177014d52fc524bf1f72687d93e9867292
+    SOURCE_SUBDIR none)
 FetchContent_MakeAvailable(unity)
 
-# Mark Unity's headers as system headers so our strict warnings skip them.
-# FetchContent's SYSTEM option would do this but needs CMake 3.25.
-get_target_property(unity_include_dirs unity INTERFACE_INCLUDE_DIRECTORIES)
-set_target_properties(unity PROPERTIES
-    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${unity_include_dirs}")
+add_library(unity STATIC "${unity_SOURCE_DIR}/src/unity.c")
+# SYSTEM, so that our strict warnings skip Unity's headers.
+target_include_directories(unity SYSTEM PUBLIC "${unity_SOURCE_DIR}/src")
 
 add_library(pqscan_test_support STATIC support/elf_builder.c support/scan_support.c support/temp_tree.c)
 target_include_directories(pqscan_test_support PUBLIC support)
