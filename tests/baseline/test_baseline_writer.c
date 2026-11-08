@@ -14,7 +14,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-enum { OUTPUT_SIZE = 4096, BITS = 2048 };
+enum { OUTPUT_SIZE = 4096, BITS = 2048, LATE_LINE = 9 };
 
 static const key_size NO_SIZE = {KEY_SIZE_NOT_APPLICABLE, 0};
 static const key_size UNRESOLVED = {KEY_SIZE_UNKNOWN, 0};
@@ -33,14 +33,31 @@ void setUp(void) {
 
 void tearDown(void) { finding_list_destroy(findings); }
 
-static void add(const char *path, size_t line, const char *algorithm, key_size size) {
-    const crypto_primitive primitive =
-        (size.kind == KEY_SIZE_NOT_APPLICABLE) ? PRIMITIVE_HASH : PRIMITIVE_UNSPECIFIED;
+static void add(const finding *item) {
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, item));
+}
+
+static void add_md5(const char *path, size_t line) {
     const finding item = {
-        path,      line,      algorithm,       RISK_QUANTUM_VULNERABLE, size,
-        primitive, algorithm, utc_time_none(), priority_none(),
+        path,           line,  "MD5",           RISK_CLASSICALLY_WEAK, NO_SIZE,
+        PRIMITIVE_HASH, "MD5", utc_time_none(), priority_none(),
     };
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
+    add(&item);
+}
+
+static void add_rsa(const char *path, size_t line, key_size size) {
+    const finding item = {
+        path,
+        line,
+        "RSA",
+        RISK_QUANTUM_VULNERABLE,
+        size,
+        PRIMITIVE_UNSPECIFIED,
+        "RSA",
+        utc_time_none(),
+        priority_none(),
+    };
+    add(&item);
 }
 
 static void write_baseline(void) {
@@ -65,10 +82,10 @@ static void test_an_empty_list_writes_an_empty_baseline(void) {
 }
 
 static void test_identical_findings_become_one_sorted_entry(void) {
-    add("./src/b.c", 9, "RSA", KNOWN);
-    add("a.c", 1, "MD5", NO_SIZE);
-    add("src/b.c", 2, "RSA", KNOWN);
-    add("src/b.c", 3, "RSA", UNRESOLVED);
+    add_rsa("./src/b.c", LATE_LINE, KNOWN);
+    add_md5("a.c", 1);
+    add_rsa("src/b.c", 2, KNOWN);
+    add_rsa("src/b.c", 3, UNRESOLVED);
     write_baseline();
     TEST_ASSERT_EQUAL_STRING("{\n"
                              "  \"schema_version\": 1,\n"
@@ -103,10 +120,10 @@ static void test_identical_findings_become_one_sorted_entry(void) {
 }
 
 static void test_a_written_baseline_accepts_every_finding_it_was_written_from(void) {
-    add("a\nb.c", 1, "MD5", NO_SIZE);
-    add("dir\\x0a/\xff.c", 2, "RSA", KNOWN);
-    add("dir\\x0a/\xff.c", 3, "RSA", KNOWN);
-    add("./plain.c", 4, "RSA", UNRESOLVED);
+    add_md5("a\nb.c", 1);
+    add_rsa("dir\\x0a/\xff.c", 2, KNOWN);
+    add_rsa("dir\\x0a/\xff.c", 3, KNOWN);
+    add_rsa("./plain.c", 4, UNRESOLVED);
     write_baseline();
 
     baseline *loaded = NULL;
