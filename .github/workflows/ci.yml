@@ -37,6 +37,7 @@ jobs:
         with:
           path: build/.downloads
           key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
+          restore-keys: downloads-
       - run: pip install -r requirements-dev.txt
       - run: sudo apt-get update && sudo apt-get install --yes cppcheck libssl-dev
       - run: cmake --preset debug
@@ -60,6 +61,7 @@ jobs:
         with:
           path: build/.downloads
           key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
+          restore-keys: downloads-
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install --yes libssl-dev
       - run: cmake --preset debug
@@ -83,6 +85,7 @@ jobs:
         with:
           path: build/.downloads
           key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake', 'cmake/report_schemas.cmake') }}
+          restore-keys: downloads-
       - run: pip install -r requirements-dev.txt
       - run: sudo apt-get update && sudo apt-get install --yes libssl-dev
       - run: cmake --preset debug -DPQSCAN_CHECK_REPORT_SCHEMAS=ON
@@ -100,6 +103,7 @@ jobs:
         with:
           path: build/.downloads
           key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
+          restore-keys: downloads-
       - run: sudo apt-get update && sudo apt-get install --yes libssl-dev
       - run: cmake --preset fuzz
       - run: cmake --build --preset fuzz --parallel --target fuzz_elf_reader
@@ -119,6 +123,7 @@ jobs:
         with:
           path: build/.downloads
           key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
+          restore-keys: downloads-
       - run: sudo apt-get update && sudo apt-get install --yes libssl-dev valgrind
       - run: cmake --preset valgrind
       - run: cmake --build --preset valgrind --parallel
