@@ -16,10 +16,13 @@
  * of rules: the caller looks type_name up. Everything is borrowed for the visit only.
  */
 typedef struct key_use {
-    const char *type_name; /**< OpenSSL's short name of the key or digest type, such as
-                                "rsaEncryption", "id-ecPublicKey" or "SHA1". */
-    const char *symbol;    /**< What to record as matched, such as "sha256WithRSAEncryption",
-                                with static storage. NULL to take the rule's pattern. */
+    const char *type_name;      /**< OpenSSL's short name of the key or digest type, such as
+                                     "rsaEncryption", "id-ecPublicKey" or "SHA1". */
+    const char *signature_name; /**< For the key half of a signature, OpenSSL's short name of
+                                     the signature algorithm, such as "ecdsa-with-SHA256", to look
+                                     up before type_name. NULL otherwise. */
+    const char *symbol;         /**< What to record as matched, such as "sha256WithRSAEncryption",
+                                     with static storage. NULL to take the rule's pattern. */
     key_size size;
     bool has_usage;         /**< Whether usage says what the key is for. */
     crypto_primitive usage; /**< From a certificate's key usage, or "signature" for a signature. */

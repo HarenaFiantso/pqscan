@@ -25,10 +25,19 @@ typedef struct cert_walk {
     size_t line; /* Of the block being read. */
 } cert_walk;
 
+/* A rule for the signature algorithm says more than one for its key type, when there is one. */
+static const crypto_rule *rule_of(const rule_set *rules, const key_use *use) {
+    const crypto_rule *rule = NULL;
+    if (use->signature_name != NULL) {
+        rule = rule_set_find_key_type(rules, use->signature_name);
+    }
+    return (rule != NULL) ? rule : rule_set_find_key_type(rules, use->type_name);
+}
+
 // cppcheck-suppress constParameterCallback
 static pqscan_status report_use(const key_use *use, void *context) {
     const cert_walk *walk = context;
-    const crypto_rule *rule = rule_set_find_key_type(walk->input->rules, use->type_name);
+    const crypto_rule *rule = rule_of(walk->input->rules, use);
     if (rule == NULL) {
         return PQSCAN_OK;
     }
