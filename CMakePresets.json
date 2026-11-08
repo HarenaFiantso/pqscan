@@ -36,12 +36,23 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "PQSCAN_ENABLE_MEMCHECK": "ON"
       }
+    },
+    {
+      "name": "fuzz",
+      "inherits": "base",
+      "displayName": "libFuzzer targets with ASan and UBSan, for a Clang that has libFuzzer",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer",
+        "PQSCAN_ENABLE_LIBFUZZER": "ON"
+      }
     }
   ],
   "buildPresets": [
     { "name": "debug", "configurePreset": "debug" },
     { "name": "release", "configurePreset": "release" },
-    { "name": "valgrind", "configurePreset": "valgrind" }
+    { "name": "valgrind", "configurePreset": "valgrind" },
+    { "name": "fuzz", "configurePreset": "fuzz" }
   ],
   "testPresets": [
     {

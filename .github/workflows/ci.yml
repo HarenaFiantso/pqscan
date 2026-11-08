@@ -89,6 +89,27 @@ jobs:
       - run: cmake --build --preset debug --parallel
       - run: ctest --preset debug -L schema
 
+  fuzz:
+    needs: build-and-test
+    runs-on: ubuntu-24.04
+    env:
+      CC: clang
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/.downloads
+          key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
+      - run: sudo apt-get update && sudo apt-get install --yes libssl-dev
+      - run: cmake --preset fuzz
+      - run: cmake --build --preset fuzz --parallel --target fuzz_elf_reader
+      - run: scripts/run-fuzzer.sh elf_reader 120
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crashes
+          path: build/fuzz-crashes/
+
   valgrind:
     needs: build-and-test
     runs-on: ubuntu-24.04
