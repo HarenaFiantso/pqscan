@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# The certificate and key fixtures hold private keys made for the tests by generate.sh. They
+# protect nothing, and the scanner needs real keys to read.
+version: 2
+secret:
+  ignored_paths:
+    - tests/fixtures/scan/crypto/**
