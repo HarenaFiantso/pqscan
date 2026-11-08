@@ -12,6 +12,9 @@ set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(PQSCAN_ENABLE_LIBFUZZER "Build the libFuzzer targets, which needs a Clang with libFuzzer" OFF)
+# Off where pqscan is only being built or installed, such as in the GitHub Action or a package,
+# so that the test framework is not downloaded.
+option(PQSCAN_BUILD_TESTS "Build the tests and the fuzz replays" ON)
 
 include(cmake/posix.cmake)
 include(cmake/warnings.cmake)
@@ -93,6 +96,8 @@ target_link_libraries(pqscan_core
 add_executable(pqscan src/cli/main.c)
 target_link_libraries(pqscan PRIVATE pqscan_core pqscan_posix pqscan_warnings)
 
-enable_testing()
-add_subdirectory(tests)
-add_subdirectory(fuzz)
+if(PQSCAN_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+    add_subdirectory(fuzz)
+endif()

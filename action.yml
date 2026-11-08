@@ -60,7 +60,8 @@ runs:
       run: |
         build="$RUNNER_TEMP/pqscan-build"
         cmake -S "$SOURCE_DIR" -B "$build" -DCMAKE_BUILD_TYPE=Release \
-          -DPQSCAN_WARNINGS_AS_ERRORS=OFF -DPQSCAN_DOWNLOAD_DIR="$RUNNER_TEMP/pqscan-downloads"
+          -DPQSCAN_WARNINGS_AS_ERRORS=OFF -DPQSCAN_BUILD_TESTS=OFF \
+          -DPQSCAN_DOWNLOAD_DIR="$RUNNER_TEMP/pqscan-downloads"
         cmake --build "$build" --target pqscan --parallel
         echo "PQSCAN=$build/pqscan" >> "$GITHUB_ENV"
 
