@@ -2,21 +2,22 @@
 
 ## Development setup
 
-You need CMake 3.20 or newer, a C11 compiler, `clang-format`, `clang-tidy`, `cppcheck` and
-`check-jsonschema`. `clang-format`, `clang-tidy` and `check-jsonschema` are pinned in
-`requirements-dev.txt` so that your results match CI.
+You need CMake 3.20 or newer, a C11 compiler, OpenSSL 3.0 or newer with its headers,
+`clang-format`, `clang-tidy`, `cppcheck` and `check-jsonschema`. OpenSSL is the one library
+taken from the system rather than downloaded by CMake. `clang-format`, `clang-tidy` and
+`check-jsonschema` are pinned in `requirements-dev.txt` so that your results match CI.
 
 On macOS, with the Xcode command line tools installed:
 
 ```sh
-brew install cmake cppcheck pipx
+brew install cmake cppcheck openssl@3 pipx
 xargs -n 1 pipx install < requirements-dev.txt
 ```
 
 On Debian or Ubuntu:
 
 ```sh
-sudo apt-get install build-essential clang cmake cppcheck pipx valgrind
+sudo apt-get install build-essential clang cmake cppcheck libssl-dev pipx valgrind
 xargs -n 1 pipx install < requirements-dev.txt
 ```
 

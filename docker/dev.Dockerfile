@@ -18,6 +18,7 @@ RUN apt-get update \
         git \
         libc6-dbg \
         libclang-rt-dev \
+        libssl-dev \
         python3-venv \
         valgrind \
     && rm -rf /var/lib/apt/lists/*
