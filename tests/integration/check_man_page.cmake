@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Usage: cmake -DPQSCAN=path -DMAN_PAGE=path -P check_man_page.cmake
+# Fails unless the man page documents exactly the options and exit codes that --help lists, so
+# that neither can change without the other.
+
+execute_process(COMMAND "${PQSCAN}" --help OUTPUT_VARIABLE help RESULT_VARIABLE help_exit)
+if(NOT help_exit EQUAL 0)
+    message(FATAL_ERROR "pqscan --help exited ${help_exit}")
+endif()
+file(STRINGS "${MAN_PAGE}" man_lines)
+string(REPLACE "\n" ";" help_lines "${help}")
+
+# Each option is written as "-i/--ignore", or "--project" when it has no short form.
+function(collect_help_entries out_options out_exit_codes)
+    set(options "")
+    set(exit_codes "")
+    foreach(line IN LISTS help_lines)
+        if(line MATCHES "^  -([A-Za-z]), --([a-z-]+)")
+            list(APPEND options "-${CMAKE_MATCH_1}/--${CMAKE_MATCH_2}")
+        elseif(line MATCHES "^      --([a-z-]+)")
+            list(APPEND options "--${CMAKE_MATCH_1}")
+        elseif(line MATCHES "^  ([0-9])  ")
+            list(APPEND exit_codes "${CMAKE_MATCH_1}")
+        endif()
+    endforeach()
+    set(${out_options} "${options}" PARENT_SCOPE)
+    set(${out_exit_codes} "${exit_codes}" PARENT_SCOPE)
+endfunction()
+
+# Options are the .It entries of OPTIONS, exit codes those of EXIT STATUS.
+function(collect_man_entries out_options out_exit_codes)
+    set(options "")
+    set(exit_codes "")
+    set(section "")
+    foreach(line IN LISTS man_lines)
+        if(line MATCHES "^\\.Sh (.*)$")
+            set(section "${CMAKE_MATCH_1}")
+        elseif(section STREQUAL "OPTIONS" AND line MATCHES "^\\.It Fl ([A-Za-z]) , Fl -([a-z-]+)")
+            list(APPEND options "-${CMAKE_MATCH_1}/--${CMAKE_MATCH_2}")
+        elseif(section STREQUAL "OPTIONS" AND line MATCHES "^\\.It Fl -([a-z-]+)")
+            list(APPEND options "--${CMAKE_MATCH_1}")
+        elseif(section STREQUAL "EXIT STATUS" AND line MATCHES "^\\.It ([0-9])$")
+            list(APPEND exit_codes "${CMAKE_MATCH_1}")
+        endif()
+    endforeach()
+    set(${out_options} "${options}" PARENT_SCOPE)
+    set(${out_exit_codes} "${exit_codes}" PARENT_SCOPE)
+endfunction()
+
+function(require_same_entries what help_entries man_entries)
+    list(SORT help_entries)
+    list(SORT man_entries)
+    if(NOT help_entries)
+        message(FATAL_ERROR "found no ${what} in --help")
+    endif()
+    if(NOT help_entries STREQUAL man_entries)
+        message(FATAL_ERROR "${what} differ\n  --help:   ${help_entries}\n  man page: ${man_entries}")
+    endif()
+endfunction()
+
+collect_help_entries(help_options help_exit_codes)
+collect_man_entries(man_options man_exit_codes)
+require_same_entries("options" "${help_options}" "${man_options}")
+require_same_entries("exit codes" "${help_exit_codes}" "${man_exit_codes}")

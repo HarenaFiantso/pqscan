@@ -1,0 +1,312 @@
+.\" SPDX-License-Identifier: Apache-2.0
+.Dd November 8, 2026
+.Dt PQSCAN 1
+.Os
+.Sh NAME
+.Nm pqscan
+.Nd find cryptography that quantum computers will break
+.Sh SYNOPSIS
+.Nm
+.Op Ar options
+.Ar path ...
+.Sh DESCRIPTION
+.Nm
+finds RSA, ECDSA, EdDSA, ECDH, DH and DSA, which Shor's algorithm breaks, and
+classically
+weak algorithms such as MD5, SHA-1, DES and RC4, in C and C++ source, TLS and
+SSH
+configuration, certificates and keys, and 64-bit ELF binaries.
+For each finding it reports where it is, the algorithm and key size, a risk
+level and a
+migration priority.
+.Pp
+Each
+.Ar path
+is a file or a directory.
+Directories are walked recursively, and symbolic links inside them are skipped.
+Files are chosen by name, except ELF files, which are recognized by their first
+four bytes:
+.Bl -tag -width "Certificates and keys"
+.It C and C++ source
+.Pa .c , .h , .cpp , .hpp , .cc , .cxx , .C , .hh , .hxx , .ipp , .inl
+and
+.Pa .tcc .
+Files are parsed with Tree-sitter, so comments, unrelated strings and
+declarations are not
+reported.
+Constants defined in the same file are followed to find key sizes and algorithm
+names.
+A value that cannot be proven is reported as
+.Ql unknown .
+.It Configuration
+.Pa .conf , .cnf , sshd_config , ssh_config , .htaccess ,
+and any file in a
+.Pa sites-available
+or
+.Pa sites-enabled
+directory.
+The algorithm lists of OpenSSL, nginx, Apache and OpenSSH settings are read.
+.It Certificates and keys
+.Pa .pem , .crt , .cer , .der , .key
+and
+.Pa .csr ,
+in PEM or DER, decoded with OpenSSL's libcrypto.
+A certificate also reports the algorithm that signed it and when it expires.
+.Nm
+never asks for a passphrase.
+.It ELF binaries
+64-bit executables, shared libraries and object files, in either byte order.
+Function symbols, defined or imported, are matched against the rules.
+.El
+.Pp
+.Nm
+never executes or loads what it scans.
+.Ss Risk levels
+Each finding has the most severe level that applies, here from the least to the
+most severe:
+.Bl -tag -width CLASSICALLY_WEAK
+.It Cm OK
+AES-256, SHA-256 and stronger, ML-KEM, ML-DSA, SLH-DSA.
+.It Cm REVIEW
+AES-128 and other symmetric algorithms that Grover's algorithm weakens.
+.It Cm QUANTUM_VULNERABLE
+RSA, ECDSA, EdDSA, ECDH, DH and DSA, which must migrate to ML-KEM or ML-DSA.
+.It Cm CLASSICALLY_WEAK
+MD5, SHA-1, DES, 3DES, RC4, and RSA, DSA or DH keys under 2048 bits, which are
+unsafe today.
+.El
+.Ss Priorities
+Every finding gets a priority from 0 to 100, and reports list the most urgent
+first.
+.Cm CLASSICALLY_WEAK
+is 100,
+.Cm REVIEW
+is 10 and
+.Cm OK
+is 0.
+A
+.Cm QUANTUM_VULNERABLE
+finding scores from 50 to 99, from the NIST IR 8547 dates, which deprecate
+these algorithms
+after 2030 and disallow them after 2035, and from Mosca's theorem: data that
+must stay secret
+for X years, in code that takes Y years to migrate, is exposed when X + Y > Q,
+where Q is the
+number of years until a quantum computer arrives.
+X, Y and the quantum year come from the project file, see
+.Sx FILES .
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl i , Fl -ignore Ar pattern
+Skip the paths matching the glob
+.Ar pattern ,
+tried on the file name, on the path, and on the path relative to the
+.Ar path
+argument.
+Can be repeated.
+.Pa .git
+is always skipped.
+.It Fl r , Fl -rules Ar file
+Use the rules in the JSON
+.Ar file
+instead of the built-in ones.
+.It Fl -project Ar file
+Read how long data must stay secret from this project file.
+The default is
+.Pa .pqscan.json
+in the current directory, if there is one.
+.It Fl -as-of Ar year
+Score priorities as if it were
+.Ar year ,
+from 1970 to 9999.
+The default is the current year, in UTC.
+.It Fl -diff Ar file
+Report only the findings that the baseline
+.Ar file
+does not accept.
+Entries that no finding used are counted on the standard error.
+.It Fl -write-baseline Ar file
+Write a baseline that accepts every finding to
+.Ar file ,
+and report as usual.
+Cannot be combined with
+.Fl -diff .
+.It Fl f , Fl -format Ar format
+Write the report as
+.Cm text ,
+the default,
+.Cm json ,
+.Cm cbom ,
+a CycloneDX 1.6 cryptography bill of materials, or
+.Cm sarif ,
+SARIF 2.1.0 for code scanning services.
+.It Fl -fail-on Ar level
+The lowest risk level that makes
+.Nm
+exit 1:
+.Cm OK ,
+.Cm REVIEW ,
+.Cm QUANTUM_VULNERABLE
+or
+.Cm CLASSICALLY_WEAK .
+The default is
+.Cm REVIEW .
+Every finding is still reported.
+.It Fl -max-time Ar seconds
+Start on no new file after this many seconds.
+The default is 3600.
+Files left over are skipped, which makes the scan incomplete.
+.It Fl h , Fl -help
+Show the help and exit.
+.It Fl V , Fl -version
+Show the version and exit.
+.El
+.Sh OUTPUT
+The report goes to the standard output, and warnings go to the standard error.
+The text report has one line per finding, most urgent first, followed by a
+count:
+.Bd -literal -offset indent
+src/keys.c:51: RSA-1024 (CLASSICALLY_WEAK, priority 100)
+src/keys.c:42: RSA-2048 (QUANTUM_VULNERABLE, priority 51)
+tls/server.pem:1: RSA-2048 (QUANTUM_VULNERABLE, priority 51, expires 2031-05-01)
+3 findings: 1 CLASSICALLY_WEAK, 2 QUANTUM_VULNERABLE
+.Ed
+.Pp
+A clean scan prints nothing.
+A finding about a whole file, such as a DER certificate or a binary, has no
+line number.
+Control characters, bidirectional marks and invalid UTF-8 in file names are
+printed as
+.Ql \exNN .
+.Pp
+The same files, rules, project file and
+.Fl -as-of
+year always give the same bytes: reports hold no timestamp and no random
+identifier.
+.Pp
+A file that cannot be analyzed is skipped with a warning, and the scan is then
+incomplete.
+That covers paths that cannot be read, files over 64 MiB, source and
+configuration files with
+a NUL byte, source files that take more than 30 seconds to parse, encrypted
+PKCS#8 keys,
+certificates and keys that cannot be decoded, and ELF files that are 32-bit,
+damaged or have
+no symbol table.
+Every report format says when a scan is incomplete.
+.Sh ENVIRONMENT
+.Nm
+reads no environment variable.
+OpenSSL is started without reading
+.Ev OPENSSL_CONF ,
+so a scan never depends on the environment.
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa .pqscan.json
+The project file, read from the current directory unless
+.Fl -project
+names another.
+It sets the quantum year and, for the whole project or per component, how many
+years data must
+stay secret and how many the migration takes.
+It changes only priorities and their order, never which findings are reported
+or the exit
+status.
+.It Pa .pqscan-baseline.json
+The usual name of a baseline, written by
+.Fl -write-baseline
+and read by
+.Fl -diff .
+An entry accepts a finding by its path, algorithm, symbol, primitive and key
+size, not its
+line, so editing code above a finding does not make it new.
+.It Pa share/pqscan/default.json
+Under the installation prefix, a copy of the built-in rules, to start a rules
+file for
+.Fl -rules
+from.
+.El
+.Pp
+Each of these files is JSON with a
+.Ql schema_version ,
+and
+.Nm
+refuses a whole file over any mistake, such as an unknown field.
+.Sh EXIT STATUS
+.Bl -tag -width Ds
+.It 0
+No findings at or above the
+.Fl -fail-on
+level, and everything in scope was analyzed.
+.It 1
+Findings at or above the
+.Fl -fail-on
+level, even if the scan was incomplete.
+With
+.Fl -diff ,
+only new findings count, and with
+.Fl -write-baseline ,
+none do.
+.It 2
+Usage error, such as a path that does not exist or a rules, project or baseline
+file that is
+not valid.
+.It 3
+Internal error, such as a report that cannot be written.
+.It 4
+No findings at or above the
+.Fl -fail-on
+level, but something in scope could not be analyzed.
+.El
+.Sh EXAMPLES
+Scan a project, skipping vendored code:
+.Pp
+.Dl $ pqscan --ignore third_party \&.
+.Pp
+Write a CycloneDX inventory of the cryptography in use:
+.Pp
+.Dl $ pqscan --format cbom \&. > cbom.json
+.Pp
+Accept the findings a project has today, then fail only on new ones:
+.Bd -literal -offset indent
+$ pqscan --write-baseline .pqscan-baseline.json .
+$ pqscan --diff .pqscan-baseline.json .
+.Ed
+.Pp
+Fail only on what is broken today, but report everything:
+.Pp
+.Dl $ pqscan --fail-on CLASSICALLY_WEAK \&.
+.Sh SEE ALSO
+.Xr openssl 1 ,
+.Xr ssh_config 5 ,
+.Xr sshd_config 5
+.Pp
+.Lk https://github.com/HarenaFiantso/pqscan
+.Sh STANDARDS
+.Rs
+.%A Dustin Moody et al.
+.%T Transition to Post-Quantum Cryptography Standards
+.%R NIST IR 8547
+.%I National Institute of Standards and Technology
+.%D 2024
+.Re
+.Pp
+Reports follow CycloneDX 1.6 and SARIF 2.1.0.
+.Sh AUTHORS
+.An Fiantso Harena
+.Sh CAVEATS
+Exit status 0 does not prove that code is free of vulnerable cryptography.
+.Nm
+only recognizes the names in its rules, in the kinds of files listed above.
+.Pp
+Constants are only followed inside one file.
+Configuration aliases such as
+.Ql DEFAULT
+or
+.Ql HIGH
+are not expanded, since their meaning depends on the OpenSSL that reads them.
+A stripped, statically linked binary keeps no symbol table, so it cannot be
+analyzed, and
+32-bit ELF files and
+.Pa .a
+archives are not read.

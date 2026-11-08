@@ -56,6 +56,19 @@ pqscan_add_cli_test(help_short EXIT 0 ARGS -h STDOUT "${expected}/help.txt")
 pqscan_add_cli_test(version EXIT 0 ARGS --version STDOUT "${CMAKE_CURRENT_BINARY_DIR}/version.txt")
 pqscan_add_cli_test(version_short EXIT 0 ARGS -V STDOUT "${CMAKE_CURRENT_BINARY_DIR}/version.txt")
 
+set(man_page "${PROJECT_SOURCE_DIR}/man/pqscan.1")
+add_test(NAME man_page_matches_help
+    COMMAND "${CMAKE_COMMAND}" "-DPQSCAN=$<TARGET_FILE:pqscan>" "-DMAN_PAGE=${man_page}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/check_man_page.cmake")
+# macOS ships mandoc, and CI installs it on Linux. Style notes are left out: one of them says
+# whether the pages SEE ALSO names are installed, which depends on the machine.
+find_program(PQSCAN_MANDOC_PROGRAM mandoc)
+if(PQSCAN_MANDOC_PROGRAM)
+    add_test(NAME man_page_lint COMMAND "${PQSCAN_MANDOC_PROGRAM}" -T lint -W warning "${man_page}")
+else()
+    message(STATUS "mandoc not found, so the man page lint test is left out")
+endif()
+
 pqscan_add_cli_test(no_path EXIT 2 STDOUT "${expected}/empty.txt"
     STDERR "${expected}/missing_argument_stderr.txt")
 pqscan_add_cli_test(unknown_option EXIT 2 ARGS --nope clean STDOUT "${expected}/empty.txt")
