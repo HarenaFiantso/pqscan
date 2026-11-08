@@ -245,6 +245,6 @@ if(PQSCAN_CHECK_REPORT_SCHEMAS)
     add_test(NAME report_schemas
         COMMAND "${PROJECT_SOURCE_DIR}/scripts/check-report-schemas.sh" $<TARGET_FILE:pqscan>
             "${cyclonedx_specification_SOURCE_DIR}/schema"
-            "${sarif_schema_SOURCE_DIR}/sarif-schema-2.1.0.json")
+            "${PQSCAN_SARIF_SCHEMA}")
     set_tests_properties(report_schemas PROPERTIES LABELS schema)
 endif()

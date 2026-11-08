@@ -4,8 +4,43 @@ include(FetchContent)
 set(PQSCAN_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/.downloads" CACHE PATH
     "Where third-party archives are kept, so presets and CI can reuse them")
 
-# A download that stalls this long gives up, so that the next URL of an archive gets its turn.
+# A download that stalls this long gives up, so that the next URL gets its turn.
 set(PQSCAN_DOWNLOAD_INACTIVITY_SECONDS 30)
+
+# Usage: pqscan_download(out_var FILE name SHA256 hash URLS url...)
+# Downloads a file into PQSCAN_DOWNLOAD_DIR unless a copy with the right hash is already there,
+# trying each URL in turn, and sets out_var to its path. FetchContent cannot do this itself: since
+# CMake 3.30 it ignores DOWNLOAD_DIR and keeps each archive inside one build tree, so neither the
+# presets nor the CI cache could share it. The lock stops two configures from writing one file.
+function(pqscan_download out_var)
+    cmake_parse_arguments(PARSE_ARGV 1 FETCH "" "FILE;SHA256" "URLS")
+    set(path "${PQSCAN_DOWNLOAD_DIR}/${FETCH_FILE}")
+    set(${out_var} "${path}" PARENT_SCOPE)
+    file(LOCK "${path}.lock" GUARD FUNCTION)
+    if(EXISTS "${path}")
+        file(SHA256 "${path}" found)
+        if(found STREQUAL FETCH_SHA256)
+            return()
+        endif()
+        file(REMOVE "${path}")
+    endif()
+    foreach(url IN LISTS FETCH_URLS)
+        file(DOWNLOAD "${url}" "${path}.part" STATUS status TLS_VERIFY ON
+            INACTIVITY_TIMEOUT ${PQSCAN_DOWNLOAD_INACTIVITY_SECONDS})
+        list(GET status 0 code)
+        if(code EQUAL 0)
+            file(SHA256 "${path}.part" found)
+            if(found STREQUAL FETCH_SHA256)
+                file(RENAME "${path}.part" "${path}")
+                return()
+            endif()
+            set(status "SHA-256 ${found} instead of ${FETCH_SHA256}")
+        endif()
+        message(STATUS "Cannot download ${url}: ${status}")
+        file(REMOVE "${path}.part")
+    endforeach()
+    message(FATAL_ERROR "Cannot download ${FETCH_FILE} from any of: ${FETCH_URLS}")
+endfunction()
 
 # Usage: pqscan_declare_github_archive(name REPOSITORY owner/repo TAG tag SHA256 hash [args...])
 # github.com serves a release archive by redirecting to codeload.github.com, so asking codeload
@@ -13,13 +48,14 @@ set(PQSCAN_DOWNLOAD_INACTIVITY_SECONDS 30)
 # bytes are the same, so one hash covers both URLs. Other arguments go to FetchContent_Declare().
 function(pqscan_declare_github_archive name)
     cmake_parse_arguments(PARSE_ARGV 1 ARCHIVE "" "REPOSITORY;TAG;SHA256" "")
+    pqscan_download(archive
+        FILE "${name}-${ARCHIVE_TAG}.tar.gz"
+        SHA256 ${ARCHIVE_SHA256}
+        URLS "https://github.com/${ARCHIVE_REPOSITORY}/archive/refs/tags/${ARCHIVE_TAG}.tar.gz"
+             "https://codeload.github.com/${ARCHIVE_REPOSITORY}/tar.gz/refs/tags/${ARCHIVE_TAG}")
     FetchContent_Declare(${name}
-        URL "https://github.com/${ARCHIVE_REPOSITORY}/archive/refs/tags/${ARCHIVE_TAG}.tar.gz"
-            "https://codeload.github.com/${ARCHIVE_REPOSITORY}/tar.gz/refs/tags/${ARCHIVE_TAG}"
+        URL "${archive}"
         URL_HASH SHA256=${ARCHIVE_SHA256}
-        DOWNLOAD_NAME "${name}-${ARCHIVE_TAG}.tar.gz"
-        DOWNLOAD_DIR "${PQSCAN_DOWNLOAD_DIR}"
-        INACTIVITY_TIMEOUT ${PQSCAN_DOWNLOAD_INACTIVITY_SECONDS}
         ${ARCHIVE_UNPARSED_ARGUMENTS})
 endfunction()
 
