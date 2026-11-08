@@ -109,13 +109,15 @@ static void test_a_big_number_is_written_exactly(void) {
     assert_output(expected);
 }
 
+/* Through a variable, because some cppcheck configurations give INT_MIN the type long. */
 static void test_a_negative_number_keeps_its_sign(void) {
+    const int lowest = INT_MIN;
     json_begin_array(&json);
     json_int(&json, -1);
-    json_int(&json, INT_MIN);
+    json_int(&json, lowest);
     json_end_array(&json);
     char expected[OUTPUT_SIZE];
-    const int len = snprintf(expected, sizeof(expected), "[\n  -1,\n  %d\n]\n", INT_MIN);
+    const int len = snprintf(expected, sizeof(expected), "[\n  -1,\n  %d\n]\n", lowest);
     TEST_ASSERT_GREATER_THAN_INT(0, len);
     assert_output(expected);
 }
