@@ -135,6 +135,13 @@ void json_uint(json_writer *json, size_t value) {
     }
 }
 
+void json_int(json_writer *json, int value) {
+    start_item(json);
+    if (json->status == PQSCAN_OK && fprintf(json->out, "%d", value) < 0) {
+        json->status = PQSCAN_ERR_IO;
+    }
+}
+
 void json_bool(json_writer *json, bool value) {
     start_item(json);
     put_text(json, value ? "true" : "false");
@@ -153,4 +160,9 @@ void json_field_string(json_writer *json, const char *key, const char *text) {
 void json_field_uint(json_writer *json, const char *key, size_t value) {
     json_key(json, key);
     json_uint(json, value);
+}
+
+void json_field_int(json_writer *json, const char *key, int value) {
+    json_key(json, key);
+    json_int(json, value);
 }

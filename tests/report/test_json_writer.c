@@ -3,6 +3,7 @@
 #include "pqscan/report/json_writer.h"
 #include "unity.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -108,6 +109,17 @@ static void test_a_big_number_is_written_exactly(void) {
     assert_output(expected);
 }
 
+static void test_a_negative_number_keeps_its_sign(void) {
+    json_begin_array(&json);
+    json_int(&json, -1);
+    json_int(&json, INT_MIN);
+    json_end_array(&json);
+    char expected[OUTPUT_SIZE];
+    const int len = snprintf(expected, sizeof(expected), "[\n  -1,\n  %d\n]\n", INT_MIN);
+    TEST_ASSERT_GREATER_THAN_INT(0, len);
+    assert_output(expected);
+}
+
 static void test_nesting_too_deep_fails(void) {
     for (int i = 0; i <= JSON_WRITER_MAX_DEPTH; i++) {
         json_begin_array(&json);
@@ -146,6 +158,7 @@ int main(void) {
     RUN_TEST(test_a_key_is_escaped_too);
     RUN_TEST(test_a_string_can_be_built_in_parts);
     RUN_TEST(test_a_big_number_is_written_exactly);
+    RUN_TEST(test_a_negative_number_keeps_its_sign);
     RUN_TEST(test_nesting_too_deep_fails);
     RUN_TEST(test_closing_too_much_fails);
     RUN_TEST(test_a_failed_write_sticks);

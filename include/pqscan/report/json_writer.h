@@ -81,6 +81,14 @@ void json_string(json_writer *json, const char *text);
 void json_uint(json_writer *json, size_t value);
 
 /**
+ * @brief Write a signed number.
+ *
+ * @param json The writer.
+ * @param value The value.
+ */
+void json_int(json_writer *json, int value);
+
+/**
  * @brief Write true or false.
  *
  * @param json The writer.
@@ -138,5 +146,14 @@ void json_field_string(json_writer *json, const char *key, const char *text);
  * @param value The value.
  */
 void json_field_uint(json_writer *json, const char *key, size_t value);
+
+/**
+ * @brief Write a "key": signed number pair.
+ *
+ * @param json The writer.
+ * @param key The name.
+ * @param value The value.
+ */
+void json_field_int(json_writer *json, const char *key, int value);
 
 #endif /* PQSCAN_REPORT_JSON_WRITER_H */
