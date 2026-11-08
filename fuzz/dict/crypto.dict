@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Tokens for fuzz_pem_blocks and fuzz_cert_scanner: PEM markers, and DER headers and OIDs for RSA, EC and Ed25519.
+# A dictionary only guides libFuzzer, so a token that drifts from the code costs nothing.
+
+"-----BEGIN "
+"-----END "
+"-----"
+"CERTIFICATE"
+"PRIVATE KEY"
+"PUBLIC KEY"
+"RSA PRIVATE KEY"
+"EC PRIVATE KEY"
+"ENCRYPTED PRIVATE KEY"
+"CERTIFICATE REQUEST"
+"DH PARAMETERS"
+"Proc-Type: 4,ENCRYPTED"
+"\x0a"
+"\x0d\x0a"
+"MII"
+"="
+"0\x82"
+"0\x81"
+"\x06\x09*\x86H\x86\xf7\x0d\x01\x01\x01"
+"\x06\x07*\x86H\xce=\x02\x01"
+"\x06\x03+ep"
+"\x02\x01\x00"
+"\x05\x00"
+"\x03\x82"
+"\x04\x82"
