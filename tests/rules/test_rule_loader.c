@@ -36,7 +36,11 @@ static const char VALID[] =
     "    {\"pattern\": \"MD5\", \"kind\": \"function\", \"algorithm\": \"MD5\",\n"
     "     \"primitive\": \"hash\", \"call_only\": true},\n"
     "    {\"pattern\": \"md5\", \"kind\": \"string\", \"algorithm\": \"MD5\",\n"
-    "     \"primitive\": \"hash\"}\n"
+    "     \"primitive\": \"hash\"},\n"
+    "    {\"pattern\": \"ffdhe-like\", \"kind\": \"config\", \"algorithm\": \"RSA\",\n"
+    "     \"primitive\": \"key_exchange\", \"key_bits\": 1024},\n"
+    "    {\"pattern\": \"rsaEncryption\", \"kind\": \"key\", \"algorithm\": \"RSA\",\n"
+    "     \"primitive\": \"unspecified\"}\n"
     "  ],\n"
     "  \"calls\": [\n"
     "    {\"name\": \"RSA_generate_key_ex\", \"key_bits_argument\": 1},\n"
@@ -132,6 +136,20 @@ static void test_loads_every_rule_field(void) {
     TEST_ASSERT_NULL(find_mention("MD5"));
     TEST_ASSERT_TRUE(rule_set_find_callee(rules, "MD5", strlen("MD5"))->call_only);
     TEST_ASSERT_NOT_NULL(rule_set_find_string(rules, "MD5", strlen("MD5")));
+    TEST_ASSERT_EQUAL_UINT(0, sign->key_bits);
+}
+
+static void test_loads_config_tokens_and_key_types(void) {
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, load_text(VALID));
+    const crypto_rule *token =
+        rule_set_find_config_token(rules, "ffdhe-like", strlen("ffdhe-like"));
+    TEST_ASSERT_NOT_NULL(token);
+    TEST_ASSERT_EQUAL_INT(RULE_CONFIG, token->kind);
+    TEST_ASSERT_EQUAL_UINT(1024, token->key_bits);
+    const crypto_rule *key = rule_set_find_key_type(rules, "rsaEncryption");
+    TEST_ASSERT_NOT_NULL(key);
+    TEST_ASSERT_EQUAL_INT(RULE_KEY, key->kind);
+    TEST_ASSERT_EQUAL_UINT(0, key->key_bits);
 }
 
 static void test_loads_calls_and_fills_in_absent_arguments(void) {
@@ -176,7 +194,7 @@ static void test_refuses_bytes_after_the_document(void) {
     char document[sizeof(VALID) + sizeof(TRAILER)];
     (void)snprintf(document, sizeof(document), "%s%s", VALID, TRAILER);
     TEST_ASSERT_EQUAL_INT(PQSCAN_ERR_RULES, load_text(document));
-    assert_refused("line 22: invalid JSON");
+    assert_refused("line 26: invalid JSON");
 }
 
 static void test_refuses_a_nul_after_the_document(void) {
@@ -316,6 +334,21 @@ static void test_refuses_bad_call_only(void) {
                         "rules[0].call_only: only a function can be called");
 }
 
+static void test_refuses_bad_fixed_key_sizes(void) {
+    assert_rule_refused("{\"pattern\":\"a\",\"kind\":\"config\",\"algorithm\":\"RSA\","
+                        "\"primitive\":\"hash\",\"key_bits\":0}",
+                        "rules[0].key_bits: expected an integer in range");
+    assert_rule_refused("{\"pattern\":\"a\",\"kind\":\"config\",\"algorithm\":\"RSA\","
+                        "\"primitive\":\"hash\",\"key_bits\":\"2048\"}",
+                        "rules[0].key_bits: expected an integer in range");
+    assert_rule_refused("{\"pattern\":\"a\",\"kind\":\"function\",\"algorithm\":\"RSA\","
+                        "\"primitive\":\"hash\",\"key_bits\":2048}",
+                        "rules[0].key_bits: only a config token fixes a key size");
+    assert_rule_refused("{\"pattern\":\"a\",\"kind\":\"key\",\"algorithm\":\"RSA\","
+                        "\"primitive\":\"hash\",\"key_bits\":2048}",
+                        "rules[0].key_bits: only a config token fixes a key size");
+}
+
 static void test_refuses_bad_calls(void) {
     assert_call_refused("{\"key_bits_argument\":1}", "calls[0].name: expected a string");
     assert_call_refused("{\"name\":\"a\"}",
@@ -346,6 +379,7 @@ int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_loads_a_valid_document);
     RUN_TEST(test_loads_every_rule_field);
+    RUN_TEST(test_loads_config_tokens_and_key_types);
     RUN_TEST(test_loads_calls_and_fills_in_absent_arguments);
     RUN_TEST(test_accepts_empty_sections);
     RUN_TEST(test_sections_may_come_in_any_order);
@@ -365,6 +399,7 @@ int main(void) {
     RUN_TEST(test_refuses_too_many_algorithms);
     RUN_TEST(test_refuses_bad_rules);
     RUN_TEST(test_refuses_bad_call_only);
+    RUN_TEST(test_refuses_bad_fixed_key_sizes);
     RUN_TEST(test_refuses_bad_calls);
     RUN_TEST(test_reports_the_index_of_the_entry_at_fault);
     RUN_TEST(test_refuses_duplicates_found_by_the_seal);
