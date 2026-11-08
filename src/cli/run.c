@@ -13,6 +13,7 @@
 #include "pqscan/report/reporter.h"
 #include "pqscan/risk/risk.h"
 #include "pqscan/rules/rule_set.h"
+#include "pqscan/scan/config_scanner.h"
 #include "pqscan/scan/file_reader.h"
 #include "pqscan/scan/scanner.h"
 #include "pqscan/scan/source_scanner.h"
@@ -27,7 +28,7 @@
 static const char USAGE[] =
     "Usage: pqscan [OPTIONS] PATH...\n"
     "\n"
-    "Find quantum-vulnerable cryptography in C/C++ source files.\n"
+    "Find quantum-vulnerable cryptography in C/C++ source and in TLS and SSH configuration.\n"
     "\n"
     "Options:\n"
     "  -i, --ignore PATTERN  skip paths matching this glob (repeatable; .git is always skipped)\n"
@@ -46,7 +47,7 @@ static const char USAGE[] =
     "  3  internal error\n"
     "  4  no findings at or above --fail-on, but something could not be analyzed\n";
 
-static const scanner *const SCANNERS[] = {&source_scanner};
+static const scanner *const SCANNERS[] = {&source_scanner, &config_scanner};
 
 /* What every file of a run shares. */
 typedef struct scan_job {

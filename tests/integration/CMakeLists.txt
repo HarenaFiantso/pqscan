@@ -67,6 +67,8 @@ pqscan_add_cli_test(ignore_glob EXIT 1 ARGS --ignore *.hpp findings
 pqscan_add_cli_test(ignore_everything EXIT 0
     ARGS --ignore *.c --ignore *.h --ignore *.cpp --ignore *.hpp findings
     STDOUT "${expected}/empty.txt")
+pqscan_add_cli_test(configs EXIT 1 ARGS configs STDOUT "${expected}/configs.txt"
+    STDERR "${expected}/empty.txt")
 pqscan_add_cli_test(edge_cases EXIT 1 ARGS edge STDOUT "${expected}/edge_stdout.txt"
     STDERR "${expected}/edge_stderr.txt")
 

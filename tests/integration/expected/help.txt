@@ -1,6 +1,6 @@
 Usage: pqscan [OPTIONS] PATH...
 
-Find quantum-vulnerable cryptography in C/C++ source files.
+Find quantum-vulnerable cryptography in C/C++ source and in TLS and SSH configuration.
 
 Options:
   -i, --ignore PATTERN  skip paths matching this glob (repeatable; .git is always skipped)

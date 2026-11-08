@@ -20,6 +20,16 @@ typedef enum source_language {
 bool file_type_is_source(const char *path);
 
 /**
+ * @brief Tell whether a path names a configuration file that may set TLS or SSH algorithms.
+ *
+ * @param path The path. It is not opened.
+ * @return true for .conf and .cnf files, sshd_config, ssh_config and .htaccess, and for any
+ *         file in a directory named sites-available or sites-enabled, where nginx and Apache
+ *         keep site files that often have no extension. The match is case-sensitive.
+ */
+bool file_type_is_config(const char *path);
+
+/**
  * @brief Choose the grammar for a source file, by its extension.
  *
  * A .h file may be C or C++, and nothing in its name says which. It gets the C++ grammar

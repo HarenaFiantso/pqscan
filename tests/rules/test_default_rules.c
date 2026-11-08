@@ -82,6 +82,33 @@ static void test_algorithm_names_ignore_case(void) {
     TEST_ASSERT_EQUAL_STRING("EdDSA", rule_set_find_string(rules, "ed25519", 7)->algorithm->name);
 }
 
+static const crypto_rule *find_config_token(const char *text) {
+    const crypto_rule *rule = rule_set_find_config_token(rules, text, strlen(text));
+    TEST_ASSERT_NOT_NULL_MESSAGE(rule, text);
+    return rule;
+}
+
+/* Where one name stands for two weaknesses, the rule keeps the more severe. */
+static void test_config_tokens_keep_the_most_severe_weakness(void) {
+    TEST_ASSERT_EQUAL_STRING("SHA-1", find_config_token("ssh-rsa")->algorithm->name);
+    TEST_ASSERT_EQUAL_STRING("SHA-1",
+                             find_config_token("diffie-hellman-group14-sha1")->algorithm->name);
+    const crypto_rule *group1 = find_config_token("diffie-hellman-group1-sha1");
+    const key_size size = {KEY_SIZE_KNOWN, group1->key_bits};
+    TEST_ASSERT_EQUAL_INT(RISK_CLASSICALLY_WEAK, risk_classify(group1->algorithm, size));
+    TEST_ASSERT_EQUAL_UINT(1024, find_config_token("ssh-dss")->key_bits);
+}
+
+static void test_config_tokens_name_what_tls_and_ssh_negotiate(void) {
+    TEST_ASSERT_EQUAL_INT(PRIMITIVE_KEY_EXCHANGE, find_config_token("x25519")->primitive);
+    TEST_ASSERT_EQUAL_UINT(2048, find_config_token("ffdhe2048")->key_bits);
+    TEST_ASSERT_EQUAL_STRING("3DES", find_config_token("DES-CBC3")->algorithm->name);
+    TEST_ASSERT_EQUAL_STRING("RSA", find_config_token("rsa-sha2-512")->algorithm->name);
+    TEST_ASSERT_NULL(rule_set_find_config_token(rules, "X25519MLKEM768", strlen("X25519MLKEM768")));
+    TEST_ASSERT_NULL(rule_set_find_config_token(rules, "mlkem768x25519-sha256",
+                                                strlen("mlkem768x25519-sha256")));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_short_finite_field_keys_are_classically_weak);
@@ -90,5 +117,7 @@ int main(void) {
     RUN_TEST(test_one_shot_hashes_count_only_as_calls);
     RUN_TEST(test_call_reads_the_right_arguments);
     RUN_TEST(test_algorithm_names_ignore_case);
+    RUN_TEST(test_config_tokens_keep_the_most_severe_weakness);
+    RUN_TEST(test_config_tokens_name_what_tls_and_ssh_negotiate);
     return UNITY_END();
 }

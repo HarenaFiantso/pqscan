@@ -59,6 +59,7 @@ add_library(pqscan_core STATIC
     src/scan/call_arguments.c
     src/scan/config_lexer.c
     src/scan/config_list.c
+    src/scan/config_scanner.c
     src/scan/file_reader.c
     src/scan/source_scanner.c
     src/scan/syntax_parser.c
