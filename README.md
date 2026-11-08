@@ -22,8 +22,8 @@ The [website](https://harenafiantso.github.io/pqscan/) is a guided tour of every
 > Early development. pqscan scans C/C++ source for the OpenSSL identifiers in its rules,
 > through the syntax tree, and follows constants inside a file to find key sizes and algorithm
 > names. It also reads the TLS and SSH settings of OpenSSL, nginx, Apache and OpenSSH, and
-> certificates and keys in PEM or DER. A value it can't prove shows as `unknown`. Reports come
-> as text, JSON, a CycloneDX CBOM or SARIF.
+> certificates and keys in PEM or DER, and the symbol tables of 64-bit ELF binaries. A value
+> it can't prove shows as `unknown`. Reports come as text, JSON, a CycloneDX CBOM or SARIF.
 
 ## Build and test
 
@@ -43,8 +43,8 @@ ctest --preset debug
 ./build/debug/pqscan --help
 ```
 
-The `debug` preset builds with ASan and UBSan, `release` is optimized, and `valgrind` also
-runs each test under a memory checker. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
+The `debug` preset builds with ASan and UBSan, `release` is optimized, `valgrind` also
+runs each test under a memory checker, and `fuzz` builds the libFuzzer targets. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
 full developer setup.
 
 ## Usage
@@ -54,13 +54,16 @@ pqscan [OPTIONS] PATH...
 ```
 
 Each `PATH` is a file or a directory. Directories are walked recursively and symlinks are
-never followed. pqscan reads three kinds of files, chosen by name, and skips every other file:
+never followed. pqscan reads four kinds of files, and skips every other file. The first three
+are chosen by name. Binaries rarely have an extension, so ELF files are recognized by their
+first four bytes instead, whatever their name:
 
 | Kind | Files |
 | --- | --- |
 | C and C++ source | `.c`, `.h`, `.cpp`, `.hpp`, `.cc`, `.cxx`, `.C`, `.hh`, `.hxx`, `.ipp`, `.inl` and `.tcc` |
 | Configuration | `.conf`, `.cnf`, `sshd_config`, `ssh_config`, `.htaccess`, and any file in a `sites-available` or `sites-enabled` directory |
 | Certificates and keys | `.pem`, `.crt`, `.cer`, `.der`, `.key` and `.csr` |
+| ELF binaries | 64-bit executables, shared libraries and object files |
 
 Each finding is one line, and a last line counts them. A clean scan prints nothing:
 
@@ -72,7 +75,8 @@ src/hash.c:12: MD5 (CLASSICALLY_WEAK)
 etc/ssh/sshd_config:4: SHA-1 (CLASSICALLY_WEAK)
 tls/server.pem:1: RSA-2048 (QUANTUM_VULNERABLE, expires 2031-05-01)
 tls/ca.der: EC-256 (QUANTUM_VULNERABLE, expires 2035-01-01)
-7 findings: 3 CLASSICALLY_WEAK, 4 QUANTUM_VULNERABLE
+bin/server: ECDSA (QUANTUM_VULNERABLE)
+8 findings: 3 CLASSICALLY_WEAK, 5 QUANTUM_VULNERABLE
 ```
 
 File names are untrusted input, so control characters, bidirectional marks and invalid UTF-8
@@ -165,6 +169,27 @@ blocks, such as a bundle or a certificate with its key, and each finding names t
 
 OpenSSL starts without reading `OPENSSL_CONF`, so a scan never depends on its environment.
 
+### ELF binaries
+
+pqscan reads the symbol table and the dynamic symbol table of 64-bit ELF files, in either
+byte order and for any processor, with its own reader. It never runs or loads what it scans,
+and checks every offset a file states before reading through it, so a hostile binary can't
+make it read out of bounds.
+
+Each function symbol is looked up in the `function` rules, whether the file defines it or
+needs it from a library, so `RSA_sign` imported from `libcrypto.so.3` and a copy of OpenSSL
+linked into the binary both count. An object file names what it calls with untyped symbols,
+and those count too. Data symbols don't. A binary has no lines, so findings name only the
+file, and each rule gives at most one finding per file. A binary doesn't keep the arguments of
+a call either, so `RSA_generate_key_ex` reports `RSA-unknown`.
+
+> [!NOTE]
+> pqscan sees only what the symbols show. A stripped, statically linked executable keeps no
+> symbol table, so its file is not analyzed. Algorithms chosen by name at run time, as with
+> `EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL)`, leave only the generic function in the
+> symbols, and no rule names it. 32-bit ELF files, and `.a` archives of object files, are not
+> read yet.
+
 | Option | Meaning |
 | --- | --- |
 | `-i`, `--ignore PATTERN` | Skip paths matching a glob, tried on the file name, the path, and the path relative to `PATH`. Repeatable. `.git` is always skipped. |
@@ -178,9 +203,10 @@ OpenSSL starts without reading `OPENSSL_CONF`, so a scan never depends on its en
 > [!NOTE]
 > Paths that can't be read are skipped with a warning on stderr, as are files over 64 MiB,
 > source and configuration files that contain a NUL byte, source files that take more than 30
-> seconds to parse, encrypted PKCS#8 keys, and certificate or key files that can't be decoded.
-> A scan that skips any of them is incomplete, and can't exit 0. A PEM file with one bad block
-> still reports the others. If a file is skipped on purpose, leave it out with
+> seconds to parse, encrypted PKCS#8 keys, certificate or key files that can't be decoded, and
+> ELF files that are 32-bit, damaged, or have no symbol table. A scan that skips any of them is
+> incomplete, and can't exit 0. A PEM file with one bad block, or an ELF file with one damaged
+> symbol table, still reports the rest. If a file is skipped on purpose, leave it out with
 > `--ignore`. Symlinks inside a directory are skipped by design and don't count, but a
 > `PATH` that is one does.
 
@@ -288,7 +314,7 @@ the binary. `--rules FILE` replaces them with a file of the same format:
 | | `risk` | `OK`, `REVIEW`, `QUANTUM_VULNERABLE` or `CLASSICALLY_WEAK`. |
 | | `weak_below_bits` | Optional. Shorter keys are `CLASSICALLY_WEAK`. |
 | `rules` | `pattern` | The identifier, string or name to find. |
-| | `kind` | `function`, `constant` or `macro` for source identifiers, `string` for an algorithm name passed to a call, `config` for a name in a TLS or SSH setting, or `key` for OpenSSL's short name of a key or digest type in a certificate or key. |
+| | `kind` | `function`, `constant` or `macro` for source identifiers, where `function` names are also looked up among the symbols of ELF binaries, `string` for an algorithm name passed to a call, `config` for a name in a TLS or SSH setting, or `key` for OpenSSL's short name of a key or digest type in a certificate or key. |
 | | `algorithm` | A name declared in `algorithms`. |
 | | `primitive` | `signature`, `key_exchange`, `encryption`, `hash` or `unspecified`. |
 | | `call_only` | Optional, for functions. Count the name only when it's called. |
@@ -306,7 +332,6 @@ at fault.
 
 ## Roadmap
 
-- **ELF binaries:** linked crypto functions found without source code.
 - **Prioritization and CI:** urgency scoring from the NIST IR 8547 dates and Mosca's
   theorem, and a gate that blocks new vulnerable crypto in pull requests.
 
