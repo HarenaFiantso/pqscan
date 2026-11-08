@@ -142,6 +142,32 @@ jobs:
       - run: cmake --build --preset valgrind --parallel
       - run: ctest --preset valgrind
 
+  # Precision and recall on the labeled corpus, and time and memory against bench/perf.json. The
+  # targets are for a laptop, and a shared runner is slower and noisier, so they get 3 times as much.
+  bench:
+    needs: build-and-test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/.downloads
+          key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
+          restore-keys: downloads-
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/bench/archives
+          key: bench-${{ hashFiles('bench/corpus.json') }}
+      - run: sudo apt-get update && sudo apt-get install --yes libssl-dev
+      - run: cmake --preset release
+      - run: cmake --build --preset release --parallel --target pqscan
+      - run: python3 -I bench/bench.py fetch
+      - run: python3 -I bench/bench.py evaluate --check 0.95
+      - run: python3 -I bench/bench.py perf --check --tolerance 3
+
   # Runs the action in this repository the way a project would run it in its own.
   action:
     needs: build-and-test
