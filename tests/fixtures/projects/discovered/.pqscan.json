@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "components": [
+    {"name": "archive", "paths": ["src/*"], "secrecy_years": 30, "migration_years": 5}
+  ]
+}

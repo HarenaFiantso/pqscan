@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "migration_years": 3,
+  "components": [
+    {"name": "payments", "paths": ["priority/pay/*"], "secrecy_years": 25, "migration_years": 7},
+    {"name": "telemetry", "paths": ["priority/metrics/*"], "secrecy_years": 1}
+  ]
+}
