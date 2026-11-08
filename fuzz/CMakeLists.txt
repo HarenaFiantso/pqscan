@@ -9,14 +9,19 @@ if(PQSCAN_ENABLE_LIBFUZZER)
     target_compile_options(pqscan_core PRIVATE -fsanitize=fuzzer-no-link)
 endif()
 
-# Usage: pqscan_add_fuzz_target(name SOURCES file... [LIBRARIES target...] SEEDS file...)
-# A small parser is compiled from its own sources, a scanner links pqscan_core.
+# Usage: pqscan_add_fuzz_target(name SOURCES file... [LIBRARIES target...] [EDITS n] SEEDS file...)
+# A small parser is compiled from its own sources, a scanner links pqscan_core. EDITS lowers how
+# many edits the replay makes of each seed, for a target whose every run is slow.
 function(pqscan_add_fuzz_target name)
-    cmake_parse_arguments(PARSE_ARGV 1 FUZZ "" "" "SOURCES;LIBRARIES;SEEDS")
+    cmake_parse_arguments(PARSE_ARGV 1 FUZZ "" "EDITS" "SOURCES;LIBRARIES;SEEDS")
+    set(edits_option "")
+    if(FUZZ_EDITS)
+        set(edits_option "--edits=${FUZZ_EDITS}")
+    endif()
     add_executable(${name}_replay replay.c ${FUZZ_SOURCES})
     target_include_directories(${name}_replay PRIVATE "${PROJECT_SOURCE_DIR}/include" .)
     target_link_libraries(${name}_replay PRIVATE ${FUZZ_LIBRARIES} pqscan_posix pqscan_warnings)
-    add_test(NAME ${name}_replay COMMAND ${name}_replay ${FUZZ_SEEDS})
+    add_test(NAME ${name}_replay COMMAND ${name}_replay ${edits_option} ${FUZZ_SEEDS})
     set_tests_properties(${name}_replay PROPERTIES LABELS fuzz)
 
     if(PQSCAN_ENABLE_LIBFUZZER)
@@ -59,9 +64,12 @@ pqscan_add_fuzz_target(fuzz_config_scanner
     SOURCES fuzz_config_scanner.c scan_harness.c
     LIBRARIES pqscan_core
     SEEDS "${scan_fixtures}/configs/openssl/openssl.cnf" "${scan_fixtures}/configs/ssh/sshd_config")
+# OpenSSL 3.0, as Ubuntu 24.04 ships it, takes over a millisecond to decode one file under the
+# sanitizers, ten times what 3.6 takes, so this replay makes fewer edits.
 pqscan_add_fuzz_target(fuzz_cert_scanner
     SOURCES fuzz_cert_scanner.c scan_harness.c
     LIBRARIES pqscan_core
+    EDITS 4000
     SEEDS "${scan_fixtures}/crypto/keys/ec-p256.der" "${scan_fixtures}/crypto/keys/ed25519.key")
 pqscan_add_fuzz_target(fuzz_rule_loader
     SOURCES fuzz_rule_loader.c
