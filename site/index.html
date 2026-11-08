@@ -48,7 +48,7 @@
         <p class="eyebrow"><span class="pulse" aria-hidden="true"></span>v0.7.0 &middot; early development</p>
         <h1>pqscan</h1>
         <p class="tagline">Find the cryptography quantum computers will break.</p>
-        <p class="lede">A command-line tool, written in C, that reads your C and C++ source through its syntax tree and shows where RSA, ECDSA, EdDSA, ECDH, DH and DSA are used, with which key size, and how urgent the migration is.</p>
+        <p class="lede">A command-line tool, written in C, that reads your C and C++ source through its syntax tree and shows where RSA, ECDSA, EdDSA, ECDH, DH and DSA are used, with which key size, and how urgent the migration is, most urgent first.</p>
         <div class="cta">
           <a class="button button-primary" href="#start"><span class="nf" aria-hidden="true">&#xf120;</span> Get started</a>
           <a class="button" href="https://github.com/HarenaFiantso/pqscan"><span class="nf" aria-hidden="true">&#xf09b;</span> View the source</a>
@@ -62,16 +62,16 @@
           <button class="terminal-replay" id="replay" type="button" hidden>Replay</button>
         </div>
 <pre class="terminal-body" aria-label="pqscan reports ten findings and exits with code 1"><span class="term-line term-command" data-command="pqscan report"><span class="prompt"><span class="seg">~/fixtures</span><span class="seg-end nf">&#xe0b0;</span></span> <span class="typed">pqscan report</span></span>
-<span class="term-line">report/mixed.c:3: RSA-2048 (<span class="c-quantum">QUANTUM_VULNERABLE</span>)</span>
-<span class="term-line">report/mixed.c:4: RSA-1024 (<span class="c-weak">CLASSICALLY_WEAK</span>)</span>
-<span class="term-line">report/mixed.c:5: RSA-unknown (<span class="c-quantum">QUANTUM_VULNERABLE</span>)</span>
-<span class="term-line">report/mixed.c:6: RSA-2048 (<span class="c-quantum">QUANTUM_VULNERABLE</span>)</span>
-<span class="term-line">report/mixed.c:7: ECDSA (<span class="c-quantum">QUANTUM_VULNERABLE</span>)</span>
-<span class="term-line">report/mixed.c:8: DH (<span class="c-quantum">QUANTUM_VULNERABLE</span>)</span>
-<span class="term-line">report/mixed.c:9: RSA (<span class="c-quantum">QUANTUM_VULNERABLE</span>)</span>
-<span class="term-line">report/mixed.c:10: AES-128 (<span class="c-review">REVIEW</span>)</span>
-<span class="term-line">report/mixed.c:11: RC4 (<span class="c-weak">CLASSICALLY_WEAK</span>)</span>
-<span class="term-line">report/mixed.c:12: MD5 (<span class="c-weak">CLASSICALLY_WEAK</span>)</span>
+<span class="term-line">report/mixed.c:4: RSA-1024 (<span class="c-weak">CLASSICALLY_WEAK</span>, priority 100)</span>
+<span class="term-line">report/mixed.c:11: RC4 (<span class="c-weak">CLASSICALLY_WEAK</span>, priority 100)</span>
+<span class="term-line">report/mixed.c:12: MD5 (<span class="c-weak">CLASSICALLY_WEAK</span>, priority 100)</span>
+<span class="term-line">report/mixed.c:3: RSA-2048 (<span class="c-quantum">QUANTUM_VULNERABLE</span>, priority 51)</span>
+<span class="term-line">report/mixed.c:5: RSA-unknown (<span class="c-quantum">QUANTUM_VULNERABLE</span>, priority 51)</span>
+<span class="term-line">report/mixed.c:6: RSA-2048 (<span class="c-quantum">QUANTUM_VULNERABLE</span>, priority 51)</span>
+<span class="term-line">report/mixed.c:7: ECDSA (<span class="c-quantum">QUANTUM_VULNERABLE</span>, priority 51)</span>
+<span class="term-line">report/mixed.c:8: DH (<span class="c-quantum">QUANTUM_VULNERABLE</span>, priority 51)</span>
+<span class="term-line">report/mixed.c:9: RSA (<span class="c-quantum">QUANTUM_VULNERABLE</span>, priority 51)</span>
+<span class="term-line">report/mixed.c:10: AES-128 (<span class="c-review">REVIEW</span>, priority 10)</span>
 <span class="term-line term-summary">10 findings: 3 CLASSICALLY_WEAK, 6 QUANTUM_VULNERABLE, 1 REVIEW</span>
 <span class="term-line term-command" data-command="echo $?"><span class="prompt"><span class="seg">~/fixtures</span><span class="seg-end nf">&#xe0b0;</span></span> <span class="typed">echo $?</span></span>
 <span class="term-line">1</span></pre>
@@ -111,7 +111,7 @@
         <div class="panel-copy">
           <h3>Mosca's theorem</h3>
           <p>Data can be recorded today and decrypted later. So the deadline isn't the day a quantum computer exists. If <em>X</em> + <em>Y</em> &gt; <em>Q</em>, some of your data will still need protecting after it can be broken. Nobody knows <em>Q</em>, so the numbers are yours to choose.</p>
-          <p class="note">This is the reasoning behind the project. pqscan doesn't compute it yet: scoring is planned for phase 8.</p>
+          <p class="note">pqscan uses it to rank findings: tell it X and Y for each part of your code in a <a href="#priority">project file</a>.</p>
         </div>
         <div class="panel-tool">
           <label><span>X, years the data must stay secret <output id="x-value">10</output></span><input id="x" type="range" min="0" max="30" value="10"></label>
@@ -122,6 +122,7 @@
             <div class="mosca-row"><span class="mosca-q" id="bar-q"></span></div>
           </div>
           <p class="mosca-result" id="mosca-result" aria-live="polite"></p>
+          <p class="note" id="mosca-score" aria-live="polite"></p>
         </div>
       </div>
     </section>
@@ -167,6 +168,8 @@ cmake --build --preset release
           <tbody>
             <tr><td><code>-i</code>, <code>--ignore PATTERN</code></td><td>Skip paths matching a glob, tried on the file name, the path, and the path relative to <code>PATH</code>. Repeatable. <code>.git</code> is always skipped.</td></tr>
             <tr><td><code>-r</code>, <code>--rules FILE</code></td><td>Use the rules in this JSON file instead of the built-in ones.</td></tr>
+            <tr><td><code>--project FILE</code></td><td>Read how long data must stay secret from this <a href="#priority">project file</a>. The default is <code>.pqscan.json</code> in the current directory, if there is one.</td></tr>
+            <tr><td><code>--as-of YEAR</code></td><td>Score priorities as if it were this year. The default is the current year, in UTC.</td></tr>
             <tr><td><code>-f</code>, <code>--format FORMAT</code></td><td>Write the report as <code>text</code> (the default), <code>json</code>, <code>cbom</code> or <code>sarif</code>.</td></tr>
             <tr><td><code>--fail-on LEVEL</code></td><td>The lowest risk level that makes pqscan exit 1. The default is <code>REVIEW</code>. Every finding is still reported.</td></tr>
             <tr><td><code>--max-time SECS</code></td><td>Start on no new file after this long. The default is 3600. Files left over are skipped, so the scan is incomplete.</td></tr>
@@ -292,13 +295,41 @@ cmake --build --preset release
         </li>
       </ol>
       <p class="note reveal">Severity order, used by <code>--fail-on</code>: <code>OK</code> &lt; <code>REVIEW</code> &lt; <code>QUANTUM_VULNERABLE</code> &lt; <code>CLASSICALLY_WEAK</code>. An <code>unknown</code> key size keeps the algorithm's usual level, because guessing would hide or invent a weakness.</p>
+
+      <h3 class="reveal" id="priority">From level to priority</h3>
+      <p class="reveal">Every finding also gets a priority from 0 to 100, and reports list the most urgent first. What is broken today scores 100, <code>REVIEW</code> 10 and <code>OK</code> 0. A <code>QUANTUM_VULNERABLE</code> finding scores from 50 to 99, as the sum of:</p>
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th scope="col">Points</th><th scope="col">For</th></tr></thead>
+          <tbody>
+            <tr><td>50</td><td>Being breakable by Shor's algorithm at all.</td></tr>
+            <tr><td>10 or 20</td><td>NIST IR 8547 deprecating the algorithm, after 2030, or disallowing it, after 2035, in the year the migration would end.</td></tr>
+            <tr><td>0 to 29</td><td>Mosca's 10 + <em>X</em> + <em>Y</em> - <em>Q</em>, kept in that range. It is over 10 exactly when the data is exposed, and every year of exposure adds a point.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="reveal"><em>Q</em> runs from <code>--as-of</code>, the current year by default, to the quantum year, 2035 unless you say otherwise: the year IR 8547 disallows these algorithms, a planning date rather than a forecast. Without a project file <em>X</em> and <em>Y</em> are 0, so the dates alone decide. With one, each part of the code gets its own:</p>
+      <div class="code-block reveal">
+        <div class="code-head"><span>.pqscan.json</span><button class="copy" type="button">Copy</button></div>
+<pre><code>{
+  "schema_version": 1,
+  "quantum_year": 2035,
+  "secrecy_years": 0,
+  "migration_years": 3,
+  "components": [
+    {"name": "payments", "paths": ["src/payments/*", "*.pem"], "secrecy_years": 25, "migration_years": 7},
+    {"name": "telemetry", "paths": ["src/telemetry/*"], "secrecy_years": 1}
+  ]
+}</code></pre>
+      </div>
+      <p class="note reveal">The first component with a matching glob wins, and a path no component claims gets the top-level years. Patterns match paths as the report prints them, so run pqscan from the project root, where it reads <code>.pqscan.json</code>. A project file only reorders findings: it never hides one or changes the exit code.</p>
     </section>
 
     <section class="section" id="reports">
       <header class="section-head reveal">
         <p class="kicker">05 &middot; Reports</p>
         <h2>One scan, four formats</h2>
-        <p><code>--format</code> picks what goes to stdout. Warnings always go to stderr, so a report can be redirected to a file as it is. The same files give the same bytes: reports hold no date and no random identifier.</p>
+        <p><code>--format</code> picks what goes to stdout. Warnings always go to stderr, so a report can be redirected to a file as it is. The same files, rules, project file and <code>--as-of</code> year give the same bytes: reports hold no timestamp and no random identifier.</p>
       </header>
 
       <div class="tabs reveal" id="tabs">
@@ -311,17 +342,18 @@ cmake --build --preset release
         </div>
 
         <div role="tabpanel" id="panel-text" aria-labelledby="tab-text" tabindex="0">
-          <p>For reading in a terminal. One line per finding, then a count. A clean scan prints nothing.</p>
-<pre class="report"><code>report/mixed.c:3: RSA-2048 (QUANTUM_VULNERABLE)
-report/mixed.c:4: RSA-1024 (CLASSICALLY_WEAK)
-report/mixed.c:5: RSA-unknown (QUANTUM_VULNERABLE)
+          <p>For reading in a terminal. One line per finding, most urgent first, then a count. A clean scan prints nothing.</p>
+<pre class="report"><code>report/mixed.c:4: RSA-1024 (CLASSICALLY_WEAK, priority 100)
+report/mixed.c:11: RC4 (CLASSICALLY_WEAK, priority 100)
+report/mixed.c:12: MD5 (CLASSICALLY_WEAK, priority 100)
+report/mixed.c:3: RSA-2048 (QUANTUM_VULNERABLE, priority 51)
 ...
 10 findings: 3 CLASSICALLY_WEAK, 6 QUANTUM_VULNERABLE, 1 REVIEW</code></pre>
           <p class="note">File names are untrusted input: control characters, bidirectional marks and invalid UTF-8 print as <code>\xNN</code>, and a backslash prints doubled.</p>
         </div>
 
         <div role="tabpanel" id="panel-json" aria-labelledby="tab-json" tabindex="0" hidden>
-          <p>For scripts. <code>key_size</code> is a number, <code>"unknown"</code> when pqscan can't prove it, or <code>null</code> when the algorithm has no key size. <code>line</code> is <code>null</code> for a finding about a whole file, such as a DER certificate, and <code>expires</code> is when a certificate stops being valid.</p>
+          <p>For scripts. <code>key_size</code> is a number, <code>"unknown"</code> when pqscan can't prove it, or <code>null</code> when the algorithm has no key size. <code>line</code> is <code>null</code> for a finding about a whole file, such as a DER certificate, and <code>expires</code> is when a certificate stops being valid. <code>priority</code> shows how the finding was scored.</p>
 <pre class="report" data-json><code>{
   "schema_version": 2,
   "tool": {
@@ -339,6 +371,7 @@ report/mixed.c:5: RSA-unknown (QUANTUM_VULNERABLE)
     }
   },
   "findings": [
+    ...
     {
       "path": "report/mixed.c",
       "line": 3,
@@ -347,7 +380,19 @@ report/mixed.c:5: RSA-unknown (QUANTUM_VULNERABLE)
       "key_size": 2048,
       "primitive": "unspecified",
       "risk": "QUANTUM_VULNERABLE",
-      "expires": null
+      "expires": null,
+      "priority": {
+        "score": 51,
+        "component": null,
+        "quantum_timeline": {
+          "secrecy_years": 0,
+          "migration_years": 0,
+          "years_to_quantum": 9,
+          "exposed": false,
+          "migration_ends": 2026,
+          "ir8547": "acceptable"
+        }
+      }
     },
     ...
   ],
@@ -386,16 +431,21 @@ report/mixed.c:5: RSA-unknown (QUANTUM_VULNERABLE)
     {
       "name": "pqscan:risk",
       "value": "QUANTUM_VULNERABLE"
+    },
+    {
+      "name": "pqscan:priority",
+      "value": "51"
     }
   ]
 }</code></pre>
         </div>
 
         <div role="tabpanel" id="panel-sarif" aria-labelledby="tab-sarif" tabindex="0" hidden>
-          <p>For code scanning services, as SARIF 2.1.0. Each algorithm is one rule. <code>CLASSICALLY_WEAK</code> and <code>QUANTUM_VULNERABLE</code> are errors, <code>REVIEW</code> is a warning and <code>OK</code> is a note.</p>
+          <p>For code scanning services, as SARIF 2.1.0. Each algorithm is one rule. <code>CLASSICALLY_WEAK</code> and <code>QUANTUM_VULNERABLE</code> are errors, <code>REVIEW</code> is a warning and <code>OK</code> is a note. A result's <code>rank</code> is its priority.</p>
 <pre class="report" data-json><code>{
   "ruleId": "pqscan/RSA",
   "level": "error",
+  "rank": 51,
   "message": {
     "text": "RSA_generate_key_ex uses RSA-2048: QUANTUM_VULNERABLE"
   },
@@ -469,7 +519,7 @@ report/mixed.c:5: RSA-unknown (QUANTUM_VULNERABLE)
           <tbody>
             <tr><td><code>0</code></td><td>No findings at or above <code>--fail-on</code>, and everything in scope was analyzed</td></tr>
             <tr><td><code>1</code></td><td>Findings at or above <code>--fail-on</code>, even if the scan was incomplete</td></tr>
-            <tr><td><code>2</code></td><td>Usage error, such as a path that doesn't exist or a rule file that isn't valid</td></tr>
+            <tr><td><code>2</code></td><td>Usage error, such as a path that doesn't exist or a rule or project file that isn't valid</td></tr>
             <tr><td><code>3</code></td><td>Internal error</td></tr>
             <tr><td><code>4</code></td><td>No findings at or above <code>--fail-on</code>, but something in scope could not be analyzed</td></tr>
           </tbody>
@@ -582,7 +632,7 @@ pqscan --format json src | jq .summary.by_risk</code></pre>
       <header class="section-head reveal">
         <p class="kicker">09 &middot; Roadmap</p>
         <h2>Today C and C++ source, then everything around it</h2>
-        <p>Each phase ends with a tagged release. Phases 1 to 7 are done.</p>
+        <p>Each phase ends with a tagged release. Phases 1 to 8 are done.</p>
       </header>
 
       <ol class="roadmap" id="roadmap-list">
@@ -593,7 +643,7 @@ pqscan --format json src | jq .summary.by_risk</code></pre>
         <li class="phase done reveal"><span class="phase-tag">v0.5.0</span><h3>Outputs</h3><p>JSON, CycloneDX CBOM, SARIF, and exit codes with a threshold.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.6.0</span><h3>Configs, certificates and keys</h3><p>OpenSSL, nginx, Apache and SSH settings, plus PEM and DER files.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.7.0</span><h3>ELF binaries</h3><p>Crypto functions found in symbol tables, without source code.</p></li>
-        <li class="phase reveal"><span class="phase-tag">Phase 8</span><h3>Risk prioritization</h3><p>A priority score from the NIST IR 8547 dates and Mosca's theorem.</p></li>
+        <li class="phase done reveal"><span class="phase-tag">v0.8.0</span><h3>Risk prioritization</h3><p>A priority score from the NIST IR 8547 dates and Mosca's theorem, per component.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 9</span><h3>CI integration</h3><p>A baseline, a <code>--diff</code> mode, and a GitHub Action that blocks new vulnerable crypto.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 10</span><h3>Quality and evaluation</h3><p>A benchmark corpus, measured precision and recall, and fuzzing.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 11</span><h3>Release</h3><p>Versioned packages, a man page, and contributor docs for rules.</p></li>
