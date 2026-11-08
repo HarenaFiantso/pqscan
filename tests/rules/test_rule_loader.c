@@ -334,6 +334,16 @@ static void test_refuses_bad_call_only(void) {
                         "rules[0].call_only: only a function can be called");
 }
 
+/* A curve constant or a function that returns a built-in group names its size. */
+static void test_an_identifier_may_fix_a_key_size(void) {
+    load_sections("{\"name\":\"EC\",\"risk\":\"QUANTUM_VULNERABLE\"}",
+                  "{\"pattern\":\"NID_secp384r1\",\"kind\":\"constant\",\"algorithm\":\"EC\","
+                  "\"primitive\":\"unspecified\",\"key_bits\":384}",
+                  "");
+    TEST_ASSERT_NOT_NULL_MESSAGE(rules, error.message);
+    TEST_ASSERT_EQUAL_UINT(384, find_mention("NID_secp384r1")->key_bits);
+}
+
 static void test_refuses_bad_fixed_key_sizes(void) {
     assert_rule_refused("{\"pattern\":\"a\",\"kind\":\"config\",\"algorithm\":\"RSA\","
                         "\"primitive\":\"hash\",\"key_bits\":0}",
@@ -341,12 +351,12 @@ static void test_refuses_bad_fixed_key_sizes(void) {
     assert_rule_refused("{\"pattern\":\"a\",\"kind\":\"config\",\"algorithm\":\"RSA\","
                         "\"primitive\":\"hash\",\"key_bits\":\"2048\"}",
                         "rules[0].key_bits: expected an integer in range");
-    assert_rule_refused("{\"pattern\":\"a\",\"kind\":\"function\",\"algorithm\":\"RSA\","
+    assert_rule_refused("{\"pattern\":\"a\",\"kind\":\"string\",\"algorithm\":\"RSA\","
                         "\"primitive\":\"hash\",\"key_bits\":2048}",
-                        "rules[0].key_bits: only a config token fixes a key size");
+                        "rules[0].key_bits: a string or a key type cannot fix a key size");
     assert_rule_refused("{\"pattern\":\"a\",\"kind\":\"key\",\"algorithm\":\"RSA\","
                         "\"primitive\":\"hash\",\"key_bits\":2048}",
-                        "rules[0].key_bits: only a config token fixes a key size");
+                        "rules[0].key_bits: a string or a key type cannot fix a key size");
 }
 
 static void test_refuses_bad_calls(void) {
@@ -399,6 +409,7 @@ int main(void) {
     RUN_TEST(test_refuses_too_many_algorithms);
     RUN_TEST(test_refuses_bad_rules);
     RUN_TEST(test_refuses_bad_call_only);
+    RUN_TEST(test_an_identifier_may_fix_a_key_size);
     RUN_TEST(test_refuses_bad_fixed_key_sizes);
     RUN_TEST(test_refuses_bad_calls);
     RUN_TEST(test_reports_the_index_of_the_entry_at_fault);

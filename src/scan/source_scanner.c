@@ -55,13 +55,21 @@ static bool is_declared_name(const char *field) {
     return field_is(field, "declarator") || field_is(field, "name");
 }
 
+/* A rule such as a curve NID names its size. Any other gets one from its call, if it has one. */
+static key_size fixed_size_of(const crypto_rule *rule) {
+    const key_size none = {KEY_SIZE_NOT_APPLICABLE, 0};
+    const key_size fixed = {KEY_SIZE_KNOWN, rule->key_bits};
+    return (rule->key_bits != 0) ? fixed : none;
+}
+
 static finding finding_at(const source_walk *walk, TSNode node, const crypto_rule *rule) {
+    const key_size size = fixed_size_of(rule);
     const finding item = {
         walk->path,
         (size_t)ts_node_start_point(node).row + 1,
         rule->algorithm->name,
-        rule->algorithm->risk,
-        {KEY_SIZE_NOT_APPLICABLE, 0},
+        risk_classify(rule->algorithm, size),
+        size,
         rule->primitive,
         rule->pattern,
         utc_time_none(),

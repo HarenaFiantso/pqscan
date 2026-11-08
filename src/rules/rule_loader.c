@@ -172,7 +172,8 @@ static pqscan_status read_call_only(const loader *load, const cJSON *entry, cryp
     return PQSCAN_OK;
 }
 
-/* A key type gets its size from the key itself, and source gets it from the call's arguments. */
+/* A key type gets its size from the key itself, and a string from the call it is passed to. A
+ * config token or an identifier, such as a curve NID or DH_get_2048_256(), can name one. */
 static pqscan_status read_fixed_key_bits(const loader *load, const cJSON *entry,
                                          crypto_rule *rule) {
     const json_int_field field = {entry, "key_bits", 1, MAX_KEY_BITS, 0};
@@ -181,8 +182,8 @@ static pqscan_status read_fixed_key_bits(const loader *load, const cJSON *entry,
     if (status != PQSCAN_OK) {
         return status;
     }
-    if (bits != 0 && rule->kind != RULE_CONFIG) {
-        return reject(load, field.name, "only a config token fixes a key size");
+    if (bits != 0 && (rule->kind == RULE_STRING || rule->kind == RULE_KEY)) {
+        return reject(load, field.name, "a string or a key type cannot fix a key size");
     }
     rule->key_bits = (unsigned)bits;
     return PQSCAN_OK;
