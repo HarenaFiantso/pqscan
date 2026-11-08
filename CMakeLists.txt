@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.20...3.31)
 
 project(pqscan
-    VERSION 0.6.0
+    VERSION 0.7.0
     DESCRIPTION "Find quantum-vulnerable cryptography in C/C++ source, configs, certificates and ELF binaries"
     LANGUAGES C)
 
