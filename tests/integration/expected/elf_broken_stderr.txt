@@ -1,0 +1,3 @@
+pqscan: warning: elf/broken/client-i386.o: skipped, not a 64-bit ELF file
+pqscan: warning: elf/broken/truncated.o: skipped, malformed ELF file
+pqscan: scan incomplete: 2 paths could not be analyzed
