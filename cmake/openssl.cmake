@@ -20,6 +20,9 @@ if(APPLE AND NOT OPENSSL_ROOT_DIR AND NOT DEFINED ENV{OPENSSL_ROOT_DIR})
     endif()
 endif()
 
+if(PQSCAN_STATIC)
+    set(OPENSSL_USE_STATIC_LIBS TRUE)
+endif()
 find_package(OpenSSL ${PQSCAN_OPENSSL_MINIMUM} REQUIRED COMPONENTS Crypto)
 
 # Our code may only call what OpenSSL 3.0 offers without deprecation, so that it builds the same
