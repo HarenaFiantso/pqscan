@@ -25,7 +25,9 @@ The [website](https://harenafiantso.github.io/pqscan/) is a guided tour of every
 > certificates and keys in PEM or DER, and the symbol tables of 64-bit ELF binaries. A value
 > it can't prove shows as `unknown`. Each finding gets a priority from the NIST IR 8547 dates and
 > Mosca's theorem, and reports come as text, JSON, a CycloneDX CBOM or SARIF. A baseline of
-> accepted findings and a GitHub Action let CI fail only on new ones.
+> accepted findings and a GitHub Action let CI fail only on new ones. On six open-source projects,
+> it finds 98.6% of the labeled uses of OpenSSL it has never been tuned on, with no false positive:
+> see [Evaluation](#evaluation).
 
 ## Build and test
 
@@ -541,7 +543,7 @@ the binary. `--rules FILE` replaces them with a file of the same format:
 | | `algorithm` | A name declared in `algorithms`. |
 | | `primitive` | `signature`, `key_exchange`, `encryption`, `hash` or `unspecified`. |
 | | `call_only` | Optional, for functions. Count the name only when it's called. |
-| | `key_bits` | Optional, for `config` rules. The key size the name itself fixes, as in `ffdhe2048`. |
+| | `key_bits` | Optional, for `config`, `function`, `constant` and `macro` rules. The key size the name itself fixes, as in `ffdhe2048`, `NID_secp384r1` or `DH_get_2048_256`. |
 | `calls` | `name` | A function whose arguments are worth reading. |
 | | `key_bits_argument` | Optional. Position of the key size, from 0. |
 | | `algorithm_argument` | Optional. Position of a string naming an algorithm, from 0. |
@@ -553,10 +555,46 @@ type, such as `rsaEncryption`, `id-ecPublicKey`, `ED25519` or `SHA1`.
 pqscan refuses the whole file on any mistake, such as an unknown field, and names the entry
 at fault.
 
+## Evaluation
+
+pqscan is measured on six open-source projects that use OpenSSL: OpenSSH, curl, nginx,
+Mosquitto, HAProxy and PostgreSQL, pinned by version in [bench/corpus.json](bench/corpus.json).
+Each use of an algorithm pqscan grades was labeled by hand in 40 of their files, by reading every
+candidate a search much wider than the rules turned up, and certificates were labeled from what
+`openssl x509 -text` says. Files with no crypto are labeled too, so that false positives count.
+A finding is right when its path, line and algorithm match a label. [CONTRIBUTING.md](CONTRIBUTING.md#how-to-label)
+says what counts as a use.
+
+| Labels | Precision | Recall by line | Recall by file | Key sizes |
+| --- | ---: | ---: | ---: | ---: |
+| 216, which the rules were then extended from | 100% | 97.2% | 100% | 21 of 21 |
+| 73, held out, measured blind | 100% | 98.6% | 100% | — |
+
+Recall by file asks whether pqscan finds each algorithm a file uses, which is what migration
+planning needs. The rules first found 36% of the labeled lines: they knew where keys are made,
+and missed every call that reads, encodes or configures them. They were extended by whole API
+families from the OpenSSL headers rather than by the lines they missed, and the held-out set,
+labeled afterwards, shows that this carries over. [bench/results.md](bench/results.md) lists every
+miss, and `python3 bench/bench.py evaluate` measures it again.
+
+What this doesn't measure:
+
+* None of these projects ships a TLS or SSH configuration file, so the config scanner is only
+  tested by its fixtures.
+* Labels cover OpenSSL's API. A project's own implementation of MD5, or another library such as
+  wolfSSL, is out of scope, and so is crypto chosen at run time from a configuration value.
+* `OSSL_PKEY_PARAM_FFC_*` names belong to both DSA and DH, so no rule reports them.
+
+pqscan reads about 5 MiB of C source per second on one core of an Apple M-series laptop, and the
+OpenSSL 3.6 source tree, 129 MiB with 28 MiB of C, in under 6 seconds and 38 MiB of memory. CI
+fails if a project takes over three times its target in [bench/perf.json](bench/perf.json), or if
+precision or recall drops under 95%.
+
+Every parser of untrusted input, from the ELF reader to the three JSON loaders, has a libFuzzer
+target that CI runs for two minutes and a nightly workflow for half an hour.
+
 ## Roadmap
 
-- **Evaluation:** a corpus of open-source C projects with hand-labeled findings, measured
-  precision and recall, fuzzing of every parser, and performance targets for large repositories.
 - **Release:** a changelog, a man page, a static build and a Docker image.
 
 ## License
