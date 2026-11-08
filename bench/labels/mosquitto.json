@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "files": {
+    "mosquitto/lib/net_ws.c": [
+      {"line": 356, "algorithm": "SHA-1"}
+    ],
+    "mosquitto/src/handle_connect.c": [],
+    "mosquitto/test/ssl/all-ca.crt": [
+      {"line": 60, "algorithm": "RSA"},
+      {"line": 60, "algorithm": "RSA", "key_size": 2048},
+      {"line": 82, "algorithm": "RSA"},
+      {"line": 82, "algorithm": "RSA", "key_size": 2048}
+    ],
+    "mosquitto/test/ssl/server.crt": [
+      {"line": 60, "algorithm": "RSA"},
+      {"line": 60, "algorithm": "RSA", "key_size": 2048}
+    ]
+  }
+}

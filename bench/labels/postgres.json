@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "files": {
+    "postgres/contrib/pgcrypto/openssl.c": [
+      {"line": 573, "algorithm": "AES-128"},
+      {"line": 603, "algorithm": "AES-128"},
+      {"line": 633, "algorithm": "AES-128"},
+      {"line": 693, "algorithm": "DES"},
+      {"line": 699, "algorithm": "DES"},
+      {"line": 705, "algorithm": "3DES"},
+      {"line": 711, "algorithm": "3DES"}
+    ],
+    "postgres/src/backend/libpq/be-secure-openssl.c": [
+      {"line": 1055, "algorithm": "DH"},
+      {"line": 1068, "algorithm": "DH"},
+      {"line": 1114, "algorithm": "DH"},
+      {"line": 1391, "algorithm": "DH"},
+      {"line": 1405, "algorithm": "DH"},
+      {"line": 1617, "algorithm": "MD5"},
+      {"line": 1618, "algorithm": "SHA-1"}
+    ],
+    "postgres/src/backend/utils/adt/varlena.c": [],
+    "postgres/src/common/cryptohash_openssl.c": [
+      {"line": 188, "algorithm": "MD5"},
+      {"line": 191, "algorithm": "SHA-1"}
+    ],
+    "postgres/src/test/ssl/ssl/client-der.key": [
+      {"line": null, "algorithm": "RSA", "key_size": 2048}
+    ]
+  }
+}

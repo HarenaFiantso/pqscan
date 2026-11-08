@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "files": {
+    "nginx/conf/nginx.conf": [],
+    "nginx/src/event/ngx_event_openssl.c": [
+      {"line": 368, "algorithm": "DH"},
+      {"line": 1608, "algorithm": "DH"},
+      {"line": 1616, "algorithm": "DH"},
+      {"line": 1788, "algorithm": "ECDH"},
+      {"line": 1792, "algorithm": "ECDH"},
+      {"line": 1825, "algorithm": "EC"},
+      {"line": 1832, "algorithm": "ECDH"},
+      {"line": 1834, "algorithm": "ECDH"},
+      {"line": 4198, "algorithm": "SHA-1"},
+      {"line": 4213, "algorithm": "SHA-1"},
+      {"line": 4251, "algorithm": "SHA-1"},
+      {"line": 4960, "algorithm": "SHA-1"},
+      {"line": 4981, "algorithm": "AES-128"},
+      {"line": 5035, "algorithm": "AES-128"},
+      {"line": 6270, "algorithm": "SHA-1"}
+    ],
+    "nginx/src/event/quic/ngx_event_quic_protection.c": [
+      {"line": 70, "algorithm": "AES-128"},
+      {"line": 72, "algorithm": "AES-128"},
+      {"line": 105, "algorithm": "AES-128"},
+      {"line": 106, "algorithm": "AES-128"}
+    ],
+    "nginx/src/http/ngx_http_parse.c": []
+  }
+}

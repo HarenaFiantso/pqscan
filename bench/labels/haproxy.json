@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "files": {
+    "haproxy/reg-tests/jwt/cert.ecdsa.pem": [
+      {"line": 1, "algorithm": "EC", "key_size": 256},
+      {"line": 1, "algorithm": "ECDSA"}
+    ],
+    "haproxy/reg-tests/jwt/es256-public.pem": [
+      {"line": 1, "algorithm": "EC", "key_size": 256}
+    ],
+    "haproxy/src/http.c": [],
+    "haproxy/src/jws.c": [
+      {"line": 62, "algorithm": "EC"},
+      {"line": 64, "algorithm": "EC"},
+      {"line": 85, "algorithm": "EC"},
+      {"line": 87, "algorithm": "EC"},
+      {"line": 89, "algorithm": "EC"},
+      {"line": 97, "algorithm": "EC"},
+      {"line": 99, "algorithm": "EC"},
+      {"line": 151, "algorithm": "RSA"},
+      {"line": 153, "algorithm": "RSA"},
+      {"line": 158, "algorithm": "RSA"},
+      {"line": 160, "algorithm": "RSA"},
+      {"line": 162, "algorithm": "RSA"},
+      {"line": 208, "algorithm": "RSA"},
+      {"line": 211, "algorithm": "EC"},
+      {"line": 296, "algorithm": "EC"},
+      {"line": 312, "algorithm": "EC"},
+      {"line": 314, "algorithm": "EC"},
+      {"line": 317, "algorithm": "EC"},
+      {"line": 321, "algorithm": "EC", "key_size": 256},
+      {"line": 325, "algorithm": "EC", "key_size": 384},
+      {"line": 329, "algorithm": "EC", "key_size": 521},
+      {"line": 415, "algorithm": "EC"},
+      {"line": 426, "algorithm": "ECDSA"},
+      {"line": 429, "algorithm": "ECDSA"},
+      {"line": 432, "algorithm": "ECDSA"},
+      {"line": 519, "algorithm": "RSA"},
+      {"line": 522, "algorithm": "EC"}
+    ],
+    "haproxy/src/ssl_gencert.c": [
+      {"line": 215, "algorithm": "DSA"},
+      {"line": 216, "algorithm": "SHA-1"},
+      {"line": 217, "algorithm": "RSA"},
+      {"line": 219, "algorithm": "EC"},
+      {"line": 271, "algorithm": "DH"},
+      {"line": 294, "algorithm": "EC"},
+      {"line": 296, "algorithm": "ECDH"},
+      {"line": 530, "algorithm": "EC"},
+      {"line": 531, "algorithm": "EC"},
+      {"line": 535, "algorithm": "RSA"},
+      {"line": 536, "algorithm": "RSA"},
+      {"line": 604, "algorithm": "RSA"},
+      {"line": 606, "algorithm": "EC"}
+    ]
+  }
+}

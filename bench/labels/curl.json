@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "files": {
+    "curl/lib/curl_ntlm_core.c": [
+      {"line": 63, "algorithm": "DES"},
+      {"line": 167, "algorithm": "DES"},
+      {"line": 170, "algorithm": "DES"},
+      {"line": 307, "algorithm": "DES"},
+      {"line": 311, "algorithm": "DES"},
+      {"line": 315, "algorithm": "DES"},
+      {"line": 366, "algorithm": "DES"},
+      {"line": 370, "algorithm": "DES"}
+    ],
+    "curl/lib/url.c": [],
+    "curl/lib/vtls/openssl.c": [
+      {"line": 272, "algorithm": "RSA"},
+      {"line": 277, "algorithm": "RSA"},
+      {"line": 278, "algorithm": "RSA"},
+      {"line": 280, "algorithm": "RSA"},
+      {"line": 300, "algorithm": "DSA"},
+      {"line": 307, "algorithm": "DSA"},
+      {"line": 308, "algorithm": "DSA"},
+      {"line": 309, "algorithm": "DSA"},
+      {"line": 312, "algorithm": "DSA"},
+      {"line": 313, "algorithm": "DSA"},
+      {"line": 335, "algorithm": "DH"},
+      {"line": 342, "algorithm": "DH"},
+      {"line": 343, "algorithm": "DH"},
+      {"line": 344, "algorithm": "DH"},
+      {"line": 347, "algorithm": "DH"},
+      {"line": 348, "algorithm": "DH"},
+      {"line": 479, "algorithm": "RSA"},
+      {"line": 484, "algorithm": "DSA"},
+      {"line": 489, "algorithm": "DH"},
+      {"line": 1570, "algorithm": "RSA"},
+      {"line": 1571, "algorithm": "RSA"},
+      {"line": 1572, "algorithm": "RSA"},
+      {"line": 2301, "algorithm": "SHA-1"},
+      {"line": 5337, "algorithm": "MD5"},
+      {"line": 5337, "algorithm": "SHA-1"},
+      {"line": 5380, "algorithm": "MD5"},
+      {"line": 5380, "algorithm": "SHA-1"}
+    ]
+  }
+}
