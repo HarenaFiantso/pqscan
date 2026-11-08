@@ -247,9 +247,17 @@ function startTimeline() {
   today.hidden = false;
 }
 
+/* The same score as src/risk/priority.c, for a migration that starts this year. */
+function priorityOf(x, y, q) {
+  const end = new Date().getUTCFullYear() + y;
+  const deadline = end > 2035 ? 20 : end > 2030 ? 10 : 0;
+  return 50 + deadline + Math.min(Math.max(10 + x + y - q, 0), 29);
+}
+
 function startMosca() {
   const inputs = { x: byId("x"), y: byId("y"), q: byId("q") };
   const result = byId("mosca-result");
+  const score = byId("mosca-score");
   const scale = 45;
 
   function update() {
@@ -269,6 +277,7 @@ function startMosca() {
         ? `X + Y = ${x + y} > ${q}: data stays exposed for ${exposed} ${years}.`
         : `X + Y = ${x + y} ≤ ${q}: you finish in time, by these numbers.`;
     result.className = `mosca-result ${exposed > 0 ? "is-exposed" : "is-safe"}`;
+    score.textContent = `pqscan would give a quantum-vulnerable finding here priority ${priorityOf(x, y, q)}.`;
   }
 
   Object.values(inputs).forEach((input) => input.addEventListener("input", update));
