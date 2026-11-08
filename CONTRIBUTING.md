@@ -165,9 +165,13 @@ ctest --preset debug -L schema
 
 ## Fuzzing
 
-Each parser of untrusted input has a fuzz target in `fuzz/`. Every build also makes a replay
-driver for it, which runs the target on its seeds, on every truncation of them, and on a fixed
-set of seeded edits, under the sanitizers of the preset. It is an ordinary test:
+Each parser of untrusted input has a fuzz target in `fuzz/`: the ELF reader, the config lexer,
+the PEM block finder, the source, config and certificate scanners, and the rule, project and
+baseline loaders. A target checks more than the absence of a crash: words, blocks and symbols
+must lie inside the input, findings must be what reporters expect, and a refused file must come
+with a message. Every build also makes a replay driver for each target, which runs it on its
+seeds, on every truncation of them, and on a fixed set of seeded edits, under the sanitizers of
+the preset. It is an ordinary test:
 
 ```sh
 ctest --preset debug -L fuzz
@@ -178,13 +182,67 @@ Homebrew's (`brew install llvm`). On Linux, the distribution's `clang` works:
 
 ```sh
 CC="$(brew --prefix llvm)/bin/clang" cmake --preset fuzz   # just `cmake --preset fuzz` on Linux
-cmake --build --preset fuzz --target fuzz_elf_reader
-scripts/run-fuzzer.sh elf_reader 300                       # seconds, 60 by default
+cmake --build --preset fuzz --target fuzz_cert_scanner
+scripts/run-fuzzer.sh cert_scanner 300                     # seconds, 60 by default
 ```
 
-New inputs are kept in `build/fuzz-corpus/`, and one that crashes is written to
-`build/fuzz-crashes/`. CI runs each fuzzer for two minutes. When a crash turns up, add the
-input as a fixture with a test that reproduces it before fixing the bug.
+`scripts/run-fuzzer.sh` gives each target its seeds and a dictionary from `fuzz/dict/`. New inputs
+are kept in `build/fuzz-corpus/`, and one that crashes is written to `build/fuzz-crashes/`. CI
+runs each fuzzer for two minutes, and a nightly workflow runs each for half an hour and keeps its
+corpus. When a crash turns up, add the input as a fixture with a test that reproduces it before
+fixing the bug.
+
+To add a target, write `fuzz/fuzz_NAME.c` with `LLVMFuzzerTestOneInput()`, register it in
+`fuzz/CMakeLists.txt` with small seeds, and add it to `scripts/run-fuzzer.sh` and to the fuzz
+matrix of both workflows. A scanner can use `fuzz/scan_harness.h`. If one replay run is slow,
+give it `EDITS` so the test stays under its time limit.
+
+## Measuring precision, recall and speed
+
+`bench/` measures pqscan on six open-source projects pinned in `bench/corpus.json`, and on the
+OpenSSL source tree for speed. The projects are downloaded into `build/bench`, never committed.
+It needs Python 3.9 or newer and nothing else:
+
+```sh
+cmake --preset release && cmake --build --preset release
+python3 bench/bench.py fetch              # downloads about 100 MiB, once
+python3 bench/bench.py evaluate --write   # precision and recall, written to bench/results.md
+python3 bench/bench.py perf               # time and memory against bench/perf.json
+```
+
+`bench/labels/` holds the labels the rules were tuned on, and `bench/labels/held-out/` labels made
+afterwards from files no rule was tuned on. Keep it that way: when a held-out miss leads to a new
+rule, say in the commit that the set is no longer blind, and label fresh files for the next
+measurement.
+
+### How to label
+
+A label is one line of code and the algorithm used there:
+
+```json
+{"line": 130, "algorithm": "RSA"}
+{"line": 50, "algorithm": "EC", "key_size": 384}
+```
+
+* **Label** a line of C or C++ that uses an OpenSSL identifier specific to an algorithm pqscan
+  grades: a call, a function used as a value, a constant such as `EVP_PKEY_RSA` or
+  `NID_secp384r1`, or an algorithm name passed to an API, as in
+  `EVP_get_digestbyname("sha1")`. Macro bodies count, as they are code once expanded.
+* **Don't label** comments, preprocessor conditions, type names in declarations, `*_free` and
+  `*_up_ref` calls, error and result codes such as `SSL_R_*` or `DH_CHECK_*`, buffer sizes
+  such as `MD5_DIGEST_LENGTH`, strings that are not passed to an API (log messages, JSON
+  keys), a project's own names that merely look like OpenSSL's, or other libraries' APIs.
+* Name the algorithm the identifier itself names: `EC_KEY_*` is EC, `ECDH_compute_key` is ECDH,
+  `ECDSA_SIG_*` is ECDSA. Give a key size only when the line fixes it.
+* A line counts once per algorithm, and an argument on a later line of a call that is already
+  labeled is not labeled again.
+* For a certificate or key, take the key type, size and signature algorithm from
+  `openssl x509 -text` or `openssl pkey -text`, never from pqscan. A certificate has one label
+  for its key and one for its signature, at the line of its BEGIN marker, or `null` for DER.
+* List files with no crypto use too, with `[]`, so that false positives are counted.
+
+Find candidates with a search wider than the rules, such as every identifier that starts with
+`RSA_`, `EC_` or `NID_`, then read each one in its context. Never label from pqscan's output.
 
 ## Updating the README demo
 
@@ -223,4 +281,4 @@ with the smallest code snippet that reproduces it, what you expected and what pq
 reported.
 
 To fix one yourself, add a fixture under `tests/fixtures/` that reproduces the problem
-before changing any detection code.
+before changing any detection code. If it comes from a project in `bench/`, label it there too.
