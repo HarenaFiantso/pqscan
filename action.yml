@@ -1,0 +1,110 @@
+name: pqscan
+description: Find quantum-vulnerable cryptography, show it in code scanning, and fail on new findings.
+author: Fiantso Harena
+branding:
+  icon: shield
+  color: purple
+
+# Inputs reach the shell through env, never through ${{ }} inside a script, so that a value
+# cannot inject commands.
+inputs:
+  paths:
+    description: Files and directories to scan, separated by spaces, relative to the repository root.
+    default: "."
+  baseline:
+    description: >-
+      A baseline file written by `pqscan --write-baseline`. When set, only the findings it does
+      not accept are reported and can fail the job.
+    default: ""
+  fail-on:
+    description: The lowest risk level that fails the job, OK, REVIEW, QUANTUM_VULNERABLE or CLASSICALLY_WEAK.
+    default: REVIEW
+  args:
+    description: More pqscan options, separated by spaces, such as `--ignore third_party`.
+    default: ""
+  sarif-file:
+    description: Where to write the SARIF report.
+    default: pqscan.sarif
+  upload-sarif:
+    description: Whether to upload the report to GitHub code scanning, which needs `security-events write`.
+    default: "true"
+  category:
+    description: The code scanning category, which keeps these results apart from other tools'.
+    default: pqscan
+
+outputs:
+  exit-code:
+    description: The exit code of pqscan, 0 for clean, 1 for findings, 4 for an incomplete scan.
+    value: ${{ steps.scan.outputs.exit-code }}
+  sarif-file:
+    description: The SARIF report.
+    value: ${{ inputs.sarif-file }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install OpenSSL
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        if ! pkg-config --exists 'libcrypto >= 3.0'; then
+          sudo apt-get update && sudo apt-get install --yes libssl-dev
+        fi
+
+    - name: Build pqscan
+      shell: bash
+      env:
+        SOURCE_DIR: ${{ github.action_path }}
+      run: |
+        build="$RUNNER_TEMP/pqscan-build"
+        cmake -S "$SOURCE_DIR" -B "$build" -DCMAKE_BUILD_TYPE=Release \
+          -DPQSCAN_WARNINGS_AS_ERRORS=OFF -DPQSCAN_DOWNLOAD_DIR="$RUNNER_TEMP/pqscan-downloads"
+        cmake --build "$build" --target pqscan --parallel
+        echo "PQSCAN=$build/pqscan" >> "$GITHUB_ENV"
+
+    # The step never fails, so that the report is uploaded before the gate decides.
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_BASELINE: ${{ inputs.baseline }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_ARGS: ${{ inputs.args }}
+        INPUT_SARIF_FILE: ${{ inputs.sarif-file }}
+      run: |
+        set -f
+        options=(--format sarif --fail-on "$INPUT_FAIL_ON")
+        if [ -n "$INPUT_BASELINE" ]; then
+          options+=(--diff "$INPUT_BASELINE")
+        fi
+        # Word splitting is wanted here: these inputs are lists. set -f stops globbing.
+        # shellcheck disable=SC2206
+        options+=($INPUT_ARGS -- $INPUT_PATHS)
+        code=0
+        "$PQSCAN" "${options[@]}" > "$INPUT_SARIF_FILE" || code=$?
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+
+    # Exit codes 2 and 3 leave no report worth showing.
+    - name: Upload to code scanning
+      if: >-
+        inputs.upload-sarif == 'true' &&
+        contains(fromJSON('["0", "1", "4"]'), steps.scan.outputs.exit-code)
+      uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+      with:
+        sarif_file: ${{ inputs.sarif-file }}
+        category: ${{ inputs.category }}
+
+    - name: Gate
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.scan.outputs.exit-code }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        case "$EXIT_CODE" in
+        0) echo "pqscan: no findings at or above $INPUT_FAIL_ON" ;;
+        1) echo "::error title=pqscan::findings at or above $INPUT_FAIL_ON, see the SARIF report" ;;
+        4) echo "::error title=pqscan::the scan is incomplete, see the warnings of the Scan step" ;;
+        *) echo "::error title=pqscan::pqscan failed with exit code $EXIT_CODE" ;;
+        esac
+        exit "$EXIT_CODE"
