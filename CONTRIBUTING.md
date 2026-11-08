@@ -163,6 +163,29 @@ cmake --build --preset debug
 ctest --preset debug -L schema
 ```
 
+## Fuzzing
+
+Each parser of untrusted input has a fuzz target in `fuzz/`. Every build also makes a replay
+driver for it, which runs the target on its seeds, on every truncation of them, and on a fixed
+set of seeded edits, under the sanitizers of the preset. It is an ordinary test:
+
+```sh
+ctest --preset debug -L fuzz
+```
+
+The real fuzzer needs a Clang that ships libFuzzer. Apple's Clang doesn't, so on macOS use
+Homebrew's (`brew install llvm`). On Linux, the distribution's `clang` works:
+
+```sh
+CC="$(brew --prefix llvm)/bin/clang" cmake --preset fuzz   # just `cmake --preset fuzz` on Linux
+cmake --build --preset fuzz --target fuzz_elf_reader
+scripts/run-fuzzer.sh elf_reader 300                       # seconds, 60 by default
+```
+
+New inputs are kept in `build/fuzz-corpus/`, and one that crashes is written to
+`build/fuzz-crashes/`. CI runs each fuzzer for two minutes. When a crash turns up, add the
+input as a fixture with a test that reproduces it before fixing the bug.
+
 ## Updating the README demo
 
 The GIF in the README is recorded from `assets/demo.tape` with [VHS](https://github.com/charmbracelet/vhs).
