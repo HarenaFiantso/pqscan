@@ -57,6 +57,7 @@ add_library(pqscan_core STATIC
     src/report/sarif_report.c
     src/report/sarif_uri.c
     src/report/text_report.c
+    src/risk/prioritize.c
     src/risk/priority.c
     src/risk/project_file.c
     src/risk/risk.c
