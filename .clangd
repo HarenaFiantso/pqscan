@@ -1,0 +1,11 @@
+# clangd only looks for compile_commands.json in a file's parent directories and their
+# build/ subdirectory, but the CMake presets write it to build/<preset>/. Point it at
+# the debug preset, which also holds the fetched Tree-sitter and Unity headers.
+CompileFlags:
+  CompilationDatabase: build/debug
+---
+# Fixtures are input for pqscan, not code: some don't compile on purpose.
+If:
+  PathMatch: tests/fixtures/.*
+Diagnostics:
+  Suppress: "*"
