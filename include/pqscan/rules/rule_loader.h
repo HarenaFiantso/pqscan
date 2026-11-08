@@ -2,13 +2,11 @@
 #ifndef PQSCAN_RULES_RULE_LOADER_H
 #define PQSCAN_RULES_RULE_LOADER_H
 
+#include "pqscan/core/json_fields.h"
 #include "pqscan/core/status.h"
 #include "pqscan/rules/rule_set.h"
 
 #include <stddef.h>
-
-/** Room for a message about one field of one rule. */
-enum { RULE_ERROR_SIZE = 256 };
 
 /** The text of a rule file. It need not be NUL-terminated. */
 typedef struct rule_source {
@@ -17,9 +15,7 @@ typedef struct rule_source {
 } rule_source;
 
 /** Why a rule file was refused. */
-typedef struct rule_error {
-    char message[RULE_ERROR_SIZE]; /**< Names the place, such as "rules[3].kind: ...". */
-} rule_error;
+typedef json_error rule_error;
 
 /**
  * @brief Build a sealed rule set from the JSON text of a rule file.
