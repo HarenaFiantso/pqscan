@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "reference": "Apple M-series laptop, release build, files in the page cache, best of 3 runs",
+  "targets": {
+    "openssh": {"seconds": 2, "peak_mib": 64},
+    "curl": {"seconds": 3, "peak_mib": 64},
+    "nginx": {"seconds": 2, "peak_mib": 64},
+    "mosquitto": {"seconds": 1.5, "peak_mib": 64},
+    "haproxy": {"seconds": 4, "peak_mib": 64},
+    "postgres": {"seconds": 12, "peak_mib": 64},
+    "openssl": {"seconds": 9, "peak_mib": 64}
+  }
+}

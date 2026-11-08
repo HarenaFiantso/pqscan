@@ -297,16 +297,26 @@ def evaluate_set(pqscan, directory):
     return scores, total
 
 
+def falls_short(title, total, minimum):
+    short = total.precision < minimum or total.recall < minimum
+    if short:
+        print(f"bench: {title}: precision {percent(total.precision)} or recall "
+              f"{percent(total.recall)} is under {percent(minimum)}", file=sys.stderr)
+    return short
+
+
 def evaluate(args):
     sections = []
+    failed = False
     for title, directory in LABEL_SETS:
         scores, total = evaluate_set(args.pqscan, directory)
+        failed = (args.check is not None and falls_short(title, total, args.check)) or failed
         sections.append(f"## {title}\n\n{evaluation_table(scores, total)}\n\n### What pqscan got wrong\n\n{miss_list(scores)}")
     text = "\n\n".join(sections)
     print(text)
     if args.write:
         write_evaluation(text)
-    return 0
+    return 1 if failed else 0
 
 
 def write_evaluation(text):
@@ -320,13 +330,18 @@ def write_evaluation(text):
 
 
 def tree_bytes(path):
+    """The size of every file under a path, and of its C and C++ source alone."""
     total = 0
+    source = 0
     for directory, _, names in os.walk(path):
         for name in names:
             full = os.path.join(directory, name)
-            if not os.path.islink(full):
-                total += os.path.getsize(full)
-    return total
+            if os.path.islink(full):
+                continue
+            size = os.path.getsize(full)
+            total += size
+            source += size if name.endswith(SOURCE_SUFFIXES) else 0
+    return total, source
 
 
 def peak_rss_mib(usage):
@@ -357,11 +372,11 @@ def measure(pqscan, name, runs):
 def perf(args):
     targets = load_json(BENCH / "perf.json")["targets"]
     failures = []
-    print("| Project | Size | Seconds | MiB/s | Peak memory | Target |")
-    print("| --- | ---: | ---: | ---: | ---: | --- |")
+    print("| Project | Files | C/C++ source | Seconds | Source MiB/s | Peak memory | Target |")
+    print("| --- | ---: | ---: | ---: | ---: | ---: | --- |")
     for project in corpus():
         name = project["name"]
-        size = tree_bytes(SOURCES / name) / MEBIBYTE
+        total, source = (size / MEBIBYTE for size in tree_bytes(SOURCES / name))
         seconds, rss = measure(args.pqscan, name, args.runs)
         target = targets.get(name)
         verdict = "none"
@@ -372,7 +387,8 @@ def perf(args):
             verdict = f"{'ok' if ok else 'MISSED'} (≤ {limit_seconds:g} s, ≤ {limit_rss:g} MiB)"
             if not ok:
                 failures.append(name)
-        print(f"| {name} | {size:.0f} MiB | {seconds:.2f} | {size / seconds:.0f} | {rss:.0f} MiB | {verdict} |")
+        print(f"| {name} | {total:.0f} MiB | {source:.0f} MiB | {seconds:.2f} | {source / seconds:.1f} "
+              f"| {rss:.0f} MiB | {verdict} |")
     if args.check and failures:
         print(f"bench: over target: {', '.join(failures)}", file=sys.stderr)
         return 1
@@ -389,6 +405,8 @@ def main():
     commands.add_parser("fetch", help="download and unpack the corpus").set_defaults(run=fetch)
     evaluation = commands.add_parser("evaluate", help="measure precision and recall")
     evaluation.add_argument("--write", action="store_true", help="also write bench/results.md")
+    evaluation.add_argument("--check", type=float, metavar="RATIO",
+                            help="exit 1 if a set's precision or recall is under this, such as 0.95")
     evaluation.set_defaults(run=evaluate)
     timing = commands.add_parser("perf", help="measure time and memory")
     timing.add_argument("--runs", type=int, default=3, help="scans per project (default 3)")
