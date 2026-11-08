@@ -20,12 +20,20 @@
 enum { DECIMAL = 10 };
 
 /* Past every char, as these have no short form. */
-enum { OPTION_MAX_TIME = 256, OPTION_FAIL_ON, OPTION_PROJECT, OPTION_AS_OF };
+enum {
+    OPTION_MAX_TIME = 256,
+    OPTION_FAIL_ON,
+    OPTION_PROJECT,
+    OPTION_AS_OF,
+    OPTION_DIFF,
+    OPTION_WRITE_BASELINE,
+};
 
 static const char SHORT_OPTIONS[] = "f:hi:r:V";
 
 static const struct option LONG_OPTIONS[] = {
     {"as-of", required_argument, NULL, OPTION_AS_OF},
+    {"diff", required_argument, NULL, OPTION_DIFF},
     {"fail-on", required_argument, NULL, OPTION_FAIL_ON},
     {"format", required_argument, NULL, 'f'},
     {"help", no_argument, NULL, 'h'},
@@ -34,6 +42,7 @@ static const struct option LONG_OPTIONS[] = {
     {"project", required_argument, NULL, OPTION_PROJECT},
     {"rules", required_argument, NULL, 'r'},
     {"version", no_argument, NULL, 'V'},
+    {"write-baseline", required_argument, NULL, OPTION_WRITE_BASELINE},
     {NULL, 0, NULL, 0},
 };
 
@@ -122,24 +131,31 @@ static cli_parse_result apply_option(int option, cli_options *options) {
         return CLI_PARSE_OK;
     case OPTION_AS_OF:
         return set_as_of_year(options, optarg);
+    case OPTION_DIFF:
+        options->diff_path = optarg;
+        return CLI_PARSE_OK;
+    case OPTION_WRITE_BASELINE:
+        options->baseline_out = optarg;
+        return CLI_PARSE_OK;
     default:
         return CLI_PARSE_USAGE_ERROR;
     }
 }
 
+static cli_parse_result check_baseline_options(const cli_options *options) {
+    if (options->diff_path != NULL && options->baseline_out != NULL) {
+        (void)fputs("pqscan: --diff and --write-baseline cannot be used together\n", stderr);
+        return CLI_PARSE_USAGE_ERROR;
+    }
+    return CLI_PARSE_OK;
+}
+
 cli_parse_result cli_options_parse(int argc, char **argv, cli_options *options) {
     *options = (cli_options){
-        NULL,
-        NULL,
-        0,
-        NULL,
-        NULL,
-        CLI_AS_OF_NOW,
-        CLI_DEFAULT_MAX_SECONDS,
-        &text_reporter,
-        DEFAULT_FAIL_ON,
-        false,
-        false,
+        .as_of_year = CLI_AS_OF_NOW,
+        .max_seconds = CLI_DEFAULT_MAX_SECONDS,
+        .format = &text_reporter,
+        .fail_on = DEFAULT_FAIL_ON,
     };
     options->ignores = string_list_create();
     if (options->ignores == NULL) {
@@ -153,6 +169,9 @@ cli_parse_result cli_options_parse(int argc, char **argv, cli_options *options) 
     while (result == CLI_PARSE_OK && option != -1) {
         result = apply_option(option, options);
         option = getopt_long(argc, argv, SHORT_OPTIONS, LONG_OPTIONS, NULL);
+    }
+    if (result == CLI_PARSE_OK) {
+        result = check_baseline_options(options);
     }
     if (result == CLI_PARSE_OK) {
         options->paths = argv + optind;
