@@ -219,6 +219,18 @@ static void test_a_short_literal_key_is_classically_weak(void) {
     assert_risk_at(4, RISK_CLASSICALLY_WEAK);
 }
 
+/* A curve or a built-in group names its size, so the identifier alone is enough. */
+static void test_an_identifier_can_fix_the_key_size(void) {
+    scan_text("void f(void) {\n"
+              "  int curve = NID_secp384r1;\n"
+              "  DH *weak = DH_get_1024_160();\n"
+              "  DH *strong = DH_get_2048_256();\n"
+              "}\n");
+    assert_findings("2:EC-384 3:DH-1024 4:DH-2048");
+    assert_risk_at(1, RISK_CLASSICALLY_WEAK);
+    assert_risk_at(2, RISK_QUANTUM_VULNERABLE);
+}
+
 static void test_an_unresolved_key_size_keeps_the_base_risk(void) {
     scan_text("void f(int bits) { RSA_generate_key_ex(r, bits, 0, 0); }\n");
     assert_findings("1:RSA-unknown");
@@ -479,6 +491,7 @@ int main(void) {
     RUN_TEST(test_ignores_one_shot_hash_names_outside_calls);
     RUN_TEST(test_ignores_one_shot_hash_methods);
     RUN_TEST(test_a_short_literal_key_is_classically_weak);
+    RUN_TEST(test_an_identifier_can_fix_the_key_size);
     RUN_TEST(test_an_unresolved_key_size_keeps_the_base_risk);
     RUN_TEST(test_a_size_next_to_an_algorithm_name_sets_the_risk);
     RUN_TEST(test_findings_carry_the_primitive_of_their_rule);
