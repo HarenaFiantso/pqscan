@@ -95,6 +95,19 @@ jobs:
   fuzz:
     needs: build-and-test
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - elf_reader
+          - config_lexer
+          - pem_blocks
+          - source_scanner
+          - config_scanner
+          - cert_scanner
+          - rule_loader
+          - project_file
+          - baseline
     env:
       CC: clang
     steps:
@@ -106,12 +119,12 @@ jobs:
           restore-keys: downloads-
       - run: sudo apt-get update && sudo apt-get install --yes libssl-dev
       - run: cmake --preset fuzz
-      - run: cmake --build --preset fuzz --parallel --target fuzz_elf_reader
-      - run: scripts/run-fuzzer.sh elf_reader 120
+      - run: cmake --build --preset fuzz --parallel --target fuzz_${{ matrix.target }}
+      - run: scripts/run-fuzzer.sh ${{ matrix.target }} 120
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: fuzz-crashes
+          name: fuzz-crashes-${{ matrix.target }}
           path: build/fuzz-crashes/
 
   valgrind:
