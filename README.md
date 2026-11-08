@@ -449,7 +449,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: HarenaFiantso/pqscan@v0.9.0
+      - uses: HarenaFiantso/pqscan@v0.10.0
         with:
           baseline: .pqscan-baseline.json
 ```
@@ -493,7 +493,7 @@ jobs:
         run: |
           git fetch --depth=1 origin "$BASE_REF"
           git show FETCH_HEAD:.pqscan-baseline.json > "$RUNNER_TEMP/baseline.json"
-      - uses: HarenaFiantso/pqscan@v0.9.0
+      - uses: HarenaFiantso/pqscan@v0.10.0
         with:
           baseline: ${{ runner.temp }}/baseline.json
           upload-sarif: ${{ !github.event.pull_request.head.repo.fork }}
