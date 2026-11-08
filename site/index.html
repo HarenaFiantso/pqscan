@@ -653,6 +653,21 @@ jobs:
           <h3>Checked against the specs</h3>
           <p>CI validates CBOM and SARIF output against the official CycloneDX and SARIF schemas, including on file names built to break them.</p>
         </article>
+        <article class="card card-green reveal">
+          <span class="nf card-icon" aria-hidden="true">&#xf002;</span>
+          <h3>Measured, not claimed</h3>
+          <p>On hand-labeled code from OpenSSH, curl, nginx, Mosquitto, HAProxy and PostgreSQL, pqscan finds 98.6% of the OpenSSL uses it was never tuned on, with no false positive.</p>
+        </article>
+        <article class="card card-yellow reveal">
+          <span class="nf card-icon" aria-hidden="true">&#xf120;</span>
+          <h3>Fuzzed, every parser</h3>
+          <p>Each parser of untrusted input, from the ELF reader to the JSON loaders, has a libFuzzer target that checks its output too. CI runs them on every change, and for half an hour every night.</p>
+        </article>
+        <article class="card card-overlay reveal">
+          <span class="nf card-icon" aria-hidden="true">&#xf0e7;</span>
+          <h3>Fast enough for every pull request</h3>
+          <p>About 5 MiB of C per second on one core. The whole OpenSSL source tree takes under 6 seconds and 38 MiB of memory, and CI fails if that slips.</p>
+        </article>
       </div>
     </section>
 
@@ -660,7 +675,7 @@ jobs:
       <header class="section-head reveal">
         <p class="kicker">09 &middot; Roadmap</p>
         <h2>Today C and C++ source, then everything around it</h2>
-        <p>Each phase ends with a tagged release. Phases 1 to 9 are done.</p>
+        <p>Each phase ends with a tagged release. Phases 1 to 10 are done.</p>
       </header>
 
       <ol class="roadmap" id="roadmap-list">
@@ -673,7 +688,7 @@ jobs:
         <li class="phase done reveal"><span class="phase-tag">v0.7.0</span><h3>ELF binaries</h3><p>Crypto functions found in symbol tables, without source code.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.8.0</span><h3>Risk prioritization</h3><p>A priority score from the NIST IR 8547 dates and Mosca's theorem, per component.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.9.0</span><h3>CI integration</h3><p>A baseline, a <code>--diff</code> mode, and a GitHub Action that blocks new vulnerable crypto.</p></li>
-        <li class="phase reveal"><span class="phase-tag">Phase 10</span><h3>Quality and evaluation</h3><p>A benchmark corpus, measured precision and recall, and fuzzing.</p></li>
+        <li class="phase done reveal"><span class="phase-tag">v0.10.0</span><h3>Quality and evaluation</h3><p>A benchmark corpus, measured precision and recall, and fuzzing.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 11</span><h3>Release</h3><p>Versioned packages, a man page, and contributor docs for rules.</p></li>
       </ol>
     </section>
