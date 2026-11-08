@@ -9,6 +9,7 @@
 #include "pqscan/core/version.h"
 #include "pqscan/report/json_report.h"
 #include "pqscan/report/reporter.h"
+#include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 #include "unity.h"
 
@@ -38,7 +39,8 @@ void tearDown(void) {
 
 static void add_finding(const char *path, key_size size, risk_level risk) {
     const finding item = {
-        path, SAMPLE_LINE, "RSA", risk, size, PRIMITIVE_SIGNATURE, "RSA_sign", utc_time_none(),
+        path,       SAMPLE_LINE,     "RSA",           risk, size, PRIMITIVE_SIGNATURE,
+        "RSA_sign", utc_time_none(), priority_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
 }
@@ -109,6 +111,7 @@ static void test_a_certificate_finding_has_no_line_and_an_expiry(void) {
         PRIMITIVE_SIGNATURE,
         "rsaEncryption",
         {true, SAMPLE_YEAR, 5, 1, 12, 0, 0},
+        priority_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
     write_and_parse();

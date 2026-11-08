@@ -5,6 +5,7 @@
 #include "pqscan/core/key_size.h"
 #include "pqscan/core/status.h"
 #include "pqscan/core/utc_time.h"
+#include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 #include "pqscan/rules/rule_set.h"
 #include "pqscan/scan/elf_reader.h"
@@ -65,6 +66,7 @@ static pqscan_status report_symbol(const elf_symbol *symbol, void *context) {
         rule->primitive,
         rule->pattern,
         utc_time_none(),
+        priority_none(),
     };
     return finding_list_add(walk->findings, &item);
 }

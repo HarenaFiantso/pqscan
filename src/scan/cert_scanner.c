@@ -4,6 +4,7 @@
 #include "pqscan/core/finding.h"
 #include "pqscan/core/key_size.h"
 #include "pqscan/core/status.h"
+#include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 #include "pqscan/rules/rule_set.h"
 #include "pqscan/scan/crypto_object.h"
@@ -40,6 +41,7 @@ static pqscan_status report_use(const key_use *use, void *context) {
         use->has_usage ? use->usage : rule->primitive,
         (use->symbol != NULL) ? use->symbol : rule->pattern,
         use->expires,
+        priority_none(),
     };
     return finding_list_add(walk->findings, &item);
 }
