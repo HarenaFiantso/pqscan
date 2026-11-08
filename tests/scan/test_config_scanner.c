@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/core/finding.h"
-#include "pqscan/core/key_size.h"
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/status.h"
 #include "pqscan/risk/risk.h"

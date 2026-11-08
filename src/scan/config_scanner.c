@@ -14,10 +14,10 @@
 #include "pqscan/scan/scanner.h"
 #include "pqscan/walk/file_type.h"
 
+#include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
-#include <strings.h>
 
 /* Distinct names one statement can hold before repeats stop being folded together. Past it,
  * a repeat is reported again, which is noisy but never hides anything. */
@@ -83,8 +83,17 @@ typedef struct config_walk {
     size_t reported_count;
 } config_walk;
 
+/* strncasecmp() would do, but macOS and glibc declare it in different headers. */
 static bool word_is(const config_word *word, const char *name) {
-    return word->len == strlen(name) && strncasecmp(word->text, name, word->len) == 0;
+    if (word->len != strlen(name)) {
+        return false;
+    }
+    for (size_t i = 0; i < word->len; i++) {
+        if (tolower((unsigned char)word->text[i]) != tolower((unsigned char)name[i])) {
+            return false;
+        }
+    }
+    return true;
 }
 
 static const directive *find_directive(const config_word *name) {
@@ -96,14 +105,10 @@ static const directive *find_directive(const config_word *name) {
     return NULL;
 }
 
-static pqscan_status add_finding(const config_walk *walk, const finding *item) {
-    return finding_list_add(walk->findings, item);
-}
-
 static key_size fixed_size(const crypto_rule *rule) {
-    const key_size size = {(rule->key_bits > 0) ? KEY_SIZE_KNOWN : KEY_SIZE_NOT_APPLICABLE,
-                           rule->key_bits};
-    return size;
+    const key_size none = {KEY_SIZE_NOT_APPLICABLE, 0};
+    const key_size known = {KEY_SIZE_KNOWN, rule->key_bits};
+    return (rule->key_bits > 0) ? known : none;
 }
 
 static bool was_reported(const config_walk *walk, const config_match *match) {
@@ -139,14 +144,20 @@ static pqscan_status report_match(const config_match *match, void *context) {
         rule->pattern,
         utc_time_none(),
     };
-    return add_finding(walk, &item);
+    return finding_list_add(walk->findings, &item);
 }
 
-static pqscan_status read_lists(config_walk *walk, const config_statement *statement, size_t first,
-                                config_list_syntax syntax) {
-    const config_list_scan scan = {walk->input->rules, syntax, report_match, walk};
-    for (size_t i = first; i < statement->count; i++) {
-        const pqscan_status status = config_list_match(&scan, &statement->words[i]);
+/* The words of a statement that hold lists, and how they list. */
+typedef struct list_words {
+    const config_statement *statement;
+    size_t first;
+    config_list_syntax syntax;
+} list_words;
+
+static pqscan_status read_lists(config_walk *walk, const list_words *lists) {
+    const config_list_scan scan = {walk->input->rules, lists->syntax, report_match, walk};
+    for (size_t i = lists->first; i < lists->statement->count; i++) {
+        const pqscan_status status = config_list_match(&scan, &lists->statement->words[i]);
         if (status != PQSCAN_OK) {
             return status;
         }
@@ -162,7 +173,8 @@ static pqscan_status read_conf_command(config_walk *walk, const config_statement
     if (command == NULL || !command->is_conf_command) {
         return PQSCAN_OK;
     }
-    return read_lists(walk, statement, 2, command->syntax);
+    const list_words lists = {statement, 2, command->syntax};
+    return read_lists(walk, &lists);
 }
 
 /* Anything but a plain decimal in range, such as ${ENV::BITS}, is a size pqscan cannot tell. */
@@ -204,7 +216,7 @@ static pqscan_status read_default_bits(const config_walk *walk, const config_sta
         DEFAULT_BITS_SYMBOL,
         utc_time_none(),
     };
-    return add_finding(walk, &item);
+    return finding_list_add(walk->findings, &item);
 }
 
 static pqscan_status read_statement(config_walk *walk, const config_statement *statement) {
@@ -214,8 +226,10 @@ static pqscan_status read_statement(config_walk *walk, const config_statement *s
     }
     walk->reported_count = 0;
     switch (found->action) {
-    case READ_LISTS:
-        return read_lists(walk, statement, 1, found->syntax);
+    case READ_LISTS: {
+        const list_words lists = {statement, 1, found->syntax};
+        return read_lists(walk, &lists);
+    }
     case READ_CONF_COMMAND:
         return read_conf_command(walk, statement);
     case READ_DEFAULT_BITS:
