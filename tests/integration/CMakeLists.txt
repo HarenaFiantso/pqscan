@@ -60,6 +60,12 @@ set(man_page "${PROJECT_SOURCE_DIR}/man/pqscan.1")
 add_test(NAME man_page_matches_help
     COMMAND "${CMAKE_COMMAND}" "-DPQSCAN=$<TARGET_FILE:pqscan>" "-DMAN_PAGE=${man_page}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/check_man_page.cmake")
+add_test(NAME install_puts_every_file_in_place
+    COMMAND "${CMAKE_COMMAND}" "-DBUILD_DIR=${PROJECT_BINARY_DIR}"
+        "-DPREFIX=${CMAKE_CURRENT_BINARY_DIR}/install-prefix"
+        "-DEXPECTED=${expected}/install_manifest.txt" "-DVERSION=${PROJECT_VERSION}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/check_install.cmake")
+
 # macOS ships mandoc, and CI installs it on Linux. Style notes are left out: one of them says
 # whether the pages SEE ALSO names are installed, which depends on the machine.
 find_program(PQSCAN_MANDOC_PROGRAM mandoc)

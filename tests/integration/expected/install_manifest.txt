@@ -1,0 +1,11 @@
+bin/pqscan
+share/doc/pqscan/CHANGELOG.md
+share/doc/pqscan/LICENSE
+share/doc/pqscan/NOTICE
+share/doc/pqscan/README.md
+share/doc/pqscan/licenses/cjson.txt
+share/doc/pqscan/licenses/tree-sitter-c.txt
+share/doc/pqscan/licenses/tree-sitter-cpp.txt
+share/doc/pqscan/licenses/tree-sitter.txt
+share/man/man1/pqscan.1
+share/pqscan/default.json
