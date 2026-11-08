@@ -4,28 +4,43 @@ include(FetchContent)
 set(PQSCAN_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/.downloads" CACHE PATH
     "Where third-party archives are kept, so presets and CI can reuse them")
 
+# A download that stalls this long gives up, so that the next URL of an archive gets its turn.
+set(PQSCAN_DOWNLOAD_INACTIVITY_SECONDS 30)
+
+# Usage: pqscan_declare_github_archive(name REPOSITORY owner/repo TAG tag SHA256 hash [args...])
+# github.com serves a release archive by redirecting to codeload.github.com, so asking codeload
+# directly is a fallback for when github.com fails, as it did in a November 2026 incident. The
+# bytes are the same, so one hash covers both URLs. Other arguments go to FetchContent_Declare().
+function(pqscan_declare_github_archive name)
+    cmake_parse_arguments(PARSE_ARGV 1 ARCHIVE "" "REPOSITORY;TAG;SHA256" "")
+    FetchContent_Declare(${name}
+        URL "https://github.com/${ARCHIVE_REPOSITORY}/archive/refs/tags/${ARCHIVE_TAG}.tar.gz"
+            "https://codeload.github.com/${ARCHIVE_REPOSITORY}/tar.gz/refs/tags/${ARCHIVE_TAG}"
+        URL_HASH SHA256=${ARCHIVE_SHA256}
+        DOWNLOAD_NAME "${name}-${ARCHIVE_TAG}.tar.gz"
+        DOWNLOAD_DIR "${PQSCAN_DOWNLOAD_DIR}"
+        INACTIVITY_TIMEOUT ${PQSCAN_DOWNLOAD_INACTIVITY_SECONDS}
+        ${ARCHIVE_UNPARSED_ARGUMENTS})
+endfunction()
+
 # These archives ship their own CMakeLists.txt, and the grammars' can run the Tree-sitter CLI.
 # Pointing SOURCE_SUBDIR at a missing directory makes FetchContent stop after extracting, so we
 # build only the generated C files below.
-FetchContent_Declare(tree_sitter
-    URL https://github.com/tree-sitter/tree-sitter/archive/refs/tags/v0.27.2.tar.gz
-    URL_HASH SHA256=356528363bf7fbad12a2cfeb5a2678c0118ef886a4d69ad9a379db5fdef0735f
-    DOWNLOAD_DIR "${PQSCAN_DOWNLOAD_DIR}"
+pqscan_declare_github_archive(tree_sitter
+    REPOSITORY tree-sitter/tree-sitter TAG v0.27.2
+    SHA256 356528363bf7fbad12a2cfeb5a2678c0118ef886a4d69ad9a379db5fdef0735f
     SOURCE_SUBDIR none)
-FetchContent_Declare(tree_sitter_c
-    URL https://github.com/tree-sitter/tree-sitter-c/archive/refs/tags/v0.24.2.tar.gz
-    URL_HASH SHA256=2eeb4db31f8fa0865e45488503d13403923bcb485a1bdb637abff8c42dd97364
-    DOWNLOAD_DIR "${PQSCAN_DOWNLOAD_DIR}"
+pqscan_declare_github_archive(tree_sitter_c
+    REPOSITORY tree-sitter/tree-sitter-c TAG v0.24.2
+    SHA256 2eeb4db31f8fa0865e45488503d13403923bcb485a1bdb637abff8c42dd97364
     SOURCE_SUBDIR none)
-FetchContent_Declare(tree_sitter_cpp
-    URL https://github.com/tree-sitter/tree-sitter-cpp/archive/refs/tags/v0.23.4.tar.gz
-    URL_HASH SHA256=7a2c55afe3028f4105f25762ea58cc16537d1f5a1dcd9cca90410b3cd5d46051
-    DOWNLOAD_DIR "${PQSCAN_DOWNLOAD_DIR}"
+pqscan_declare_github_archive(tree_sitter_cpp
+    REPOSITORY tree-sitter/tree-sitter-cpp TAG v0.23.4
+    SHA256 7a2c55afe3028f4105f25762ea58cc16537d1f5a1dcd9cca90410b3cd5d46051
     SOURCE_SUBDIR none)
-FetchContent_Declare(cjson
-    URL https://github.com/DaveGamble/cJSON/archive/refs/tags/v1.7.19.tar.gz
-    URL_HASH SHA256=7fa616e3046edfa7a28a32d5f9eacfd23f92900fe1f8ccd988c1662f30454562
-    DOWNLOAD_DIR "${PQSCAN_DOWNLOAD_DIR}"
+pqscan_declare_github_archive(cjson
+    REPOSITORY DaveGamble/cJSON TAG v1.7.19
+    SHA256 7fa616e3046edfa7a28a32d5f9eacfd23f92900fe1f8ccd988c1662f30454562
     SOURCE_SUBDIR none)
 FetchContent_MakeAvailable(tree_sitter tree_sitter_c tree_sitter_cpp cjson)
 
