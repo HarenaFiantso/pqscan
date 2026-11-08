@@ -7,6 +7,8 @@ explains for pqscan.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-08
+
 ### Added
 
 - A `pqscan(1)` man page, which a test keeps in step with `--help`.
@@ -162,7 +164,8 @@ explains for pqscan.
 - A recursive directory walk that never follows symbolic links.
 - A text scan of C and C++ source for known OpenSSL identifiers, and a plain-text report.
 
-[Unreleased]: https://github.com/HarenaFiantso/pqscan/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/HarenaFiantso/pqscan/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/HarenaFiantso/pqscan/compare/v0.10.0...v1.0.0
 [0.10.0]: https://github.com/HarenaFiantso/pqscan/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/HarenaFiantso/pqscan/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/HarenaFiantso/pqscan/compare/v0.7.0...v0.8.0
