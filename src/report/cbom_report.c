@@ -18,6 +18,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Room for any unsigned in decimal and its NUL. */
+enum { SCORE_TEXT_SIZE = 12 };
+
 static const char SCHEMA_URI[] = "http://cyclonedx.org/schema/bom-1.6.schema.json";
 static const char PRIMITIVE_UNKNOWN[] = "unknown";
 
@@ -223,10 +226,24 @@ static void write_identity(json_writer *json, const finding *asset) {
     json_end_string(json);
 }
 
-static void write_component_properties(json_writer *json, const finding *asset) {
+static unsigned highest_priority(const finding *const *group, size_t len) {
+    unsigned highest = 0;
+    for (size_t i = 0; i < len; i++) {
+        highest = (group[i]->priority.score > highest) ? group[i]->priority.score : highest;
+    }
+    return highest;
+}
+
+/* One asset can be used by components whose data must stay secret for different times, so it
+ * is as urgent as its most urgent use. */
+static void write_component_properties(json_writer *json, const finding *const *group, size_t len) {
+    const finding *asset = group[0];
+    char score[SCORE_TEXT_SIZE];
+    (void)snprintf(score, sizeof(score), "%u", highest_priority(group, len));
     json_key(json, "properties");
     json_begin_array(json);
     write_property(json, "pqscan:risk", risk_level_name(asset->risk));
+    write_property(json, "pqscan:priority", score);
     if (asset->size.kind == KEY_SIZE_UNKNOWN) {
         write_property(json, "pqscan:key-size", "unknown");
     }
@@ -240,7 +257,7 @@ static void write_component(json_writer *json, const finding *const *group, size
     write_identity(json, group[0]);
     write_crypto_properties(json, group[0]);
     write_evidence(json, group, len);
-    write_component_properties(json, group[0]);
+    write_component_properties(json, group, len);
     json_end_object(json);
 }
 

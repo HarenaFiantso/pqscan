@@ -21,6 +21,7 @@ enum {
     SAMPLE_BITS = 2048,
     SHORT_BITS = 1024,
     SAMPLE_YEAR = 2031,
+    SAMPLE_PRIORITY = 89,
 };
 
 static const key_size NO_KEY_SIZE = {KEY_SIZE_NOT_APPLICABLE, 0};
@@ -134,7 +135,7 @@ static void test_a_certificate_result_has_no_region_and_an_expiry(void) {
                              field(field(result(0), "properties"), "expires")->valuestring);
 }
 
-static void test_a_result_without_expiry_has_no_properties(void) {
+static void test_a_result_without_expiry_or_component_has_no_properties(void) {
     add_finding("RSA", NO_KEY_SIZE, RISK_QUANTUM_VULNERABLE);
     write_and_parse();
     TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(result(0), "properties"));
@@ -180,12 +181,40 @@ static void test_a_rule_shows_its_worst_use(void) {
                              field(field(rule, "properties"), "security-severity")->valuestring);
 }
 
-static void test_results_keep_the_scan_order(void) {
+static void test_results_keep_the_order_of_the_findings(void) {
     add_finding("RSA", NO_KEY_SIZE, RISK_QUANTUM_VULNERABLE);
     add_finding("DH", NO_KEY_SIZE, RISK_QUANTUM_VULNERABLE);
     write_and_parse();
     TEST_ASSERT_EQUAL_STRING("pqscan/RSA", field(result(0), "ruleId")->valuestring);
     TEST_ASSERT_EQUAL_STRING("pqscan/DH", field(result(1), "ruleId")->valuestring);
+}
+
+static void add_ranked(const char *component) {
+    priority rank = priority_none();
+    rank.score = SAMPLE_PRIORITY;
+    rank.component = component;
+    const finding item = {
+        "a.c",       SAMPLE_LINE,         "RSA",        RISK_QUANTUM_VULNERABLE,
+        NO_KEY_SIZE, PRIMITIVE_SIGNATURE, "the_symbol", utc_time_none(),
+        rank,
+    };
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
+}
+
+static void test_the_rank_of_a_result_is_its_priority(void) {
+    add_ranked(NULL);
+    add_finding("MD5", NO_KEY_SIZE, RISK_CLASSICALLY_WEAK);
+    write_and_parse();
+    TEST_ASSERT_EQUAL_INT(SAMPLE_PRIORITY, field(result(0), "rank")->valueint);
+    TEST_ASSERT_EQUAL_INT(0, field(result(1), "rank")->valueint);
+}
+
+static void test_a_result_names_its_component(void) {
+    add_ranked("payments");
+    write_and_parse();
+    TEST_ASSERT_EQUAL_STRING("payments",
+                             field(field(result(0), "properties"), "component")->valuestring);
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(field(result(0), "properties"), "expires"));
 }
 
 static void test_says_what_was_not_analyzed(void) {
@@ -241,12 +270,14 @@ int main(void) {
     RUN_TEST(test_names_the_tool);
     RUN_TEST(test_a_result_points_at_its_rule_and_line);
     RUN_TEST(test_a_certificate_result_has_no_region_and_an_expiry);
-    RUN_TEST(test_a_result_without_expiry_has_no_properties);
+    RUN_TEST(test_a_result_without_expiry_or_component_has_no_properties);
     RUN_TEST(test_the_message_tells_an_unresolved_key_size);
     RUN_TEST(test_levels_follow_the_risk);
     RUN_TEST(test_each_algorithm_has_one_sorted_rule);
     RUN_TEST(test_a_rule_shows_its_worst_use);
-    RUN_TEST(test_results_keep_the_scan_order);
+    RUN_TEST(test_results_keep_the_order_of_the_findings);
+    RUN_TEST(test_the_rank_of_a_result_is_its_priority);
+    RUN_TEST(test_a_result_names_its_component);
     RUN_TEST(test_says_what_was_not_analyzed);
     RUN_TEST(test_a_hostile_file_name_stays_inside_its_string);
     RUN_TEST(test_reports_a_failed_write);

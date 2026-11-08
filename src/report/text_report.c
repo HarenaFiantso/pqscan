@@ -28,8 +28,9 @@ static pqscan_status write_classification(const finding *item, FILE *out) {
     key_size_format_suffix(item->size, key_suffix, sizeof(key_suffix));
     char expiry[UTC_TIME_TEXT_SIZE];
     utc_time_format_date(&item->expires, expiry, sizeof(expiry));
-    const int written = fprintf(out, "%s (%s%s%s)\n", key_suffix, risk_level_name(item->risk),
-                                item->expires.known ? ", expires " : "", expiry);
+    const int written =
+        fprintf(out, "%s (%s, priority %u%s%s)\n", key_suffix, risk_level_name(item->risk),
+                item->priority.score, item->expires.known ? ", expires " : "", expiry);
     return (written < 0) ? PQSCAN_ERR_IO : PQSCAN_OK;
 }
 

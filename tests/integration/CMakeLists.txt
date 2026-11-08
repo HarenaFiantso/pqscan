@@ -170,6 +170,9 @@ pqscan_add_cli_test(without_a_project_equal_risks_go_by_path EXIT 1 ARGS priorit
 pqscan_add_cli_test(a_project_ranks_long_lived_secrets_first EXIT 1
     ARGS --project ../projects/priority.json priority
     STDOUT "${expected}/priority_with_project.txt" STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(a_later_year_raises_quantum_priorities EXIT 1
+    ARGS --project ../projects/priority.json --as-of 2036 priority
+    STDOUT "${expected}/priority_in_2036.txt" STDERR "${expected}/empty.txt")
 pqscan_add_cli_test(a_project_file_in_the_current_directory_is_read EXIT 1 ARGS .
     DIRECTORY "${projects}/discovered"
     STDOUT "${expected}/priority_discovered.txt" STDERR "${expected}/empty.txt")
