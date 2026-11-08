@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/report/sarif_uri.h"
 
+#include "pqscan/core/relative_path.h"
 #include "pqscan/report/json_writer.h"
 
 #include <stdbool.h>
@@ -35,10 +36,7 @@ static void write_uri_byte(json_writer *json, char byte) {
 }
 
 static const char *skip_current_directory(const char *path) {
-    const char *rest = path;
-    while (rest[0] == '.' && rest[1] == '/') {
-        rest += strspn(rest + 1, "/") + 1;
-    }
+    const char *rest = relative_path_of(path);
     return (*rest == '\0') ? CURRENT_DIRECTORY : rest;
 }
 
