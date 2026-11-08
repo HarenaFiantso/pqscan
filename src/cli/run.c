@@ -253,31 +253,39 @@ static int scan_with_loaded(const cli_options *options, run_inputs *inputs) {
     return (code == PQSCAN_EXIT_CLEAN) ? scan_with_inputs(options, inputs) : code;
 }
 
-static int load_inputs(const cli_options *options, rule_set **rules, project **target,
-                       baseline **accepted) {
-    int code = cli_load_rules(options->rules_path, rules);
+/* What run_scan() owns, so that one function loads it all and one frees it all. */
+typedef struct owned_inputs {
+    rule_set *rules;
+    project *target;
+    baseline *accepted;
+} owned_inputs;
+
+static int load_inputs(const cli_options *options, owned_inputs *owned) {
+    int code = cli_load_rules(options->rules_path, &owned->rules);
     if (code == PQSCAN_EXIT_CLEAN) {
-        code = cli_load_project(options->project_path, target);
+        code = cli_load_project(options->project_path, &owned->target);
     }
     if (code == PQSCAN_EXIT_CLEAN) {
-        code = cli_load_baseline(options->diff_path, accepted);
+        code = cli_load_baseline(options->diff_path, &owned->accepted);
     }
     return code;
 }
 
 /* Findings borrow names from the rules and the project, so these are freed last. */
+static void free_inputs(owned_inputs *owned) {
+    baseline_destroy(owned->accepted);
+    project_destroy(owned->target);
+    rule_set_destroy(owned->rules);
+}
+
 static int run_scan(const cli_options *options) {
-    rule_set *rules = NULL;
-    project *target = NULL;
-    baseline *accepted = NULL;
-    int code = load_inputs(options, &rules, &target, &accepted);
+    owned_inputs owned = {NULL, NULL, NULL};
+    int code = load_inputs(options, &owned);
     if (code == PQSCAN_EXIT_CLEAN) {
-        run_inputs inputs = {rules, target, accepted, CLI_AS_OF_NOW};
+        run_inputs inputs = {owned.rules, owned.target, owned.accepted, CLI_AS_OF_NOW};
         code = scan_with_loaded(options, &inputs);
     }
-    baseline_destroy(accepted);
-    project_destroy(target);
-    rule_set_destroy(rules);
+    free_inputs(&owned);
     return code;
 }
 
