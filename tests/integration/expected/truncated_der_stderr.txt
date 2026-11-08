@@ -1,0 +1,2 @@
+pqscan: warning: crypto/broken/truncated.der: skipped, not a certificate or key that can be read
+pqscan: scan incomplete: 1 path could not be analyzed

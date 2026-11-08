@@ -1,0 +1,7 @@
+pqscan: warning: crypto/broken/empty.crt: skipped, not a certificate or key that can be read
+pqscan: warning: crypto/broken/garbage.pem: skipped, not a certificate or key that can be read
+pqscan: warning: crypto/broken/good-then-cut.pem: skipped, not a certificate or key that can be read
+pqscan: warning: crypto/broken/notes.key: skipped, not a certificate or key that can be read
+pqscan: warning: crypto/broken/truncated.der: skipped, not a certificate or key that can be read
+pqscan: warning: crypto/broken/truncated.pem: skipped, not a certificate or key that can be read
+pqscan: scan incomplete: 6 paths could not be analyzed

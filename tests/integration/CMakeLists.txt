@@ -69,6 +69,18 @@ pqscan_add_cli_test(ignore_everything EXIT 0
     STDOUT "${expected}/empty.txt")
 pqscan_add_cli_test(configs EXIT 1 ARGS configs STDOUT "${expected}/configs.txt"
     STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(certificates EXIT 1 ARGS crypto/certs STDOUT "${expected}/crypto_certs.txt"
+    STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(keys EXIT 1 ARGS crypto/keys STDOUT "${expected}/crypto_keys.txt"
+    STDERR "${expected}/crypto_keys_stderr.txt")
+pqscan_add_cli_test(broken_certificates_keep_the_findings_of_the_rest EXIT 1 ARGS crypto/broken
+    STDOUT "${expected}/crypto_broken.txt" STDERR "${expected}/crypto_broken_stderr.txt")
+pqscan_add_cli_test(a_truncated_certificate_is_not_a_clean_result EXIT 4
+    ARGS crypto/broken/truncated.der
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/truncated_der_stderr.txt")
+pqscan_add_cli_test(an_encrypted_key_is_not_a_clean_result EXIT 4
+    ARGS crypto/keys/rsa-2048-encrypted.key
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/encrypted_key_stderr.txt")
 pqscan_add_cli_test(edge_cases EXIT 1 ARGS edge STDOUT "${expected}/edge_stdout.txt"
     STDERR "${expected}/edge_stderr.txt")
 
@@ -107,6 +119,9 @@ foreach(extension IN ITEMS json cbom.json sarif)
     pqscan_expected_report(report_clean.${extension})
     pqscan_expected_report(report_incomplete.${extension})
 endforeach()
+pqscan_expected_report(report_der_certificate.json)
+pqscan_add_cli_test(json_report_of_a_der_certificate EXIT 1 ARGS -f json crypto/certs/ec-p256.der
+    STDOUT "${CMAKE_CURRENT_BINARY_DIR}/report_der_certificate.json" STDERR "${expected}/empty.txt")
 pqscan_add_cli_test(json_report EXIT 1 ARGS --format json report edge/binary.c
     STDOUT "${CMAKE_CURRENT_BINARY_DIR}/report_incomplete.json")
 pqscan_add_cli_test(json_report_of_a_clean_tree EXIT 0 ARGS -f json clean

@@ -220,7 +220,19 @@
     {"pattern": "hmac-sha1", "kind": "config", "algorithm": "SHA-1", "primitive": "hash"},
     {"pattern": "hmac-sha1-96", "kind": "config", "algorithm": "SHA-1", "primitive": "hash"},
     {"pattern": "hmac-sha1-etm@openssh.com", "kind": "config", "algorithm": "SHA-1", "primitive": "hash"},
-    {"pattern": "hmac-sha1-96-etm@openssh.com", "kind": "config", "algorithm": "SHA-1", "primitive": "hash"}
+    {"pattern": "hmac-sha1-96-etm@openssh.com", "kind": "config", "algorithm": "SHA-1", "primitive": "hash"},
+    {"pattern": "rsaEncryption", "kind": "key", "algorithm": "RSA", "primitive": "unspecified"},
+    {"pattern": "RSASSA-PSS", "kind": "key", "algorithm": "RSA", "primitive": "signature"},
+    {"pattern": "DSA", "kind": "key", "algorithm": "DSA", "primitive": "signature"},
+    {"pattern": "dhKeyAgreement", "kind": "key", "algorithm": "DH", "primitive": "key_exchange"},
+    {"pattern": "dhpublicnumber", "kind": "key", "algorithm": "DH", "primitive": "key_exchange"},
+    {"pattern": "id-ecPublicKey", "kind": "key", "algorithm": "EC", "primitive": "unspecified"},
+    {"pattern": "ED25519", "kind": "key", "algorithm": "EdDSA", "primitive": "signature"},
+    {"pattern": "ED448", "kind": "key", "algorithm": "EdDSA", "primitive": "signature"},
+    {"pattern": "X25519", "kind": "key", "algorithm": "ECDH", "primitive": "key_exchange"},
+    {"pattern": "X448", "kind": "key", "algorithm": "ECDH", "primitive": "key_exchange"},
+    {"pattern": "MD5", "kind": "key", "algorithm": "MD5", "primitive": "hash"},
+    {"pattern": "SHA1", "kind": "key", "algorithm": "SHA-1", "primitive": "hash"}
   ],
   "calls": [
     {"name": "DH_generate_parameters_ex", "key_bits_argument": 1},

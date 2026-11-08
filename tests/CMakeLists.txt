@@ -29,6 +29,7 @@ endfunction()
 
 pqscan_add_unit_test(test_call_arguments scan/test_call_arguments.c)
 pqscan_add_unit_test(test_cbom_report report/test_cbom_report.c)
+pqscan_add_unit_test(test_cert_scanner scan/test_cert_scanner.c)
 pqscan_add_unit_test(test_config_lexer scan/test_config_lexer.c)
 pqscan_add_unit_test(test_config_list scan/test_config_list.c)
 pqscan_add_unit_test(test_config_scanner scan/test_config_scanner.c)
@@ -72,4 +73,6 @@ target_link_libraries(test_json_report PRIVATE pqscan_cjson)
 target_link_libraries(test_sarif_report PRIVATE pqscan_cjson)
 
 add_subdirectory(integration)
+target_compile_definitions(test_cert_scanner PRIVATE
+    PQSCAN_CRYPTO_FIXTURES="${PROJECT_SOURCE_DIR}/tests/fixtures/scan/crypto")
 target_compile_definitions(test_version PRIVATE PQSCAN_EXPECTED_VERSION="${PROJECT_VERSION}")
