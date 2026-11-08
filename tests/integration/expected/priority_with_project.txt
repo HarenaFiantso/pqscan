@@ -1,0 +1,6 @@
+priority/legacy.c:4: MD5 (CLASSICALLY_WEAK)
+priority/pay/card.c:2: RSA-2048 (QUANTUM_VULNERABLE)
+priority/metrics/telemetry.c:2: ECDSA (QUANTUM_VULNERABLE)
+priority/legacy.c:3: RSA (QUANTUM_VULNERABLE)
+priority/legacy.c:5: AES-128 (REVIEW)
+5 findings: 1 CLASSICALLY_WEAK, 3 QUANTUM_VULNERABLE, 1 REVIEW

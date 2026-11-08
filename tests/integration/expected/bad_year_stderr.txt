@@ -1,0 +1,2 @@
+pqscan: --as-of: expected a year from 1970 to 9999
+Try 'pqscan --help' for more information.

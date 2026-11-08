@@ -4,6 +4,7 @@
 #include "pqscan/cli/diagnostic.h"
 #include "pqscan/cli/exit_code.h"
 #include "pqscan/cli/options.h"
+#include "pqscan/cli/project_option.h"
 #include "pqscan/cli/rule_option.h"
 #include "pqscan/core/clock.h"
 #include "pqscan/core/finding.h"
@@ -11,6 +12,8 @@
 #include "pqscan/core/status.h"
 #include "pqscan/core/version.h"
 #include "pqscan/report/reporter.h"
+#include "pqscan/risk/prioritize.h"
+#include "pqscan/risk/project_file.h"
 #include "pqscan/risk/risk.h"
 #include "pqscan/rules/rule_set.h"
 #include "pqscan/scan/cert_scanner.h"
@@ -36,6 +39,9 @@ static const char USAGE[] =
     "Options:\n"
     "  -i, --ignore PATTERN  skip paths matching this glob (repeatable; .git is always skipped)\n"
     "  -r, --rules FILE      use the rules in this JSON file instead of the built-in ones\n"
+    "      --project FILE    read how long data must stay secret from this project file\n"
+    "                        (default .pqscan.json in the current directory, if there is one)\n"
+    "      --as-of YEAR      score priorities as if it were this year (default the current year)\n"
     "  -f, --format FORMAT   write the report as text, json, cbom or sarif\n"
     "      --fail-on LEVEL   lowest risk level that exits 1: OK, REVIEW, QUANTUM_VULNERABLE or\n"
     "                        CLASSICALLY_WEAK (default REVIEW)\n"
@@ -56,6 +62,13 @@ static const scanner *const SCANNERS[] = {
     &cert_scanner,
     &elf_scanner,
 };
+
+/* What a run reads before it scans. Findings borrow names from the rules and the project. */
+typedef struct run_inputs {
+    const rule_set *rules;
+    const project *target;
+    int as_of_year;
+} run_inputs;
 
 /* What every file of a run shares. */
 typedef struct scan_job {
@@ -169,20 +182,25 @@ static int report_findings(const scan_job *job, const reporter *format) {
     return exit_code_of(job);
 }
 
-static int scan_and_report(const cli_options *options, scan_job *job) {
+static int scan_and_report(const cli_options *options, scan_job *job, const run_inputs *inputs) {
     const int code = scan_paths(options, job);
-    return (code == PQSCAN_EXIT_CLEAN) ? report_findings(job, options->format) : code;
+    if (code != PQSCAN_EXIT_CLEAN) {
+        return code;
+    }
+    prioritize_findings(job->findings, inputs->target, inputs->as_of_year);
+    sort_by_priority(job->findings);
+    return report_findings(job, options->format);
 }
 
-static int scan_with_rules(const cli_options *options, const rule_set *rules) {
+static int scan_with_inputs(const cli_options *options, const run_inputs *inputs) {
     const time_t deadline = pqscan_monotonic_seconds() + (time_t)options->max_seconds;
     scan_job job = {
-        rules,     finding_list_create(), skip_list_create(), options->fail_on, NULL, deadline,
+        inputs->rules, finding_list_create(), skip_list_create(), options->fail_on, NULL, deadline,
         PQSCAN_OK,
     };
     int code = PQSCAN_EXIT_INTERNAL;
     if (job.findings != NULL && job.skipped != NULL) {
-        code = scan_and_report(options, &job);
+        code = scan_and_report(options, &job, inputs);
     } else {
         (void)fprintf(stderr, "pqscan: %s\n", pqscan_status_message(PQSCAN_ERR_NOMEM));
     }
@@ -191,13 +209,37 @@ static int scan_with_rules(const cli_options *options, const rule_set *rules) {
     return code;
 }
 
-/* Findings borrow their algorithm names from the rules, so the rules are freed last. */
+static int as_of_year_of(const cli_options *options, int *year) {
+    if (options->as_of_year != CLI_AS_OF_NOW) {
+        *year = options->as_of_year;
+        return PQSCAN_EXIT_CLEAN;
+    }
+    if (!pqscan_current_utc_year(year)) {
+        (void)fputs("pqscan: cannot read the date, give it with --as-of\n", stderr);
+        return PQSCAN_EXIT_INTERNAL;
+    }
+    return PQSCAN_EXIT_CLEAN;
+}
+
+static int scan_with_project(const cli_options *options, const rule_set *rules,
+                             const project *target) {
+    run_inputs inputs = {rules, target, CLI_AS_OF_NOW};
+    const int code = as_of_year_of(options, &inputs.as_of_year);
+    return (code == PQSCAN_EXIT_CLEAN) ? scan_with_inputs(options, &inputs) : code;
+}
+
+/* Findings borrow names from the rules and the project, so these are freed last. */
 static int run_scan(const cli_options *options) {
     rule_set *rules = NULL;
+    project *target = NULL;
     int code = cli_load_rules(options->rules_path, &rules);
     if (code == PQSCAN_EXIT_CLEAN) {
-        code = scan_with_rules(options, rules);
+        code = cli_load_project(options->project_path, &target);
     }
+    if (code == PQSCAN_EXIT_CLEAN) {
+        code = scan_with_project(options, rules, target);
+    }
+    project_destroy(target);
     rule_set_destroy(rules);
     return code;
 }

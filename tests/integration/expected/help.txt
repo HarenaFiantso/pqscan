@@ -6,6 +6,9 @@ certificates, keys and ELF binaries.
 Options:
   -i, --ignore PATTERN  skip paths matching this glob (repeatable; .git is always skipped)
   -r, --rules FILE      use the rules in this JSON file instead of the built-in ones
+      --project FILE    read how long data must stay secret from this project file
+                        (default .pqscan.json in the current directory, if there is one)
+      --as-of YEAR      score priorities as if it were this year (default the current year)
   -f, --format FORMAT   write the report as text, json, cbom or sarif
       --fail-on LEVEL   lowest risk level that exits 1: OK, REVIEW, QUANTUM_VULNERABLE or
                         CLASSICALLY_WEAK (default REVIEW)

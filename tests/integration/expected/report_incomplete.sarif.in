@@ -118,25 +118,6 @@
           "ruleId": "pqscan/RSA",
           "level": "error",
           "message": {
-            "text": "RSA_generate_key_ex uses RSA-2048: QUANTUM_VULNERABLE"
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "report/mixed.c"
-                },
-                "region": {
-                  "startLine": 3
-                }
-              }
-            }
-          ]
-        },
-        {
-          "ruleId": "pqscan/RSA",
-          "level": "error",
-          "message": {
             "text": "RSA_generate_key_ex uses RSA-1024: CLASSICALLY_WEAK"
           },
           "locations": [
@@ -147,6 +128,63 @@
                 },
                 "region": {
                   "startLine": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/RC4",
+          "level": "error",
+          "message": {
+            "text": "EVP_rc4 uses RC4: CLASSICALLY_WEAK"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 11
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/MD5",
+          "level": "error",
+          "message": {
+            "text": "EVP_md5 uses MD5: CLASSICALLY_WEAK"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "pqscan/RSA",
+          "level": "error",
+          "message": {
+            "text": "RSA_generate_key_ex uses RSA-2048: QUANTUM_VULNERABLE"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "report/mixed.c"
+                },
+                "region": {
+                  "startLine": 3
                 }
               }
             }
@@ -261,44 +299,6 @@
                 },
                 "region": {
                   "startLine": 10
-                }
-              }
-            }
-          ]
-        },
-        {
-          "ruleId": "pqscan/RC4",
-          "level": "error",
-          "message": {
-            "text": "EVP_rc4 uses RC4: CLASSICALLY_WEAK"
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "report/mixed.c"
-                },
-                "region": {
-                  "startLine": 11
-                }
-              }
-            }
-          ]
-        },
-        {
-          "ruleId": "pqscan/MD5",
-          "level": "error",
-          "message": {
-            "text": "EVP_md5 uses MD5: CLASSICALLY_WEAK"
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "report/mixed.c"
-                },
-                "region": {
-                  "startLine": 12
                 }
               }
             }

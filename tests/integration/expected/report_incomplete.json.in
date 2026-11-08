@@ -17,22 +17,42 @@
   "findings": [
     {
       "path": "report/mixed.c",
-      "line": 3,
-      "symbol": "RSA_generate_key_ex",
-      "algorithm": "RSA",
-      "key_size": 2048,
-      "primitive": "unspecified",
-      "risk": "QUANTUM_VULNERABLE",
-      "expires": null
-    },
-    {
-      "path": "report/mixed.c",
       "line": 4,
       "symbol": "RSA_generate_key_ex",
       "algorithm": "RSA",
       "key_size": 1024,
       "primitive": "unspecified",
       "risk": "CLASSICALLY_WEAK",
+      "expires": null
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 11,
+      "symbol": "EVP_rc4",
+      "algorithm": "RC4",
+      "key_size": null,
+      "primitive": "encryption",
+      "risk": "CLASSICALLY_WEAK",
+      "expires": null
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 12,
+      "symbol": "EVP_md5",
+      "algorithm": "MD5",
+      "key_size": null,
+      "primitive": "hash",
+      "risk": "CLASSICALLY_WEAK",
+      "expires": null
+    },
+    {
+      "path": "report/mixed.c",
+      "line": 3,
+      "symbol": "RSA_generate_key_ex",
+      "algorithm": "RSA",
+      "key_size": 2048,
+      "primitive": "unspecified",
+      "risk": "QUANTUM_VULNERABLE",
       "expires": null
     },
     {
@@ -93,26 +113,6 @@
       "key_size": null,
       "primitive": "encryption",
       "risk": "REVIEW",
-      "expires": null
-    },
-    {
-      "path": "report/mixed.c",
-      "line": 11,
-      "symbol": "EVP_rc4",
-      "algorithm": "RC4",
-      "key_size": null,
-      "primitive": "encryption",
-      "risk": "CLASSICALLY_WEAK",
-      "expires": null
-    },
-    {
-      "path": "report/mixed.c",
-      "line": 12,
-      "symbol": "EVP_md5",
-      "algorithm": "MD5",
-      "key_size": null,
-      "primitive": "hash",
-      "risk": "CLASSICALLY_WEAK",
       "expires": null
     }
   ],

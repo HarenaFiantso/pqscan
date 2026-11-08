@@ -9,7 +9,11 @@ function(pqscan_expected_report name)
     configure_file("${expected}/${name}.in" "${CMAKE_CURRENT_BINARY_DIR}/${name}" @ONLY)
 endfunction()
 
-function(pqscan_add_memcheck_case name joined_args)
+# Priorities depend on the year, so every case scores for the same one. A case can still give
+# its own --as-of, which comes later and wins.
+set(pinned_year 2026)
+
+function(pqscan_add_memcheck_case name joined_args directory)
     list(JOIN PQSCAN_MEMCHECK_COMMAND "|" joined_memcheck)
     add_test(NAME cli_${name}_memcheck
         COMMAND "${CMAKE_COMMAND}"
@@ -18,14 +22,20 @@ function(pqscan_add_memcheck_case name joined_args)
             "-DMEMCHECK=${joined_memcheck}"
             "-DMEMCHECK_FAILURE_EXIT=${PQSCAN_MEMCHECK_FAILURE_EXIT}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/run_memcheck_case.cmake"
-        WORKING_DIRECTORY "${fixtures}")
+        WORKING_DIRECTORY "${directory}")
     set_tests_properties(cli_${name}_memcheck PROPERTIES LABELS valgrind)
 endfunction()
 
-# Usage: pqscan_add_cli_test(name EXIT code [ARGS ...] [STDOUT file] [STDERR file] [STDOUT_SINK file])
+# Usage: pqscan_add_cli_test(name EXIT code [ARGS ...] [STDOUT file] [STDERR file]
+#                            [STDOUT_SINK file] [DIRECTORY dir])
+# The case runs in DIRECTORY, by default the scan fixtures.
 function(pqscan_add_cli_test name)
-    cmake_parse_arguments(PARSE_ARGV 1 CASE "" "EXIT;STDOUT;STDERR;STDOUT_SINK" "ARGS")
+    cmake_parse_arguments(PARSE_ARGV 1 CASE "" "EXIT;STDOUT;STDERR;STDOUT_SINK;DIRECTORY" "ARGS")
+    if(NOT CASE_DIRECTORY)
+        set(CASE_DIRECTORY "${fixtures}")
+    endif()
     list(JOIN CASE_ARGS "|" joined_args)
+    set(joined_args "--as-of|${pinned_year}|${joined_args}")
     add_test(NAME cli_${name}
         COMMAND "${CMAKE_COMMAND}"
             "-DPQSCAN=$<TARGET_FILE:pqscan>"
@@ -35,9 +45,9 @@ function(pqscan_add_cli_test name)
             "-DEXPECTED_STDERR=${CASE_STDERR}"
             "-DSTDOUT_SINK=${CASE_STDOUT_SINK}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/run_case.cmake"
-        WORKING_DIRECTORY "${fixtures}")
+        WORKING_DIRECTORY "${CASE_DIRECTORY}")
     if(PQSCAN_ENABLE_MEMCHECK)
-        pqscan_add_memcheck_case(${name} "${joined_args}")
+        pqscan_add_memcheck_case(${name} "${joined_args}" "${CASE_DIRECTORY}")
     endif()
 endfunction()
 
@@ -153,6 +163,27 @@ pqscan_add_cli_test(rules_without_file EXIT 2 ARGS findings --rules STDOUT "${ex
 pqscan_add_cli_test(rules_cannot_forge_a_diagnostic EXIT 2
     ARGS --rules ../rules/escape_in_field.json findings
     STDOUT "${expected}/empty.txt" STDERR "${expected}/escape_in_field_stderr.txt")
+
+set(projects "${PROJECT_SOURCE_DIR}/tests/fixtures/projects")
+pqscan_add_cli_test(without_a_project_equal_risks_go_by_path EXIT 1 ARGS priority
+    STDOUT "${expected}/priority_without_project.txt" STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(a_project_ranks_long_lived_secrets_first EXIT 1
+    ARGS --project ../projects/priority.json priority
+    STDOUT "${expected}/priority_with_project.txt" STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(a_project_file_in_the_current_directory_is_read EXIT 1 ARGS .
+    DIRECTORY "${projects}/discovered"
+    STDOUT "${expected}/priority_discovered.txt" STDERR "${expected}/empty.txt")
+pqscan_add_cli_test(a_broken_project_file_in_the_current_directory_is_an_error EXIT 2 ARGS .
+    DIRECTORY "${projects}/broken_discovered"
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/broken_discovered_project_stderr.txt")
+pqscan_add_cli_test(invalid_project EXIT 2 ARGS --project ../projects/unknown_field.json priority
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/unknown_field_project_stderr.txt")
+pqscan_add_cli_test(missing_project EXIT 2 ARGS --project ../projects/no-such-file.json priority
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/missing_project_stderr.txt")
+pqscan_add_cli_test(project_without_file EXIT 2 ARGS priority --project
+    STDOUT "${expected}/empty.txt")
+pqscan_add_cli_test(year_must_be_a_year EXIT 2 ARGS --as-of 26 priority
+    STDOUT "${expected}/empty.txt" STDERR "${expected}/bad_year_stderr.txt")
 
 # /dev/full fails every write. macOS does not have it.
 if(EXISTS /dev/full)
