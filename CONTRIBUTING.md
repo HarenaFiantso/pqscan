@@ -279,6 +279,33 @@ The page repeats facts from the README, and its examples are real output. Update
 exit codes or report formats change. The page must also read well without JavaScript and with
 `prefers-reduced-motion`.
 
+## Adding a rule
+
+The built-in rules are [rules/default.json](rules/default.json), in the format the
+[README](README.md#rules) describes. The build compiles that file into the binary, so a rule
+takes no C code. To add one:
+
+1. **Reproduce first.** Add the smallest input that uses the name to the fixtures: source under
+   `tests/fixtures/scan/findings/`, a configuration under `configs/`, or a certificate or key under
+   `crypto/`, made by its `generate.sh`. Add the line you expect to the matching file in
+   `tests/integration/expected/`, and watch `ctest --preset debug -R cli_` fail.
+2. **Add the rule.** Write the `pattern` exactly as OpenSSL spells it, with its `kind`, and the
+   `algorithm` and `primitive` the name itself says. Use `unspecified` when it doesn't say what the
+   key does: `RSA_new` makes a key that could sign or encrypt. A new algorithm also goes in
+   `algorithms`, with its level from the [risk levels](README.md#risk-levels).
+3. **Say what else the name tells.** Give `key_bits` when the name fixes the size, as
+   `NID_secp384r1` does, and `call_only` when the name is also common as a variable or an enum
+   value, as `MD5` is. A function whose argument holds a key size or an algorithm name also goes
+   in `calls`.
+4. **Test the decision.** When a rule settles a question, such as which of two weaknesses a name
+   reports, assert it in `tests/rules/test_default_rules.c`.
+5. **Measure.** Run every test, then `python3 bench/bench.py evaluate`: a rule must not lower
+   precision on the corpus. If a held-out miss led to it, say in the commit that the held-out set
+   is no longer blind.
+6. **Note it** under `Unreleased` in `CHANGELOG.md`, since a new rule changes what users find.
+
+Use a commit such as `feat(rules): report EC_GROUP_new_curve_GF2m`.
+
 ## Reporting a false positive or false negative
 
 Open a [detection report](https://github.com/HarenaFiantso/pqscan/issues/new?template=detection_report.yml)
@@ -287,3 +314,24 @@ reported.
 
 To fix one yourself, add a fixture under `tests/fixtures/` that reproduces the problem
 before changing any detection code. If it comes from a project in `bench/`, label it there too.
+
+## Releasing
+
+A release follows [Versioning](README.md#versioning): a patch release fixes, a minor release adds
+rules, options or fields, and a major release breaks one of its promises.
+
+1. In a pull request, set the version in `CMakeLists.txt`, give the `Unreleased` section of
+   `CHANGELOG.md` the version and the date, with a link at the bottom, and update the version the
+   README and the website show.
+2. Merge it once CI and the Release workflow pass. The Release workflow builds and tests every
+   archive on each change, so the tag finds nothing new.
+3. Tag the merge commit, and push the tag:
+
+   ```sh
+   git tag --annotate v1.2.0 --message "pqscan 1.2.0"
+   git push origin v1.2.0
+   ```
+
+The Release workflow then checks that the tag names the version in `CMakeLists.txt`, pushes the
+image, publishes the archives with `SHA256SUMS` and their attestations, with the changelog section
+as release notes, and moves the `v1` tag to the new release.
