@@ -29,4 +29,13 @@ typedef struct key_size {
  */
 void key_size_format_suffix(key_size size, char *suffix, size_t capacity);
 
+/**
+ * @brief Order two key sizes: none first, then unresolved, then known ones by their bits.
+ *
+ * @param left The first size.
+ * @param right The second size.
+ * @return Less than, equal to or greater than zero, as for qsort().
+ */
+int key_size_compare(key_size left, key_size right);
+
 #endif /* PQSCAN_CORE_KEY_SIZE_H */
