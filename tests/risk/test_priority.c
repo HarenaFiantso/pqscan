@@ -5,12 +5,24 @@
 
 #include <stddef.h>
 
+/* The scoring rules, restated so that a change to them has to change a test. */
+enum {
+    REVIEW_SCORE = 10,
+    QUANTUM_BASE = 50,
+    DEPRECATED_POINTS = 10,
+    DISALLOWED_POINTS = 20,
+    EDGE_POINTS = 10,
+    MOST_EXPOSURE_POINTS = 29,
+};
+
 enum {
     THIS_YEAR = 2026,
     QUANTUM_YEAR = 2035,
     YEARS_TO_QUANTUM = QUANTUM_YEAR - THIS_YEAR,
     LONG_SECRET = 25,
     MIGRATION = 5,
+    LATE = 3,
+    LATEST_START = PRIORITY_MAX_YEAR - PRIORITY_MAX_SPAN_YEARS,
 };
 
 static const priority_basis BASIS = {THIS_YEAR, QUANTUM_YEAR};
@@ -24,10 +36,14 @@ static unsigned score_of(risk_level risk, const data_lifetime *lifetime) {
     return priority_assess(risk, lifetime, &BASIS).score;
 }
 
-static unsigned quantum_score(int secrecy, int migration, int as_of_year) {
-    const data_lifetime lifetime = {NULL, secrecy, migration};
+static priority quantum_priority(const data_lifetime *lifetime, int as_of_year) {
     const priority_basis basis = {as_of_year, QUANTUM_YEAR};
-    return priority_assess(RISK_QUANTUM_VULNERABLE, &lifetime, &basis).score;
+    return priority_assess(RISK_QUANTUM_VULNERABLE, lifetime, &basis);
+}
+
+/* What a project that declares nothing scores in a year. */
+static unsigned undeclared_score(int as_of_year) {
+    return quantum_priority(&NOTHING_DECLARED, as_of_year).score;
 }
 
 static void test_a_new_finding_has_no_priority(void) {
@@ -40,7 +56,7 @@ static void test_a_new_finding_has_no_priority(void) {
 static void test_levels_outside_the_quantum_timeline_have_fixed_scores(void) {
     const data_lifetime secret = {"vault", LONG_SECRET, MIGRATION};
     TEST_ASSERT_EQUAL_UINT(0, score_of(RISK_OK, &secret));
-    TEST_ASSERT_EQUAL_UINT(10, score_of(RISK_REVIEW, &secret));
+    TEST_ASSERT_EQUAL_UINT(REVIEW_SCORE, score_of(RISK_REVIEW, &secret));
     TEST_ASSERT_EQUAL_UINT(PRIORITY_MAX_SCORE, score_of(RISK_CLASSICALLY_WEAK, &secret));
     TEST_ASSERT_FALSE(priority_assess(RISK_CLASSICALLY_WEAK, &secret, &BASIS).timeline.applies);
 }
@@ -48,14 +64,12 @@ static void test_levels_outside_the_quantum_timeline_have_fixed_scores(void) {
 static void test_keeps_the_component_whatever_the_level(void) {
     const data_lifetime lifetime = {"payments", LONG_SECRET, MIGRATION};
     TEST_ASSERT_EQUAL_STRING("payments", priority_assess(RISK_OK, &lifetime, &BASIS).component);
-    TEST_ASSERT_EQUAL_STRING("payments",
-                             priority_assess(RISK_QUANTUM_VULNERABLE, &lifetime, &BASIS).component);
+    TEST_ASSERT_EQUAL_STRING("payments", quantum_priority(&lifetime, THIS_YEAR).component);
 }
 
 static void test_records_why_a_quantum_vulnerable_finding_scores_what_it_does(void) {
     const data_lifetime lifetime = {NULL, LONG_SECRET, MIGRATION};
-    const quantum_timeline timeline =
-        priority_assess(RISK_QUANTUM_VULNERABLE, &lifetime, &BASIS).timeline;
+    const quantum_timeline timeline = quantum_priority(&lifetime, THIS_YEAR).timeline;
     TEST_ASSERT_TRUE(timeline.applies);
     TEST_ASSERT_EQUAL_INT(LONG_SECRET, timeline.secrecy_years);
     TEST_ASSERT_EQUAL_INT(MIGRATION, timeline.migration_years);
@@ -64,66 +78,67 @@ static void test_records_why_a_quantum_vulnerable_finding_scores_what_it_does(vo
     TEST_ASSERT_EQUAL_INT(IR8547_DEPRECATED, timeline.status);
 }
 
-/* 50, nothing from IR 8547 in 2026, and 10 + 0 + 0 - 9 = 1. */
 static void test_nothing_declared_scores_from_the_dates_alone(void) {
-    TEST_ASSERT_EQUAL_UINT(51, score_of(RISK_QUANTUM_VULNERABLE, &NOTHING_DECLARED));
+    TEST_ASSERT_EQUAL_UINT(QUANTUM_BASE + EDGE_POINTS - YEARS_TO_QUANTUM,
+                           undeclared_score(THIS_YEAR));
+}
+
+static ir8547_status status_when(int as_of_year, int migration_years) {
+    const data_lifetime lifetime = {NULL, 0, migration_years};
+    return quantum_priority(&lifetime, as_of_year).timeline.status;
 }
 
 static void test_the_ir8547_status_is_taken_when_the_migration_ends(void) {
-    TEST_ASSERT_EQUAL_INT(
-        IR8547_ACCEPTABLE,
-        priority_assess(RISK_QUANTUM_VULNERABLE, &NOTHING_DECLARED, &BASIS).timeline.status);
-    const priority_basis in_2030 = {IR8547_DEPRECATED_AFTER, QUANTUM_YEAR};
-    const data_lifetime one_year = {NULL, 0, 1};
-    TEST_ASSERT_EQUAL_INT(
-        IR8547_DEPRECATED,
-        priority_assess(RISK_QUANTUM_VULNERABLE, &one_year, &in_2030).timeline.status);
-    const priority_basis in_2035 = {IR8547_DISALLOWED_AFTER, QUANTUM_YEAR};
-    TEST_ASSERT_EQUAL_INT(
-        IR8547_DEPRECATED,
-        priority_assess(RISK_QUANTUM_VULNERABLE, &NOTHING_DECLARED, &in_2035).timeline.status);
-    TEST_ASSERT_EQUAL_INT(
-        IR8547_DISALLOWED,
-        priority_assess(RISK_QUANTUM_VULNERABLE, &one_year, &in_2035).timeline.status);
+    TEST_ASSERT_EQUAL_INT(IR8547_ACCEPTABLE, status_when(IR8547_DEPRECATED_AFTER, 0));
+    TEST_ASSERT_EQUAL_INT(IR8547_DEPRECATED, status_when(IR8547_DEPRECATED_AFTER, 1));
+    TEST_ASSERT_EQUAL_INT(IR8547_DEPRECATED, status_when(IR8547_DISALLOWED_AFTER, 0));
+    TEST_ASSERT_EQUAL_INT(IR8547_DISALLOWED, status_when(IR8547_DISALLOWED_AFTER, 1));
 }
 
-static void test_a_deadline_adds_ten_or_twenty_points(void) {
-    TEST_ASSERT_EQUAL_UINT(50 + 0 + 3, quantum_score(0, 0, IR8547_DEPRECATED_AFTER - 2));
-    TEST_ASSERT_EQUAL_UINT(50 + 10 + 6, quantum_score(0, 0, IR8547_DEPRECATED_AFTER + 1));
-    TEST_ASSERT_EQUAL_UINT(50 + 20 + 11, quantum_score(0, 0, IR8547_DISALLOWED_AFTER + 1));
+static void test_a_deadline_adds_its_points(void) {
+    const int before = IR8547_DEPRECATED_AFTER - 1;
+    const int deprecated = IR8547_DEPRECATED_AFTER + 1;
+    const int disallowed = IR8547_DISALLOWED_AFTER + 1;
+    TEST_ASSERT_EQUAL_UINT(QUANTUM_BASE + EDGE_POINTS - (QUANTUM_YEAR - before),
+                           undeclared_score(before));
+    TEST_ASSERT_EQUAL_UINT(QUANTUM_BASE + DEPRECATED_POINTS + EDGE_POINTS -
+                               (QUANTUM_YEAR - deprecated),
+                           undeclared_score(deprecated));
+    TEST_ASSERT_EQUAL_UINT(QUANTUM_BASE + DISALLOWED_POINTS + EDGE_POINTS -
+                               (QUANTUM_YEAR - disallowed),
+                           undeclared_score(disallowed));
 }
 
 static void test_mosca_counts_every_year_of_exposure(void) {
     const data_lifetime on_the_edge = {NULL, YEARS_TO_QUANTUM - MIGRATION, MIGRATION};
     const data_lifetime one_year_over = {NULL, YEARS_TO_QUANTUM - MIGRATION + 1, MIGRATION};
-    const priority edge = priority_assess(RISK_QUANTUM_VULNERABLE, &on_the_edge, &BASIS);
-    const priority over = priority_assess(RISK_QUANTUM_VULNERABLE, &one_year_over, &BASIS);
+    const priority edge = quantum_priority(&on_the_edge, THIS_YEAR);
+    const priority over = quantum_priority(&one_year_over, THIS_YEAR);
     TEST_ASSERT_FALSE(quantum_timeline_exposed(&edge.timeline));
     TEST_ASSERT_TRUE(quantum_timeline_exposed(&over.timeline));
-    TEST_ASSERT_EQUAL_UINT(50 + 10 + 10, edge.score);
+    TEST_ASSERT_EQUAL_UINT(QUANTUM_BASE + DEPRECATED_POINTS + EDGE_POINTS, edge.score);
     TEST_ASSERT_EQUAL_UINT(edge.score + 1, over.score);
 }
 
 static void test_exposure_points_are_capped_at_both_ends(void) {
-    TEST_ASSERT_EQUAL_UINT(50, quantum_score(0, 0, PRIORITY_MIN_YEAR));
-    TEST_ASSERT_EQUAL_UINT(50 + 10 + 29, quantum_score(LONG_SECRET, MIGRATION, THIS_YEAR));
-    TEST_ASSERT_EQUAL_UINT(50 + 20 + 29,
-                           quantum_score(PRIORITY_MAX_SPAN_YEARS, PRIORITY_MAX_SPAN_YEARS,
-                                         PRIORITY_MAX_YEAR - PRIORITY_MAX_SPAN_YEARS));
+    TEST_ASSERT_EQUAL_UINT(QUANTUM_BASE, undeclared_score(PRIORITY_MIN_YEAR));
+    const data_lifetime long_secret = {NULL, LONG_SECRET, MIGRATION};
+    TEST_ASSERT_EQUAL_UINT(QUANTUM_BASE + DEPRECATED_POINTS + MOST_EXPOSURE_POINTS,
+                           quantum_priority(&long_secret, THIS_YEAR).score);
 }
 
 static void test_a_quantum_vulnerable_finding_never_outranks_a_weak_one(void) {
-    const unsigned highest = quantum_score(PRIORITY_MAX_SPAN_YEARS, PRIORITY_MAX_SPAN_YEARS,
-                                           PRIORITY_MAX_YEAR - PRIORITY_MAX_SPAN_YEARS);
+    const data_lifetime longest = {NULL, PRIORITY_MAX_SPAN_YEARS, PRIORITY_MAX_SPAN_YEARS};
+    const unsigned highest = quantum_priority(&longest, LATEST_START).score;
+    TEST_ASSERT_EQUAL_UINT(QUANTUM_BASE + DISALLOWED_POINTS + MOST_EXPOSURE_POINTS, highest);
     TEST_ASSERT_LESS_THAN_UINT(PRIORITY_MAX_SCORE, highest);
 }
 
 static void test_a_past_quantum_year_counts_down(void) {
-    const data_lifetime lifetime = {NULL, 0, 0};
-    const priority_basis late = {QUANTUM_YEAR + 3, QUANTUM_YEAR};
-    const priority result = priority_assess(RISK_QUANTUM_VULNERABLE, &lifetime, &late);
-    TEST_ASSERT_EQUAL_INT(-3, result.timeline.years_to_quantum);
-    TEST_ASSERT_TRUE(quantum_timeline_exposed(&result.timeline));
+    const quantum_timeline timeline =
+        quantum_priority(&NOTHING_DECLARED, QUANTUM_YEAR + LATE).timeline;
+    TEST_ASSERT_EQUAL_INT(-LATE, timeline.years_to_quantum);
+    TEST_ASSERT_TRUE(quantum_timeline_exposed(&timeline));
 }
 
 static void test_a_timeline_that_does_not_apply_is_never_exposed(void) {
@@ -145,7 +160,7 @@ int main(void) {
     RUN_TEST(test_records_why_a_quantum_vulnerable_finding_scores_what_it_does);
     RUN_TEST(test_nothing_declared_scores_from_the_dates_alone);
     RUN_TEST(test_the_ir8547_status_is_taken_when_the_migration_ends);
-    RUN_TEST(test_a_deadline_adds_ten_or_twenty_points);
+    RUN_TEST(test_a_deadline_adds_its_points);
     RUN_TEST(test_mosca_counts_every_year_of_exposure);
     RUN_TEST(test_exposure_points_are_capped_at_both_ends);
     RUN_TEST(test_a_quantum_vulnerable_finding_never_outranks_a_weak_one);
