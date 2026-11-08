@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-#include "pqscan/walk/ignore.h"
+#include "pqscan/core/path_pattern.h"
 
 #include "pqscan/core/string_list.h"
 
@@ -20,7 +20,7 @@ static const char *last_component(const char *path) {
     return (separator == NULL) ? path : separator + 1;
 }
 
-bool ignore_matches(const string_list *patterns, const char *path) {
+bool path_pattern_matches(const string_list *patterns, const char *path) {
     const char *relative = strip_current_dir(path);
     const char *name = last_component(relative);
     for (size_t i = 0; i < string_list_count(patterns); i++) {

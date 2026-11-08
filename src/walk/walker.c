@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/walk/walker.h"
 
+#include "pqscan/core/path_pattern.h"
 #include "pqscan/core/status.h"
 #include "pqscan/core/string_list.h"
-#include "pqscan/walk/ignore.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -85,8 +85,8 @@ static const char *relative_to_root(const walker *state, const char *path) {
 }
 
 static bool is_ignored(const walker *state, const char *path) {
-    return ignore_matches(state->ignores, path) ||
-           ignore_matches(state->ignores, relative_to_root(state, path));
+    return path_pattern_matches(state->ignores, path) ||
+           path_pattern_matches(state->ignores, relative_to_root(state, path));
 }
 
 /* Pushed last to first, because the stack pops them back in sorted order. */

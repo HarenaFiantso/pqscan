@@ -34,6 +34,7 @@ add_library(pqscan_core STATIC
     src/core/finding.c
     src/core/key_size.c
     src/core/memory.c
+    src/core/path_pattern.c
     src/core/primitive.c
     src/core/safe_text.c
     src/core/skip_list.c
@@ -71,7 +72,6 @@ add_library(pqscan_core STATIC
     src/scan/source_scanner.c
     src/scan/syntax_parser.c
     src/walk/file_type.c
-    src/walk/ignore.c
     src/walk/walker.c)
 target_include_directories(pqscan_core PUBLIC include)
 target_compile_definitions(pqscan_core PRIVATE PQSCAN_VERSION_STRING="${PROJECT_VERSION}")
