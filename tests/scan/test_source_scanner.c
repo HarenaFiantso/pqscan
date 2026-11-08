@@ -231,6 +231,15 @@ static void test_an_identifier_can_fix_the_key_size(void) {
     assert_risk_at(2, RISK_QUANTUM_VULNERABLE);
 }
 
+/* Found by the held-out evaluation set, in openssh's ssh-pkcs11.c. */
+static void test_reports_ec_point_encodings(void) {
+    scan_text("void f(void) {\n"
+              "  o2i_ECPublicKey(&ec, &p, len);\n"
+              "  i2o_ECPublicKey(ec, &out);\n"
+              "}\n");
+    assert_findings("2:EC 3:EC");
+}
+
 static void test_an_unresolved_key_size_keeps_the_base_risk(void) {
     scan_text("void f(int bits) { RSA_generate_key_ex(r, bits, 0, 0); }\n");
     assert_findings("1:RSA-unknown");
@@ -492,6 +501,7 @@ int main(void) {
     RUN_TEST(test_ignores_one_shot_hash_methods);
     RUN_TEST(test_a_short_literal_key_is_classically_weak);
     RUN_TEST(test_an_identifier_can_fix_the_key_size);
+    RUN_TEST(test_reports_ec_point_encodings);
     RUN_TEST(test_an_unresolved_key_size_keeps_the_base_risk);
     RUN_TEST(test_a_size_next_to_an_algorithm_name_sets_the_risk);
     RUN_TEST(test_findings_carry_the_primitive_of_their_rule);
