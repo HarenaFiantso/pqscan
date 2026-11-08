@@ -126,3 +126,31 @@ static bool write_to_stream(const char *bytes, size_t len, void *context) {
 pqscan_status safe_text_write(FILE *out, const char *text) {
     return safe_text_visit(text, write_to_stream, out) ? PQSCAN_OK : PQSCAN_ERR_IO;
 }
+
+/* Where a comparison is in the safe form it is matched against. */
+typedef struct comparison {
+    const unsigned char *rest;
+    int order;
+} comparison;
+
+/* The pieces never hold a NUL, so the end of rest is a mismatch, found before reading past it. */
+static bool compare_piece(const char *bytes, size_t len, void *context) {
+    comparison *state = context;
+    for (size_t i = 0; i < len; i++) {
+        const unsigned char ours = (unsigned char)bytes[i];
+        if (ours != state->rest[i]) {
+            state->order = (ours < state->rest[i]) ? -1 : 1;
+            return false;
+        }
+    }
+    state->rest += len;
+    return true;
+}
+
+int safe_text_compare(const char *text, const char *safe) {
+    comparison state = {(const unsigned char *)safe, 0};
+    if (!safe_text_visit(text, compare_piece, &state)) {
+        return state.order;
+    }
+    return (*state.rest == '\0') ? 0 : -1;
+}

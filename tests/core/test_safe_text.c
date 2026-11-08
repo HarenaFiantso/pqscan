@@ -100,6 +100,37 @@ static void test_a_sink_can_stop_the_visit(void) {
     TEST_ASSERT_TRUE(safe_text_visit("", refuse_everything, NULL));
 }
 
+static int sign_of(int value) { return (value > 0) - (value < 0); }
+
+static void test_a_text_equals_its_safe_form(void) {
+    TEST_ASSERT_EQUAL_INT(0, safe_text_compare("src/a.c", "src/a.c"));
+    TEST_ASSERT_EQUAL_INT(0, safe_text_compare("a\nb", "a\\x0ab"));
+    TEST_ASSERT_EQUAL_INT(0, safe_text_compare("a\\b", "a\\\\b"));
+    TEST_ASSERT_EQUAL_INT(0, safe_text_compare("\xff", "\\xff"));
+    TEST_ASSERT_EQUAL_INT(0, safe_text_compare("", ""));
+}
+
+static void test_a_text_differs_from_its_raw_bytes_when_they_are_escaped(void) {
+    TEST_ASSERT_NOT_EQUAL_INT(0, safe_text_compare("a\nb", "a\nb"));
+    TEST_ASSERT_NOT_EQUAL_INT(0, safe_text_compare("a\\x0ab", "a\\x0ab"));
+}
+
+static void test_the_order_is_the_order_of_the_safe_forms(void) {
+    TEST_ASSERT_EQUAL_INT(-1, sign_of(safe_text_compare("a.c", "b.c")));
+    TEST_ASSERT_EQUAL_INT(1, sign_of(safe_text_compare("b.c", "a.c")));
+    /* A line break sorts before a space, but its safe form "\x0a" sorts after one. */
+    TEST_ASSERT_EQUAL_INT(1, sign_of(safe_text_compare("\n", " ")));
+    TEST_ASSERT_EQUAL_INT(1, sign_of(safe_text_compare("\xc3\xa9", "z")));
+}
+
+static void test_a_prefix_sorts_first(void) {
+    TEST_ASSERT_EQUAL_INT(-1, sign_of(safe_text_compare("a", "a.c")));
+    TEST_ASSERT_EQUAL_INT(1, sign_of(safe_text_compare("a.c", "a")));
+    TEST_ASSERT_EQUAL_INT(1, sign_of(safe_text_compare("\n", "\\x0")));
+    TEST_ASSERT_EQUAL_INT(1, sign_of(safe_text_compare("a", "")));
+    TEST_ASSERT_EQUAL_INT(-1, sign_of(safe_text_compare("", "a")));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_plain_paths_are_unchanged);
@@ -112,5 +143,9 @@ int main(void) {
     RUN_TEST(test_utf8_reordering_marks_are_escaped);
     RUN_TEST(test_reports_a_failed_write);
     RUN_TEST(test_a_sink_can_stop_the_visit);
+    RUN_TEST(test_a_text_equals_its_safe_form);
+    RUN_TEST(test_a_text_differs_from_its_raw_bytes_when_they_are_escaped);
+    RUN_TEST(test_the_order_is_the_order_of_the_safe_forms);
+    RUN_TEST(test_a_prefix_sorts_first);
     return UNITY_END();
 }

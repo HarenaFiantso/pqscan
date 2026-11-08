@@ -45,4 +45,18 @@ pqscan_status safe_text_write(FILE *out, const char *text);
  */
 bool safe_text_visit(const char *text, safe_text_sink sink, void *context);
 
+/**
+ * @brief Compare a text with a safe form read back from an earlier report, without building the
+ *        safe form of the text.
+ *
+ * The safe form maps back to exactly one text, so two texts are equal if and only if their safe
+ * forms are. Comparing the forms lets a file written with safe_text be matched against raw names.
+ *
+ * @param text The raw text, NUL-terminated.
+ * @param safe A safe form, NUL-terminated.
+ * @return Less than, equal to or greater than zero as the safe form of @p text sorts before, the
+ *         same as or after @p safe, in the order of strcmp().
+ */
+int safe_text_compare(const char *text, const char *safe);
+
 #endif /* PQSCAN_CORE_SAFE_TEXT_H */
