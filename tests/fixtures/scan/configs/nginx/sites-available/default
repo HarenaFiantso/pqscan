@@ -1,0 +1,8 @@
+server {
+    listen 443 ssl;
+    # ssl_ciphers RC4-MD5;
+    ssl_ciphers "ECDHE-ECDSA-AES256-GCM-SHA384:
+                 DHE-RSA-AES256-GCM-SHA384:!aNULL";
+    ssl_ecdh_curve X25519MLKEM768:X25519;
+    ssl_conf_command SignatureAlgorithms ed25519:rsa_pss_rsae_sha256;
+}

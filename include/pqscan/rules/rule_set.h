@@ -15,7 +15,7 @@ enum { RULE_SET_MAX_ALGORITHMS = 256 };
 /** Marks a call that has no argument of this kind. */
 enum { CALL_NO_ARGUMENT = -1 };
 
-/** What a pattern stands for in source code. */
+/** What a pattern stands for. */
 typedef enum rule_kind {
     RULE_FUNCTION = 0,
     RULE_CONSTANT,
