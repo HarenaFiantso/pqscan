@@ -5,6 +5,7 @@
 #include "pqscan/core/status.h"
 #include "pqscan/risk/priority.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,6 +57,21 @@ void finding_list_sort(finding_list *list, int (*compare)(const void *left, cons
     if (list->count > 1) {
         qsort(list->items, list->count, sizeof(list->items[0]), compare);
     }
+}
+
+/* Compacts in place: kept findings slide down over the removed ones, in one pass. */
+size_t finding_list_remove_if(finding_list *list, finding_filter matches, void *context) {
+    size_t kept = 0;
+    for (size_t i = 0; i < list->count; i++) {
+        if (matches(&list->items[i], context)) {
+            free((void *)list->items[i].path);
+        } else {
+            list->items[kept++] = list->items[i];
+        }
+    }
+    const size_t removed = list->count - kept;
+    list->count = kept;
+    return removed;
 }
 
 size_t finding_list_count(const finding_list *list) { return list->count; }
