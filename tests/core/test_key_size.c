@@ -37,11 +37,33 @@ static void test_the_largest_size_fits(void) {
     assert_suffix((key_size){KEY_SIZE_KNOWN, largest}, expected);
 }
 
+static int sign_of(int value) { return (value > 0) - (value < 0); }
+
+static void test_sizes_order_none_unresolved_then_known(void) {
+    const key_size none = {KEY_SIZE_NOT_APPLICABLE, 0};
+    const key_size unresolved = {KEY_SIZE_UNKNOWN, 0};
+    const key_size small = {KEY_SIZE_KNOWN, SAMPLE_BITS};
+    const key_size large = {KEY_SIZE_KNOWN, UINT_MAX};
+    TEST_ASSERT_EQUAL_INT(-1, sign_of(key_size_compare(none, unresolved)));
+    TEST_ASSERT_EQUAL_INT(-1, sign_of(key_size_compare(unresolved, small)));
+    TEST_ASSERT_EQUAL_INT(-1, sign_of(key_size_compare(small, large)));
+    TEST_ASSERT_EQUAL_INT(1, sign_of(key_size_compare(large, small)));
+    TEST_ASSERT_EQUAL_INT(0, key_size_compare(small, small));
+}
+
+static void test_the_bits_of_a_size_that_is_not_known_are_ignored(void) {
+    const key_size unresolved = {KEY_SIZE_UNKNOWN, 0};
+    const key_size stale = {KEY_SIZE_UNKNOWN, SAMPLE_BITS};
+    TEST_ASSERT_EQUAL_INT(0, key_size_compare(unresolved, stale));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_a_known_size_shows_its_bits);
     RUN_TEST(test_an_unresolved_size_says_so);
     RUN_TEST(test_no_size_shows_nothing);
     RUN_TEST(test_the_largest_size_fits);
+    RUN_TEST(test_sizes_order_none_unresolved_then_known);
+    RUN_TEST(test_the_bits_of_a_size_that_is_not_known_are_ignored);
     return UNITY_END();
 }

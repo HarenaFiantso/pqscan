@@ -71,10 +71,7 @@ static int compare_numbers(size_t left, size_t right) { return (left > right) - 
 static int compare_assets(const finding *left, const finding *right) {
     int order = strcmp(left->algorithm, right->algorithm);
     if (order == 0) {
-        order = compare_numbers((size_t)left->size.kind, (size_t)right->size.kind);
-    }
-    if (order == 0 && left->size.kind == KEY_SIZE_KNOWN) {
-        order = compare_numbers(left->size.bits, right->size.bits);
+        order = key_size_compare(left->size, right->size);
     }
     if (order == 0) {
         order = compare_numbers((size_t)left->primitive, (size_t)right->primitive);

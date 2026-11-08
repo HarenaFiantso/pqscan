@@ -20,14 +20,6 @@ void prioritize_findings(finding_list *findings, const project *target, int as_o
 
 static int compare_numbers(size_t left, size_t right) { return (left > right) - (left < right); }
 
-static int compare_sizes(key_size left, key_size right) {
-    const int order = compare_numbers((size_t)left.kind, (size_t)right.kind);
-    if (order != 0 || left.kind != KEY_SIZE_KNOWN) {
-        return order;
-    }
-    return compare_numbers(left.bits, right.bits);
-}
-
 /* Everything after the place, in the order a report line shows it. */
 static int compare_contents(const finding *left, const finding *right) {
     int order = compare_numbers((size_t)right->risk, (size_t)left->risk);
@@ -35,7 +27,7 @@ static int compare_contents(const finding *left, const finding *right) {
         order = strcmp(left->algorithm, right->algorithm);
     }
     if (order == 0) {
-        order = compare_sizes(left->size, right->size);
+        order = key_size_compare(left->size, right->size);
     }
     if (order == 0) {
         order = compare_numbers((size_t)left->primitive, (size_t)right->primitive);
