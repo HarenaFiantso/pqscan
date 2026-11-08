@@ -33,6 +33,8 @@ const char *pqscan_status_message(pqscan_status status) {
         return "skipped, not a 64-bit ELF file";
     case PQSCAN_ERR_ELF_NO_SYMBOLS:
         return "skipped, ELF file without a symbol table";
+    case PQSCAN_ERR_PROJECT:
+        return "invalid project file";
     }
     return "unknown status";
 }
