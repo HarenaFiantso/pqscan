@@ -28,6 +28,7 @@ function(pqscan_add_unit_test name source)
 endfunction()
 
 pqscan_add_unit_test(test_baseline baseline/test_baseline.c)
+pqscan_add_unit_test(test_baseline_writer baseline/test_baseline_writer.c)
 pqscan_add_unit_test(test_call_arguments scan/test_call_arguments.c)
 pqscan_add_unit_test(test_cbom_report report/test_cbom_report.c)
 pqscan_add_unit_test(test_cert_scanner scan/test_cert_scanner.c)
