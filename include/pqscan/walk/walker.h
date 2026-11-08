@@ -37,7 +37,7 @@ typedef struct walk_callbacks {
  * followed. Ignore patterns apply to everything below @p root, but not to @p root itself.
  *
  * @param root A directory or a regular file.
- * @param ignores Patterns for ignore_matches(). Not modified.
+ * @param ignores Patterns for path_pattern_matches(). Not modified.
  * @param callbacks Where to report. Not modified.
  * @return PQSCAN_OK when the walk completed, even if it skipped paths.
  *         PQSCAN_ERR_NOT_FOUND if @p root does not exist, PQSCAN_ERR_IO if it cannot be

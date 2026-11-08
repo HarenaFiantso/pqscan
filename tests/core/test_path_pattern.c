@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
+#include "pqscan/core/path_pattern.h"
 #include "pqscan/core/status.h"
 #include "pqscan/core/string_list.h"
-#include "pqscan/walk/ignore.h"
 #include "unity.h"
 
 static string_list *patterns;
@@ -18,37 +18,37 @@ static void add_pattern(const char *pattern) {
 }
 
 static void test_no_patterns_match_nothing(void) {
-    TEST_ASSERT_FALSE(ignore_matches(patterns, "a.c"));
+    TEST_ASSERT_FALSE(path_pattern_matches(patterns, "a.c"));
 }
 
 static void test_matches_the_last_component(void) {
     add_pattern("vendor");
-    TEST_ASSERT_TRUE(ignore_matches(patterns, "src/vendor"));
-    TEST_ASSERT_FALSE(ignore_matches(patterns, "src/vendored"));
+    TEST_ASSERT_TRUE(path_pattern_matches(patterns, "src/vendor"));
+    TEST_ASSERT_FALSE(path_pattern_matches(patterns, "src/vendored"));
 }
 
 static void test_supports_globs(void) {
     add_pattern("*.gen.c");
-    TEST_ASSERT_TRUE(ignore_matches(patterns, "src/a.gen.c"));
-    TEST_ASSERT_FALSE(ignore_matches(patterns, "src/a.c"));
+    TEST_ASSERT_TRUE(path_pattern_matches(patterns, "src/a.gen.c"));
+    TEST_ASSERT_FALSE(path_pattern_matches(patterns, "src/a.c"));
 }
 
 static void test_matches_the_whole_path(void) {
     add_pattern("src/vendor/*");
-    TEST_ASSERT_TRUE(ignore_matches(patterns, "src/vendor/deep/a.c"));
-    TEST_ASSERT_FALSE(ignore_matches(patterns, "lib/src/vendor/a.c"));
+    TEST_ASSERT_TRUE(path_pattern_matches(patterns, "src/vendor/deep/a.c"));
+    TEST_ASSERT_FALSE(path_pattern_matches(patterns, "lib/src/vendor/a.c"));
 }
 
 static void test_ignores_a_leading_current_directory(void) {
     add_pattern("src/*");
-    TEST_ASSERT_TRUE(ignore_matches(patterns, "./src/a.c"));
-    TEST_ASSERT_TRUE(ignore_matches(patterns, "././src/a.c"));
+    TEST_ASSERT_TRUE(path_pattern_matches(patterns, "./src/a.c"));
+    TEST_ASSERT_TRUE(path_pattern_matches(patterns, "././src/a.c"));
 }
 
 static void test_any_pattern_can_match(void) {
     add_pattern("first");
     add_pattern("second");
-    TEST_ASSERT_TRUE(ignore_matches(patterns, "second"));
+    TEST_ASSERT_TRUE(path_pattern_matches(patterns, "second"));
 }
 
 int main(void) {
