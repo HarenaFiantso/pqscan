@@ -29,6 +29,7 @@ endfunction()
 
 pqscan_add_unit_test(test_call_arguments scan/test_call_arguments.c)
 pqscan_add_unit_test(test_cbom_report report/test_cbom_report.c)
+pqscan_add_unit_test(test_config_lexer scan/test_config_lexer.c)
 pqscan_add_unit_test(test_default_rules rules/test_default_rules.c)
 pqscan_add_unit_test(test_constant_eval flow/test_constant_eval.c)
 pqscan_add_unit_test(test_constant_flow flow/test_constant_flow.c)
