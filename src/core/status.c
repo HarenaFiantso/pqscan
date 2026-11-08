@@ -23,6 +23,10 @@ const char *pqscan_status_message(pqscan_status status) {
         return "invalid rules";
     case PQSCAN_ERR_BUDGET:
         return "skipped, scan time budget used up";
+    case PQSCAN_ERR_ENCRYPTED:
+        return "skipped, encrypted key";
+    case PQSCAN_ERR_MALFORMED:
+        return "skipped, not a certificate or key that can be read";
     }
     return "unknown status";
 }
