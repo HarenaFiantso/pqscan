@@ -9,7 +9,6 @@
  */
 #include "fuzz_target.h"
 
-#include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -127,6 +126,10 @@ static bool read_seed(const char *path, seed *input) {
     return read;
 }
 
+/* isdigit() would do, but glibc looks the byte up in a table, which clang-tidy reports as an
+ * index read from the command line. */
+static bool is_digit(char byte) { return byte >= '0' && byte <= '9'; }
+
 /* Reads --edits=N if it is the first argument, and tells where the seeds start. */
 static int read_edits(int argc, char **argv, replay *run) {
     if (argc < 2 || strncmp(argv[1], EDITS_OPTION, strlen(EDITS_OPTION)) != 0) {
@@ -135,7 +138,7 @@ static int read_edits(int argc, char **argv, replay *run) {
     const char *number = argv[1] + strlen(EDITS_OPTION);
     char *end = NULL;
     run->edits = strtoul(number, &end, DECIMAL);
-    if (!isdigit((unsigned char)number[0]) || *end != '\0' || run->edits > MAX_EDITS) {
+    if (!is_digit(number[0]) || *end != '\0' || run->edits > MAX_EDITS) {
         (void)fprintf(stderr, "replay: --edits takes a number up to %d\n", MAX_EDITS);
         exit(EXIT_FAILURE);
     }
