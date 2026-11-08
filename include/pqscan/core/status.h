@@ -16,6 +16,9 @@ typedef enum pqscan_status {
     PQSCAN_ERR_BUDGET,
     PQSCAN_ERR_ENCRYPTED,
     PQSCAN_ERR_MALFORMED,
+    PQSCAN_ERR_ELF_MALFORMED,
+    PQSCAN_ERR_ELF_UNSUPPORTED,
+    PQSCAN_ERR_ELF_NO_SYMBOLS,
 } pqscan_status;
 
 /**
