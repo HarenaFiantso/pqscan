@@ -123,3 +123,50 @@ jobs:
       - run: cmake --preset valgrind
       - run: cmake --build --preset valgrind --parallel
       - run: ctest --preset valgrind
+
+  # Runs the action in this repository the way a project would run it in its own.
+  action:
+    needs: build-and-test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Write a baseline, which accepts every finding
+        id: write
+        uses: ./
+        with:
+          paths: tests/fixtures/scan/findings
+          args: --write-baseline ${{ runner.temp }}/baseline.json
+          upload-sarif: "false"
+      - name: Diff against the baseline, which finds nothing new
+        id: same
+        uses: ./
+        with:
+          paths: tests/fixtures/scan/findings
+          baseline: ${{ runner.temp }}/baseline.json
+          upload-sarif: "false"
+      - name: Drop one finding from the baseline
+        run: >-
+          jq '.findings |= map(select(.path != "tests/fixtures/scan/findings/rsa.c"))'
+          "$RUNNER_TEMP/baseline.json" > "$RUNNER_TEMP/partial.json"
+      - name: Diff against the smaller baseline, which must fail the job
+        id: new
+        continue-on-error: true
+        uses: ./
+        with:
+          paths: tests/fixtures/scan/findings
+          baseline: ${{ runner.temp }}/partial.json
+          sarif-file: new.sarif
+          upload-sarif: "false"
+      - name: Check what each run did
+        env:
+          WRITE_EXIT: ${{ steps.write.outputs.exit-code }}
+          SAME_EXIT: ${{ steps.same.outputs.exit-code }}
+          NEW_EXIT: ${{ steps.new.outputs.exit-code }}
+          NEW_OUTCOME: ${{ steps.new.outcome }}
+        run: |
+          test "$WRITE_EXIT" = 0
+          test "$SAME_EXIT" = 0
+          test "$(jq '.runs[0].results | length' pqscan.sarif)" = 0
+          test "$NEW_EXIT" = 1
+          test "$NEW_OUTCOME" = failure
+          test "$(jq -r '[.runs[0].results[].locations[0].physicalLocation.artifactLocation.uri] | join(" ")' new.sarif)" = tests/fixtures/scan/findings/rsa.c
