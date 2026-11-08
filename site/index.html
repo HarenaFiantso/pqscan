@@ -35,7 +35,7 @@
         <li><a href="#ci">CI</a></li>
         <li><a href="#rules">Rules</a></li>
         <li><a href="#inside">Inside</a></li>
-        <li><a href="#roadmap">Roadmap</a></li>
+        <li><a href="#roadmap">Releases</a></li>
       </ul>
     </nav>
     <a class="topbar-link" href="https://github.com/HarenaFiantso/pqscan"><span class="nf" aria-hidden="true">&#xf09b;</span><span class="topbar-link-text">GitHub</span></a>
@@ -130,18 +130,25 @@
     <section class="section" id="start">
       <header class="section-head reveal">
         <p class="kicker">02 &middot; Start</p>
-        <h2>Build it, then point it at your code</h2>
-        <p>You need CMake 3.20 or newer, a C11 compiler (GCC or Clang) and OpenSSL 3.0 or newer with its headers, on Linux or macOS: <code>brew install openssl@3</code> or <code>apt-get install libssl-dev</code>. CMake downloads the other pinned dependencies during the first configure. Packages are planned for a later release.</p>
+        <h2>Install it, then point it at your code</h2>
+        <p>Each <a href="https://github.com/HarenaFiantso/pqscan/releases">release</a> has an archive for Linux on x86-64 and arm64, and for macOS on Apple silicon, with the binary, its man page and a <code>SHA256SUMS</code> file. The Linux binary is fully static, so it runs on any distribution, and the macOS one needs macOS 15 or newer.</p>
       </header>
 
       <div class="code-block reveal">
         <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
-<pre><code>git clone https://github.com/HarenaFiantso/pqscan.git
-cd pqscan
-cmake --preset release
-cmake --build --preset release
-./build/release/pqscan --help</code></pre>
+<pre><code>version=1.0.0 platform=linux-x86_64   # or linux-aarch64, macos-arm64
+base=https://github.com/HarenaFiantso/pqscan/releases/download/v$version
+curl -fL -O "$base/pqscan-$version-$platform.tar.gz" -O "$base/SHA256SUMS"
+sha256sum --check --ignore-missing SHA256SUMS
+tar -xzf "pqscan-$version-$platform.tar.gz"
+sudo cp -R "pqscan-$version-$platform/." /usr/local/</code></pre>
       </div>
+      <p class="reveal">Or run the image, which holds the static binary and nothing else, on the directory you mount at <code>/src</code>:</p>
+      <div class="code-block reveal">
+        <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
+<pre><code>docker run --rm -v "$PWD:/src:ro" ghcr.io/harenafiantso/pqscan:1</code></pre>
+      </div>
+      <p class="note reveal">To build it yourself, you need CMake 3.20 or newer, a C11 compiler and OpenSSL 3.0 or newer with its headers. The <a href="https://github.com/HarenaFiantso/pqscan#from-source">README</a> has the three commands, and how to check where an archive or the image was built.</p>
 
       <h3 class="reveal">Usage</h3>
       <div class="code-block reveal">
@@ -556,7 +563,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: HarenaFiantso/pqscan@v0.10.0
+      - uses: HarenaFiantso/pqscan@v1
         with:
           baseline: .pqscan-baseline.json</code></pre>
       </div>
@@ -673,9 +680,9 @@ jobs:
 
     <section class="section" id="roadmap">
       <header class="section-head reveal">
-        <p class="kicker">09 &middot; Roadmap</p>
-        <h2>Today C and C++ source, then everything around it</h2>
-        <p>Each phase ends with a tagged release. Phases 1 to 10 are done.</p>
+        <p class="kicker">09 &middot; Releases</p>
+        <h2>Eleven phases to a stable 1.0</h2>
+        <p>Each phase ended with a tagged release. Since 1.0, options, exit codes and report formats only change as the <a href="https://github.com/HarenaFiantso/pqscan#versioning">versioning promise</a> allows, and the <a href="https://github.com/HarenaFiantso/pqscan/blob/main/CHANGELOG.md">changelog</a> lists every release.</p>
       </header>
 
       <ol class="roadmap" id="roadmap-list">
@@ -689,7 +696,7 @@ jobs:
         <li class="phase done reveal"><span class="phase-tag">v0.8.0</span><h3>Risk prioritization</h3><p>A priority score from the NIST IR 8547 dates and Mosca's theorem, per component.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.9.0</span><h3>CI integration</h3><p>A baseline, a <code>--diff</code> mode, and a GitHub Action that blocks new vulnerable crypto.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.10.0</span><h3>Quality and evaluation</h3><p>A benchmark corpus, measured precision and recall, and fuzzing.</p></li>
-        <li class="phase reveal"><span class="phase-tag">Phase 11</span><h3>Release</h3><p>Versioned packages, a man page, and contributor docs for rules.</p></li>
+        <li class="phase done reveal"><span class="phase-tag">v1.0.0</span><h3>Release</h3><p>Static binaries, a Docker image, a man page, a changelog, and docs for adding rules.</p></li>
       </ol>
     </section>
   </main>
