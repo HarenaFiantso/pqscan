@@ -18,7 +18,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum { PATH_SIZE = 512, DESCRIPTION_SIZE = 512, BYTE_FLIP = 0xff };
+enum { PATH_SIZE = 512, DESCRIPTION_SIZE = 512 };
+
+static const unsigned BYTE_FLIP = 0xffU;
 
 static finding_list *findings;
 static rule_set *rules;
@@ -220,13 +222,18 @@ static void test_survives_every_truncation(void) {
     assert_every_truncation_is_survived("certs/rsa-2048.crt");
 }
 
+static void flip_byte(char *byte) {
+    const unsigned flipped = (unsigned)(unsigned char)*byte ^ BYTE_FLIP;
+    *byte = (char)(unsigned char)flipped;
+}
+
 static void test_survives_every_flipped_byte(void) {
     file_contents *whole = read_fixture("certs/ec-p256.der");
     for (size_t i = 0; i < whole->len; i++) {
-        whole->data[i] = (char)(whole->data[i] ^ BYTE_FLIP);
+        flip_byte(&whole->data[i]);
         const pqscan_status status = scan_contents(whole);
         TEST_ASSERT_TRUE(status == PQSCAN_OK || status == PQSCAN_ERR_MALFORMED);
-        whole->data[i] = (char)(whole->data[i] ^ BYTE_FLIP);
+        flip_byte(&whole->data[i]);
     }
     file_contents_destroy(whole);
 }
