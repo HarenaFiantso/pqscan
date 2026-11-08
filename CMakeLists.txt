@@ -11,6 +11,8 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+option(PQSCAN_ENABLE_LIBFUZZER "Build the libFuzzer targets, which needs a Clang with libFuzzer" OFF)
+
 include(cmake/posix.cmake)
 include(cmake/warnings.cmake)
 include(cmake/memcheck.cmake)
@@ -82,3 +84,4 @@ target_link_libraries(pqscan PRIVATE pqscan_core pqscan_posix pqscan_warnings)
 
 enable_testing()
 add_subdirectory(tests)
+add_subdirectory(fuzz)
