@@ -38,6 +38,7 @@ add_library(pqscan_core STATIC
     src/core/memory.c
     src/core/path_pattern.c
     src/core/primitive.c
+    src/core/relative_path.c
     src/core/safe_text.c
     src/core/skip_list.c
     src/core/status.c

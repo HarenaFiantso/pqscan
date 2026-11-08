@@ -10,7 +10,7 @@
  * @brief Tell whether a path matches any of a list of patterns.
  *
  * A pattern is an fnmatch(3) glob, compared with the last component of the path and with
- * the whole path without any leading "./". A * also matches "/", so a pattern ending in
+ * the whole path as relative_path_of() gives it. A * also matches "/", so a pattern ending in
  * one covers a whole subtree.
  *
  * @param patterns The patterns. Not modified.
