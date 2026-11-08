@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "files": {
+    "haproxy/src/jwe.c": [
+      {"line": 389, "algorithm": "AES-128"},
+      {"line": 792, "algorithm": "RSA"},
+      {"line": 793, "algorithm": "SHA-1"},
+      {"line": 796, "algorithm": "RSA"},
+      {"line": 797, "algorithm": "SHA-1"},
+      {"line": 800, "algorithm": "RSA"},
+      {"line": 815, "algorithm": "RSA"},
+      {"line": 818, "algorithm": "RSA"},
+      {"line": 819, "algorithm": "RSA"},
+      {"line": 822, "algorithm": "RSA"},
+      {"line": 838, "algorithm": "RSA"},
+      {"line": 1432, "algorithm": "RSA"},
+      {"line": 1433, "algorithm": "RSA"},
+      {"line": 1434, "algorithm": "RSA"},
+      {"line": 1435, "algorithm": "RSA"},
+      {"line": 1436, "algorithm": "RSA"},
+      {"line": 1437, "algorithm": "RSA"},
+      {"line": 1438, "algorithm": "RSA"},
+      {"line": 1439, "algorithm": "RSA"},
+      {"line": 1447, "algorithm": "RSA"},
+      {"line": 1469, "algorithm": "RSA"},
+      {"line": 1473, "algorithm": "RSA"},
+      {"line": 1474, "algorithm": "RSA"},
+      {"line": 1475, "algorithm": "RSA"},
+      {"line": 1482, "algorithm": "RSA"},
+      {"line": 1581, "algorithm": "EC"},
+      {"line": 1589, "algorithm": "EC"},
+      {"line": 1593, "algorithm": "EC"},
+      {"line": 1596, "algorithm": "EC"},
+      {"line": 1656, "algorithm": "EC"},
+      {"line": 1683, "algorithm": "EC"},
+      {"line": 1687, "algorithm": "EC"},
+      {"line": 1690, "algorithm": "EC"},
+      {"line": 1693, "algorithm": "EC"},
+      {"line": 1700, "algorithm": "EC"}
+    ],
+    "haproxy/src/ssl_ckch.c": [
+      {"line": 2209, "algorithm": "SHA-1"},
+      {"line": 4954, "algorithm": "RSA"},
+      {"line": 4957, "algorithm": "RSA"},
+      {"line": 4959, "algorithm": "EC"},
+      {"line": 4971, "algorithm": "EC"}
+    ]
+  }
+}

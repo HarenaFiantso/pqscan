@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "files": {
+    "postgres/src/common/hmac_openssl.c": [
+      {"line": 181, "algorithm": "MD5"},
+      {"line": 184, "algorithm": "SHA-1"}
+    ],
+    "postgres/src/interfaces/libpq/fe-secure-openssl.c": [
+      {"line": 380, "algorithm": "MD5"},
+      {"line": 381, "algorithm": "SHA-1"}
+    ]
+  }
+}

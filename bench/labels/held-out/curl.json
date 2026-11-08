@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "files": {
+    "curl/lib/curl_ed25519.c": [
+      {"line": 58, "algorithm": "EdDSA"}
+    ],
+    "curl/lib/vtls/x509asn1.c": []
+  }
+}
