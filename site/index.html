@@ -3,65 +3,96 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>pqscan: find the cryptography quantum computers will break</title>
-  <meta name="description" content="pqscan is a command-line tool, written in C, that finds quantum-vulnerable cryptography in C and C++ source and reports it as text, JSON, a CycloneDX CBOM or SARIF.">
-  <meta name="theme-color" content="#1e1e2e">
+  <meta name="description" content="pqscan is a command-line tool, written in C, that finds quantum-vulnerable cryptography in C and C++ source, TLS and SSH configuration, certificates, keys and ELF binaries, and reports it as text, JSON, a CycloneDX CBOM or SARIF.">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
   <meta property="og:title" content="pqscan">
   <meta property="og:description" content="Find the cryptography quantum computers will break.">
   <meta property="og:type" content="website">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231e1e2e'/%3E%3Cg fill='%23cba6f7'%3E%3Ccircle cx='9' cy='9' r='2.5'/%3E%3Ccircle cx='23' cy='9' r='2.5'/%3E%3Ccircle cx='9' cy='23' r='2.5'/%3E%3C/g%3E%3Ccircle cx='23' cy='23' r='3.5' fill='%23f38ba8'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23000'/%3E%3Cpath d='M16 6l8 3.4v5.7c0 5-3.4 9.3-8 11-4.6-1.7-8-6-8-11V9.4z' fill='none' stroke='%23f5f5f7' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;1,400&family=Space+Grotesk:wght@500;600;700&display=swap">
-  <link rel="preload" href="fonts/JetBrainsMonoNF-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap">
   <link rel="stylesheet" href="style.css">
   <script>document.documentElement.classList.add("js");</script>
   <script src="main.js" defer></script>
 </head>
 <body>
-  <a class="skip-link" href="#why">Skip to the documentation</a>
-  <div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7.5 3.2v5.4c0 4.6-3.2 8.6-7.5 10.4-4.3-1.8-7.5-5.8-7.5-10.4V6.2z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="3.5"/><path d="M7.5 9.5l2.8 2.5-2.8 2.5M12.5 15h4"/></symbol>
+    <symbol id="i-github" viewBox="0 0 16 16"><path fill="currentColor" stroke="none" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.3 12.3l2.6 2.6 4.8-5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.5 7l-5 5 5 5M15.5 7l5 5-5 5"/></symbol>
+    <symbol id="i-slash" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6 18L18 6"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15.5" r="4"/><path d="M11 12.5l8.5-8.5M16 7.5l2.2 2.2M13.5 10l2 2"/></symbol>
+    <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/><path d="M10 3v3.5M14 3v3.5M10 17.5V21M14 17.5V21M3 10h3.5M3 14h3.5M17.5 10H21M17.5 14H21"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.8"/><path d="M8 10.5V8a4 4 0 018 0v2.5"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3L5.5 13.5h5.5L10 21l7.5-10.5H12z"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3.5h6.5l4.5 4.5v12.5H7z"/><path d="M13.5 3.5V8H18M9.5 12.5h5M9.5 16h5"/></symbol>
+    <symbol id="i-stack" viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v5.5c0 1.7 3.1 3 7 3s7-1.3 7-3V6.5M5 12v5.5c0 1.7 3.1 3 7 3s7-1.3 7-3V12"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 16.5a8 8 0 1116 0"/><path d="M12 16.5l3.8-4.8"/></symbol>
+    <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3.5h6M10 3.5v5.8L5.3 17.8A2.2 2.2 0 007.2 21h9.6a2.2 2.2 0 001.9-3.2L14 9.3V3.5"/><path d="M7.5 15h9"/></symbol>
+    <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><circle fill="currentColor" stroke="none" cx="9" cy="9" r="1.3"/><circle fill="currentColor" stroke="none" cx="15" cy="15" r="1.3"/><circle fill="currentColor" stroke="none" cx="15" cy="9" r="1.3"/><circle fill="currentColor" stroke="none" cx="9" cy="15" r="1.3"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.3v.2"/></symbol>
+    <symbol id="i-gate" viewBox="0 0 24 24"><path d="M5 20V8a7 7 0 0114 0v12M3 20h18M12 11v5"/></symbol>
+  </svg>
 
-  <header class="topbar" id="topbar">
-    <a class="brand" href="#top"><span class="nf" aria-hidden="true">&#xf132;</span> pqscan</a>
-    <nav aria-label="Sections">
-      <ul class="topnav">
+  <a class="skip-link" href="#overview">Skip to the content</a>
+
+  <div class="backdrop" aria-hidden="true">
+    <div class="orb orb-1" data-parallax="0.18"></div>
+    <div class="orb orb-2" data-parallax="0.32"></div>
+    <div class="orb orb-3" data-parallax="0.1"></div>
+  </div>
+
+  <header class="nav-wrap">
+    <nav class="nav glass" id="nav" aria-label="Sections">
+      <a class="brand" href="#top"><svg class="icon"><use href="#i-shield"/></svg><span>pqscan</span></a>
+      <ul class="nav-links" id="nav-links">
         <li><a href="#why">Why</a></li>
-        <li><a href="#start">Start</a></li>
+        <li><a href="#start">Install</a></li>
         <li><a href="#detect">Detection</a></li>
         <li><a href="#risk">Risk</a></li>
         <li><a href="#reports">Reports</a></li>
         <li><a href="#ci">CI</a></li>
         <li><a href="#rules">Rules</a></li>
         <li><a href="#inside">Inside</a></li>
-        <li><a href="#roadmap">Releases</a></li>
+        <li><a href="#releases">Releases</a></li>
+        <li class="nav-lens" id="nav-lens" aria-hidden="true"></li>
       </ul>
+      <a class="nav-github" href="https://github.com/HarenaFiantso/pqscan" aria-label="pqscan on GitHub"><svg class="icon"><use href="#i-github"/></svg></a>
     </nav>
-    <a class="topbar-link" href="https://github.com/HarenaFiantso/pqscan"><span class="nf" aria-hidden="true">&#xf09b;</span><span class="topbar-link-text">GitHub</span></a>
   </header>
 
   <section class="hero" id="top">
-    <canvas id="lattice" aria-hidden="true"></canvas>
-    <div class="hero-inner">
-      <div class="hero-copy">
-        <p class="eyebrow"><span class="pulse" aria-hidden="true"></span>v1.0.0 &middot; stable</p>
-        <h1>pqscan</h1>
-        <p class="tagline">Find the cryptography quantum computers will break.</p>
-        <p class="lede">A command-line tool, written in C, that reads your C and C++ source through its syntax tree and shows where RSA, ECDSA, EdDSA, ECDH, DH and DSA are used, with which key size, and how urgent the migration is, most urgent first.</p>
-        <div class="cta">
-          <a class="button button-primary" href="#start"><span class="nf" aria-hidden="true">&#xf120;</span> Get started</a>
-          <a class="button" href="https://github.com/HarenaFiantso/pqscan"><span class="nf" aria-hidden="true">&#xf09b;</span> View the source</a>
-        </div>
+    <canvas class="lattice" id="lattice" data-parallax="0.45" data-parallax-mode="lag" aria-hidden="true"></canvas>
+    <div class="hero-copy" id="hero-copy">
+      <a class="chip glass" href="https://github.com/HarenaFiantso/pqscan/releases/tag/v1.0.0"><span class="chip-dot" aria-hidden="true"></span>Version 1.0 is out<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <h1>pqscan</h1>
+      <p class="tagline">Find the cryptography<br> quantum computers will break.</p>
+      <p class="lede">A command-line tool, written in C, that reads C and C++ source, TLS and SSH settings, certificates, keys and ELF binaries, and shows where RSA, ECDSA, EdDSA, ECDH, DH and DSA are used, with which key size, most urgent first.</p>
+      <div class="cta">
+        <a class="button button-solid" href="#start">Install pqscan</a>
+        <a class="button button-glass glass" href="https://github.com/HarenaFiantso/pqscan"><svg class="icon" aria-hidden="true"><use href="#i-github"/></svg>View the source</a>
       </div>
+    </div>
 
-      <figure class="terminal hero-terminal" id="hero-terminal">
-        <div class="terminal-bar">
-          <span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span>
-          <span class="terminal-title">a real run on a test fixture</span>
-          <button class="terminal-replay" id="replay" type="button" hidden>Replay</button>
+    <div class="hero-stage">
+      <figure class="window glass-dark" id="hero-terminal">
+        <div class="window-bar">
+          <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="window-title">~/fixtures &mdash; a real run</span>
+          <button class="window-action" id="replay" type="button" hidden>Replay</button>
         </div>
-<pre class="terminal-body" aria-label="pqscan reports ten findings and exits with code 1"><span class="term-line term-command" data-command="pqscan report"><span class="prompt"><span class="seg">~/fixtures</span><span class="seg-end nf">&#xe0b0;</span></span> <span class="typed">pqscan report</span></span>
+<pre class="terminal" aria-label="pqscan reports ten findings and exits with code 1"><span class="term-line" data-command="pqscan report"><span class="prompt">~/fixtures %</span> <span class="typed">pqscan report</span></span>
 <span class="term-line">report/mixed.c:4: RSA-1024 (<span class="c-weak">CLASSICALLY_WEAK</span>, priority 100)</span>
 <span class="term-line">report/mixed.c:11: RC4 (<span class="c-weak">CLASSICALLY_WEAK</span>, priority 100)</span>
 <span class="term-line">report/mixed.c:12: MD5 (<span class="c-weak">CLASSICALLY_WEAK</span>, priority 100)</span>
@@ -73,50 +104,128 @@
 <span class="term-line">report/mixed.c:9: RSA (<span class="c-quantum">QUANTUM_VULNERABLE</span>, priority 51)</span>
 <span class="term-line">report/mixed.c:10: AES-128 (<span class="c-review">REVIEW</span>, priority 10)</span>
 <span class="term-line term-summary">10 findings: 3 CLASSICALLY_WEAK, 6 QUANTUM_VULNERABLE, 1 REVIEW</span>
-<span class="term-line term-command" data-command="echo $?"><span class="prompt"><span class="seg">~/fixtures</span><span class="seg-end nf">&#xe0b0;</span></span> <span class="typed">echo $?</span></span>
+<span class="term-line" data-command="echo $?"><span class="prompt">~/fixtures %</span> <span class="typed">echo $?</span></span>
 <span class="term-line">1</span></pre>
       </figure>
     </div>
 
     <dl class="stats">
-      <div><dt>built-in rules</dt><dd data-count="88">88</dd></div>
-      <div><dt>algorithms</dt><dd data-count="13">13</dd></div>
-      <div><dt>report formats</dt><dd data-count="4">4</dd></div>
-      <div><dt>C and C++ extensions</dt><dd data-count="12">12</dd></div>
+      <div><dd data-count="504">504</dd><dt>built-in rules</dt></div>
+      <div><dd data-count="13">13</dd><dt>algorithms graded</dt></div>
+      <div><dd data-count="4">4</dd><dt>kinds of input</dt></div>
+      <div><dd data-count="4">4</dd><dt>report formats</dt></div>
     </dl>
   </section>
 
   <main>
-    <section class="section" id="why">
+    <section class="section" id="overview" aria-labelledby="overview-title">
       <header class="section-head reveal">
-        <p class="kicker">01 &middot; Why</p>
-        <h2>You can't migrate what you can't find</h2>
-        <p>A large enough quantum computer running Shor's algorithm would break RSA, ECDSA, EdDSA, ECDH, DH and DSA. pqscan shows where that cryptography is and how urgently each use needs to be replaced.</p>
+        <p class="eyebrow">Overview</p>
+        <h2 id="overview-title">Everything around your crypto.<br><span class="dim">In one pass.</span></h2>
       </header>
 
-      <div class="timeline reveal" id="timeline">
-        <div class="timeline-track"><span class="timeline-fill"></span><span class="timeline-today" id="today" hidden><span class="timeline-today-label">Today</span></span></div>
-        <div class="timeline-mark timeline-2030">
-          <strong>2030</strong>
-          <span>NIST plans to deprecate these algorithms after this year.</span>
-        </div>
-        <div class="timeline-mark timeline-2035">
-          <strong>2035</strong>
-          <span>NIST plans to disallow them after this year.</span>
-        </div>
-      </div>
-      <p class="note reveal">Dates from <a href="https://csrc.nist.gov/pubs/ir/8547/ipd">NIST IR 8547</a>. Replacements are ML-KEM for key exchange and ML-DSA for signatures.</p>
+      <div class="bento">
+        <article class="tile glass tile-syntax reveal" data-parallax="-0.03">
+          <p class="tile-kicker"><svg class="icon"><use href="#i-code"/></svg>Syntax-aware</p>
+          <h3>Reads code, not text.</h3>
+          <p>A comment or a string that mentions RSA is not a finding. A call is, with its key size.</p>
+<pre class="mini-tree" aria-label="The Tree-sitter syntax tree of the call: a call_expression whose arguments hold the number_literal 2048"><span class="node">call_expression</span>
+├─ function: <span class="node">identifier</span>      <b>RSA_generate_key_ex</b>
+└─ arguments: <span class="node">argument_list</span>
+   ├─ <span class="node">identifier</span>      rsa
+   ├─ <span class="node">number_literal</span>  <b>2048</b>  <span class="mark">← the key size</span>
+   ├─ <span class="node">identifier</span>      e
+   └─ <span class="node">null</span>            NULL</pre>
+          <div class="mini-code" aria-label="A three-line example and what pqscan reports for it">
+            <code class="ignored">/* TODO: move off RSA before 2030 */</code>
+            <code class="ignored">const char *note = "RSA is deprecated";</code>
+            <code class="found">RSA_generate_key_ex(rsa, 2048, e, NULL);</code>
+            <span class="mini-result"><span class="dot dot-quantum" aria-hidden="true"></span>keys.c:3: RSA-2048 (QUANTUM_VULNERABLE, priority 51)</span>
+          </div>
+        </article>
 
-      <div class="panel mosca reveal" id="mosca">
-        <div class="panel-copy">
-          <h3>Mosca's theorem</h3>
-          <p>Data can be recorded today and decrypted later. So the deadline isn't the day a quantum computer exists. If <em>X</em> + <em>Y</em> &gt; <em>Q</em>, some of your data will still need protecting after it can be broken. Nobody knows <em>Q</em>, so the numbers are yours to choose.</p>
-          <p class="note">pqscan uses it to rank findings: tell it X and Y for each part of your code in a <a href="#priority">project file</a>.</p>
+        <article class="tile glass tile-recall reveal" data-parallax="0.02">
+          <p class="tile-kicker"><svg class="icon"><use href="#i-flask"/></svg>Measured</p>
+          <p class="big-number">98.6<small>%</small></p>
+          <p>of the hand-labeled OpenSSL uses it was never tuned on, in six open-source projects. With no false positive.</p>
+        </article>
+
+        <article class="tile glass tile-inputs reveal" data-parallax="0.04">
+          <p class="tile-kicker"><svg class="icon"><use href="#i-search"/></svg>Four inputs</p>
+          <ul class="input-list">
+            <li><svg class="icon"><use href="#i-code"/></svg>C and C++ source</li>
+            <li><svg class="icon"><use href="#i-sliders"/></svg>TLS and SSH settings</li>
+            <li><svg class="icon"><use href="#i-key"/></svg>Certificates and keys</li>
+            <li><svg class="icon"><use href="#i-chip"/></svg>ELF binaries</li>
+          </ul>
+        </article>
+
+        <article class="tile glass tile-rank reveal" data-parallax="-0.02">
+          <p class="tile-kicker"><svg class="icon"><use href="#i-gauge"/></svg>Ranked</p>
+          <h3>Most urgent first.</h3>
+          <div class="bars" aria-label="Priorities: 100 for CLASSICALLY_WEAK, 51 for QUANTUM_VULNERABLE in 2026, 10 for REVIEW">
+            <span class="bar bar-weak" style="--v: 1"><b>100</b></span>
+            <span class="bar bar-quantum" style="--v: 0.51"><b>51</b></span>
+            <span class="bar bar-review" style="--v: 0.1"><b>10</b></span>
+          </div>
+        </article>
+
+        <article class="tile glass tile-formats reveal" data-parallax="0.03">
+          <p class="tile-kicker"><svg class="icon"><use href="#i-doc"/></svg>Four formats</p>
+          <ul class="pills">
+            <li>text</li><li>JSON</li><li>CycloneDX CBOM</li><li>SARIF</li>
+          </ul>
+          <p>Same files in, same bytes out: no timestamp, no random identifier.</p>
+        </article>
+
+        <article class="tile glass tile-hostile reveal" data-parallax="-0.01">
+          <p class="tile-kicker"><svg class="icon"><use href="#i-lock"/></svg>Hostile input</p>
+          <h3>Never runs what it scans.</h3>
+          <p>Every parser is fuzzed, and every read is bounds-checked.</p>
+        </article>
+
+        <article class="tile glass tile-binary reveal" data-parallax="0.02">
+          <p class="tile-kicker"><svg class="icon"><use href="#i-cube"/></svg>One binary</p>
+          <h3>Static on Linux. A 12 MB image.</h3>
+          <code class="tile-command">docker run --rm -v "$PWD:/src:ro" ghcr.io/harenafiantso/pqscan:1</code>
+        </article>
+
+        <article class="tile glass tile-gate reveal" data-parallax="-0.03">
+          <p class="tile-kicker"><svg class="icon"><use href="#i-gate"/></svg>CI gate</p>
+          <h3>Exit codes a pipeline can trust.</h3>
+          <ul class="codes">
+            <li><b>0</b>clean</li><li><b>1</b>findings</li><li><b>4</b>incomplete</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="why" aria-labelledby="why-title">
+      <header class="section-head reveal">
+        <p class="eyebrow">Why</p>
+        <h2 id="why-title">You can't migrate<br><span class="dim">what you can't find.</span></h2>
+        <p class="lead">A large enough quantum computer running Shor's algorithm would break RSA, ECDSA, EdDSA, ECDH, DH and DSA. pqscan shows where that cryptography is, and how urgently each use needs to be replaced.</p>
+      </header>
+
+      <div class="panel glass timeline-panel reveal">
+        <div class="timeline" id="timeline">
+          <div class="timeline-track"><span class="timeline-fill"></span><span class="timeline-today" id="today" hidden><span>Today</span></span></div>
+          <div class="timeline-mark timeline-2030"><strong>2030</strong><span>NIST plans to deprecate these algorithms after this year.</span></div>
+          <div class="timeline-mark timeline-2035"><strong>2035</strong><span>NIST plans to disallow them after this year.</span></div>
         </div>
-        <div class="panel-tool">
-          <label><span>X, years the data must stay secret <output id="x-value">10</output></span><input id="x" type="range" min="0" max="30" value="10"></label>
-          <label><span>Y, years the migration takes <output id="y-value">5</output></span><input id="y" type="range" min="0" max="15" value="5"></label>
-          <label><span>Q, years until a quantum computer can break it <output id="q-value">12</output></span><input id="q" type="range" min="1" max="30" value="12"></label>
+        <p class="note">Dates from <a href="https://csrc.nist.gov/pubs/ir/8547/ipd">NIST IR 8547</a>. The replacements are ML-KEM for key exchange and ML-DSA for signatures.</p>
+      </div>
+
+      <div class="panel glass mosca reveal" id="mosca">
+        <div class="mosca-copy">
+          <h3>Mosca's theorem</h3>
+          <p>Data can be recorded today and decrypted later, so the deadline isn't the day a quantum computer exists. If <em>X</em>&nbsp;+&nbsp;<em>Y</em>&nbsp;&gt;&nbsp;<em>Q</em>, some of your data will still need protecting after it can be broken. Nobody knows <em>Q</em>, so the numbers are yours to choose.</p>
+          <p class="note">pqscan uses it to rank findings: give it X and Y for each part of your code in a <a href="#priority">project file</a>.</p>
+        </div>
+        <div class="mosca-tool">
+          <label class="slider"><span>X, years the data must stay secret <output id="x-value">10</output></span><input id="x" type="range" min="0" max="30" value="10"></label>
+          <label class="slider"><span>Y, years the migration takes <output id="y-value">5</output></span><input id="y" type="range" min="0" max="15" value="5"></label>
+          <label class="slider"><span>Q, years until a quantum computer can break it <output id="q-value">12</output></span><input id="q" type="range" min="1" max="30" value="12"></label>
           <div class="mosca-bars" aria-hidden="true">
             <div class="mosca-row"><span class="mosca-x" id="bar-x"></span><span class="mosca-y" id="bar-y"></span></div>
             <div class="mosca-row"><span class="mosca-q" id="bar-q"></span></div>
@@ -127,49 +236,69 @@
       </div>
     </section>
 
-    <section class="section" id="start">
+    <section class="section" id="start" aria-labelledby="start-title">
       <header class="section-head reveal">
-        <p class="kicker">02 &middot; Start</p>
-        <h2>Install it, then point it at your code</h2>
-        <p>Each <a href="https://github.com/HarenaFiantso/pqscan/releases">release</a> has an archive for Linux on x86-64 and arm64, and for macOS on Apple silicon, with the binary, its man page and a <code>SHA256SUMS</code> file. The Linux binary is fully static, so it runs on any distribution, and the macOS one needs macOS 15 or newer.</p>
+        <p class="eyebrow">Install</p>
+        <h2 id="start-title">Install it.<br><span class="dim">Point it at your code.</span></h2>
+        <p class="lead">Each <a href="https://github.com/HarenaFiantso/pqscan/releases">release</a> has an archive for Linux on x86-64 and arm64, and for macOS on Apple silicon, with the binary, its man page and a <code>SHA256SUMS</code> file. The Linux binary is fully static, so it runs on any distribution. The macOS one needs macOS 15 or newer.</p>
       </header>
 
-      <div class="code-block reveal">
-        <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
+      <div class="tabs reveal" data-tabs>
+        <div class="segmented glass" role="tablist" aria-label="Ways to install pqscan">
+          <button role="tab" id="tab-archive" aria-controls="panel-archive" aria-selected="true" type="button">Release archive</button>
+          <button role="tab" id="tab-docker" aria-controls="panel-docker" aria-selected="false" tabindex="-1" type="button">Docker</button>
+          <button role="tab" id="tab-source" aria-controls="panel-source" aria-selected="false" tabindex="-1" type="button">From source</button>
+          <span class="segmented-lens" aria-hidden="true"></span>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="panel-archive" aria-labelledby="tab-archive" tabindex="0">
+          <div class="code glass-dark">
+            <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
 <pre><code>version=1.0.0 platform=linux-x86_64   # or linux-aarch64, macos-arm64
 base=https://github.com/HarenaFiantso/pqscan/releases/download/v$version
 curl -fL -O "$base/pqscan-$version-$platform.tar.gz" -O "$base/SHA256SUMS"
 sha256sum --check --ignore-missing SHA256SUMS
 tar -xzf "pqscan-$version-$platform.tar.gz"
 sudo cp -R "pqscan-$version-$platform/." /usr/local/</code></pre>
-      </div>
-      <p class="reveal">Or run the image, which holds the static binary and nothing else, on the directory you mount at <code>/src</code>:</p>
-      <div class="code-block reveal">
-        <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
-<pre><code>docker run --rm -v "$PWD:/src:ro" ghcr.io/harenafiantso/pqscan:1</code></pre>
-      </div>
-      <p class="note reveal">To build it yourself, you need CMake 3.20 or newer, a C11 compiler and OpenSSL 3.0 or newer with its headers. The <a href="https://github.com/HarenaFiantso/pqscan#from-source">README</a> has the three commands, and how to check where an archive or the image was built.</p>
+          </div>
+          <p class="note">Every archive is attested by the workflow that built it: <code>gh attestation verify</code> checks it, as the <a href="https://github.com/HarenaFiantso/pqscan#release-archives">README</a> shows.</p>
+        </div>
 
-      <h3 class="reveal">Usage</h3>
-      <div class="code-block reveal">
+        <div class="tab-panel" role="tabpanel" id="panel-docker" aria-labelledby="tab-docker" tabindex="0">
+          <div class="code glass-dark">
+            <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
+<pre><code>docker run --rm -v "$PWD:/src:ro" ghcr.io/harenafiantso/pqscan:1
+docker run --rm -v "$PWD:/src:ro" ghcr.io/harenafiantso/pqscan:1 --format sarif . &gt; pqscan.sarif</code></pre>
+          </div>
+          <p class="note">The image holds the static binary and nothing else, for x86-64 and arm64, and runs as <code>nobody</code>. Options replace the default path, so name <code>.</code> after them.</p>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="panel-source" aria-labelledby="tab-source" tabindex="0">
+          <div class="code glass-dark">
+            <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
+<pre><code>cmake --preset release -DPQSCAN_BUILD_TESTS=OFF
+cmake --build --preset release
+sudo cmake --install build/release</code></pre>
+          </div>
+          <p class="note">You need CMake 3.20 or newer, a C11 compiler and OpenSSL 3.0 or newer with its headers. CMake downloads the other dependencies, pinned by hash.</p>
+        </div>
+      </div>
+
+      <h3 class="sub reveal">Usage</h3>
+      <div class="code glass-dark reveal">
         <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
 <pre><code>pqscan [OPTIONS] PATH...</code></pre>
       </div>
-      <p class="reveal">Each <code>PATH</code> is a file or a directory. Directories are walked recursively and symlinks are never followed. pqscan reads four kinds of files, and skips every other file. The first three are chosen by name. ELF files are recognized by their first four bytes, whatever their name:</p>
+      <p class="reveal">Each <code>PATH</code> is a file or a directory. Directories are walked recursively and symlinks are never followed. pqscan reads four kinds of files, and skips every other file. The first three are chosen by name. ELF files are recognized by their first four bytes, whatever their name. <code>man pqscan</code> has it all, once installed.</p>
 
-      <div class="table-wrap reveal">
-        <table>
-          <thead><tr><th scope="col">Kind</th><th scope="col">Files</th></tr></thead>
-          <tbody>
-            <tr><td>C and C++ source</td><td><code>.c</code>, <code>.h</code>, <code>.cpp</code>, <code>.hpp</code>, <code>.cc</code>, <code>.cxx</code>, <code>.C</code>, <code>.hh</code>, <code>.hxx</code>, <code>.ipp</code>, <code>.inl</code> and <code>.tcc</code></td></tr>
-            <tr><td>Configuration</td><td><code>.conf</code>, <code>.cnf</code>, <code>sshd_config</code>, <code>ssh_config</code>, <code>.htaccess</code>, and any file in a <code>sites-available</code> or <code>sites-enabled</code> directory</td></tr>
-            <tr><td>Certificates and keys</td><td><code>.pem</code>, <code>.crt</code>, <code>.cer</code>, <code>.der</code>, <code>.key</code> and <code>.csr</code></td></tr>
-            <tr><td>ELF binaries</td><td>64-bit executables, shared libraries and object files</td></tr>
-          </tbody>
-        </table>
+      <div class="kinds">
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-code"/></svg><h4>C and C++ source</h4><p><code>.c</code>, <code>.h</code>, <code>.cpp</code>, <code>.hpp</code>, <code>.cc</code>, <code>.cxx</code>, <code>.C</code>, <code>.hh</code>, <code>.hxx</code>, <code>.ipp</code>, <code>.inl</code> and <code>.tcc</code></p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-sliders"/></svg><h4>Configuration</h4><p><code>.conf</code>, <code>.cnf</code>, <code>sshd_config</code>, <code>ssh_config</code>, <code>.htaccess</code>, and any file in a <code>sites-available</code> or <code>sites-enabled</code> directory</p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-key"/></svg><h4>Certificates and keys</h4><p><code>.pem</code>, <code>.crt</code>, <code>.cer</code>, <code>.der</code>, <code>.key</code> and <code>.csr</code></p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-chip"/></svg><h4>ELF binaries</h4><p>64-bit executables, shared libraries and object files</p></article>
       </div>
 
-      <div class="table-wrap reveal">
+      <div class="table glass reveal">
         <table>
           <thead><tr><th scope="col">Option</th><th scope="col">Meaning</th></tr></thead>
           <tbody>
@@ -189,37 +318,27 @@ sudo cp -R "pqscan-$version-$platform/." /usr/local/</code></pre>
       </div>
     </section>
 
-    <section class="section" id="detect">
+    <section class="section" id="detect" aria-labelledby="detect-title">
       <header class="section-head reveal">
-        <p class="kicker">03 &middot; Detection</p>
-        <h2>It reads syntax, not text</h2>
-        <p>pqscan parses each file with <a href="https://tree-sitter.github.io">Tree-sitter</a>, so a comment that mentions RSA is not a finding, and broken code is still scanned.</p>
+        <p class="eyebrow">Detection</p>
+        <h2 id="detect-title">It reads syntax.<br><span class="dim">Not text.</span></h2>
+        <p class="lead">pqscan parses each file with <a href="https://tree-sitter.github.io">Tree-sitter</a>, so a comment that mentions RSA is not a finding, and broken code is still scanned.</p>
       </header>
 
-      <div class="cards">
-        <article class="card card-green reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf00c;</span>
-          <h3>Reported</h3>
-          <p>Calls and other uses of known identifiers, including in macro bodies and in every branch of <code>#ifdef</code>, plus algorithm names passed to known calls, such as <code>"RSA"</code> in <code>EVP_PKEY_CTX_new_from_name</code>.</p>
-        </article>
-        <article class="card card-yellow reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf002;</span>
-          <h3>Reported only when called</h3>
-          <p><code>MD5</code> and <code>SHA1</code>, since those names are also common enum values and variables.</p>
-        </article>
-        <article class="card card-overlay reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf121;</span>
-          <h3>Not reported</h3>
-          <p>Comments, other strings, declarations such as prototypes, struct fields, C++ methods, and code under a literal <code>#if 0</code>.</p>
-        </article>
+      <div class="bento bento-3">
+        <article class="tile glass reveal"><svg class="icon tile-icon tone-ok"><use href="#i-check"/></svg><h4>Reported</h4><p>Calls and other uses of known identifiers, including in macro bodies and in every branch of <code>#ifdef</code>, plus algorithm names passed to known calls, such as <code>"RSA"</code> in <code>EVP_PKEY_CTX_new_from_name</code>.</p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon tone-review"><use href="#i-search"/></svg><h4>Reported only when called</h4><p><code>MD5</code> and <code>SHA1</code>, since those names are also common enum values and variables.</p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-slash"/></svg><h4>Not reported</h4><p>Comments, other strings, declarations such as prototypes, struct fields, C++ methods, and code under a literal <code>#if 0</code>.</p></article>
       </div>
 
-      <h3 class="reveal">It follows constants, and never guesses</h3>
-      <p class="reveal">pqscan resolves values inside one file: locals in order, <code>#define</code>s, <code>const</code> and <code>constexpr</code> globals, strings, and <code>+</code>, <code>-</code>, <code>*</code> and <code>&lt;&lt;</code> on constants. What it can't prove stays <code>unknown</code>.</p>
-
-      <div class="flow reveal" id="flow">
-        <div class="code-block flow-source">
-          <div class="code-head"><span>keys.c</span></div>
+      <div class="panel glass flow-panel reveal">
+        <div class="flow-copy">
+          <h3>It follows constants.<br><span class="dim">And never guesses.</span></h3>
+          <p>pqscan resolves values inside one file: locals in order, <code>#define</code>s, <code>const</code> and <code>constexpr</code> globals, strings, and <code>+</code>, <code>-</code>, <code>*</code> and <code>&lt;&lt;</code> on constants. What it can't prove stays <code>unknown</code>.</p>
+        </div>
+        <div class="flow" id="flow">
+          <div class="code glass-dark flow-source">
+            <div class="code-head"><span>keys.c</span></div>
 <pre><code><span class="flow-line">#define KEY_BITS 4096</span>
 <span class="flow-line">static const int DOUBLE_BITS = 2048 * 2;</span>
 <span class="flow-line"></span>
@@ -231,17 +350,18 @@ sudo cp -R "pqscan-$version-$platform/." /usr/local/</code></pre>
 <span class="flow-line" data-result="3">    RSA_generate_key_ex(r, 1 &lt;&lt; 12, NULL, NULL);</span>
 <span class="flow-line" data-result="4">    RSA_generate_key_ex(r, size, NULL, NULL);</span>
 <span class="flow-line">}</span></code></pre>
+          </div>
+          <ul class="flow-results" aria-label="What pqscan reports for each call">
+            <li data-result="0"><span class="flow-from">KEY_BITS</span><span class="flow-to">RSA-4096</span></li>
+            <li data-result="1"><span class="flow-from">2048 * 2</span><span class="flow-to">RSA-4096</span></li>
+            <li data-result="2"><span class="flow-from">bits = KEY_BITS</span><span class="flow-to">RSA-4096</span></li>
+            <li data-result="3"><span class="flow-from">1 &lt;&lt; 12</span><span class="flow-to">RSA-4096</span></li>
+            <li data-result="4" class="flow-unknown"><span class="flow-from">a parameter</span><span class="flow-to">RSA-unknown</span></li>
+          </ul>
         </div>
-        <ul class="flow-results" aria-label="What pqscan reports for each call">
-          <li data-result="0"><span class="flow-from">KEY_BITS</span> <span class="flow-to">RSA-4096</span></li>
-          <li data-result="1"><span class="flow-from">2048 * 2</span> <span class="flow-to">RSA-4096</span></li>
-          <li data-result="2"><span class="flow-from">bits = KEY_BITS</span> <span class="flow-to">RSA-4096</span></li>
-          <li data-result="3"><span class="flow-from">1 &lt;&lt; 12</span> <span class="flow-to">RSA-4096</span></li>
-          <li data-result="4" class="flow-unknown"><span class="flow-from">a parameter</span> <span class="flow-to">RSA-unknown</span></li>
-        </ul>
       </div>
 
-      <details class="more reveal">
+      <details class="more glass reveal">
         <summary>What stays <code>unknown</code></summary>
         <ul>
           <li>Anything from another file, a parameter, or a global that isn't constant.</li>
@@ -252,75 +372,47 @@ sudo cp -R "pqscan-$version-$platform/." /usr/local/</code></pre>
         </ul>
       </details>
 
-      <h3 class="reveal">Configs, certificates, keys and binaries</h3>
-      <div class="cards">
-        <article class="card card-green reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf013;</span>
-          <h3>TLS and SSH settings</h3>
-          <p>Cipher strings, groups and signature algorithms in <code>openssl.cnf</code>, nginx and Apache, and OpenSSH's <code>KexAlgorithms</code>, <code>HostKeyAlgorithms</code>, <code>Ciphers</code> and <code>MACs</code>. <code>ECDHE-RSA-AES128-GCM-SHA256</code> reports ECDH, RSA and AES-128.</p>
-        </article>
-        <article class="card card-yellow reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf084;</span>
-          <h3>Certificates and keys</h3>
-          <p>PEM or DER, decoded by OpenSSL's libcrypto: the key and its size, what the key usage says it does, the signature and its digest, and when the certificate expires. Each PEM block names its own line.</p>
-        </article>
-        <article class="card card-green reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf471;</span>
-          <h3>ELF binaries</h3>
-          <p>The symbol tables of 64-bit executables, libraries and object files, read by a bounds-checked reader that is fuzzed in CI. A function a binary imports or contains, such as <code>RSA_sign</code>, is reported for the whole file.</p>
-        </article>
-        <article class="card card-overlay reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf05e;</span>
-          <h3>Not reported</h3>
-          <p>Names a setting takes away, such as <code>!RSA</code> or <code>-ssh-rsa</code>, and hybrid post-quantum groups such as <code>X25519MLKEM768</code>. Aliases such as <code>DEFAULT</code> or <code>HIGH</code> aren't expanded, since their meaning depends on the OpenSSL build.</p>
-        </article>
+      <h3 class="sub reveal">Configs, certificates, keys and binaries</h3>
+      <div class="bento bento-2">
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-sliders"/></svg><h4>TLS and SSH settings</h4><p>Cipher strings, groups and signature algorithms in <code>openssl.cnf</code>, nginx and Apache, and OpenSSH's <code>KexAlgorithms</code>, <code>HostKeyAlgorithms</code>, <code>Ciphers</code> and <code>MACs</code>. <code>ECDHE-RSA-AES128-GCM-SHA256</code> reports ECDH, RSA and AES-128.</p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-key"/></svg><h4>Certificates and keys</h4><p>PEM or DER, decoded by OpenSSL's libcrypto: the key and its size, what the key usage says it does, the signature and its digest, and when the certificate expires. Each PEM block names its own line.</p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-chip"/></svg><h4>ELF binaries</h4><p>The symbol tables of 64-bit executables, libraries and object files, read by a bounds-checked reader that is fuzzed in CI. A function a binary imports or contains, such as <code>RSA_sign</code>, is reported for the whole file.</p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-slash"/></svg><h4>Not reported</h4><p>Names a setting takes away, such as <code>!RSA</code> or <code>-ssh-rsa</code>, and hybrid post-quantum groups such as <code>X25519MLKEM768</code>. Aliases such as <code>DEFAULT</code> or <code>HIGH</code> aren't expanded, since their meaning depends on the OpenSSL build.</p></article>
       </div>
       <p class="note reveal">Where one name stands for two weaknesses, pqscan reports the more severe: <code>ssh-rsa</code> signs with SHA-1, so it's <code>SHA-1</code>. An encrypted PKCS#8 key hides its algorithm, so its file isn't analyzed, and pqscan never asks for a passphrase. Neither is a stripped static executable, which keeps no symbols to read.</p>
     </section>
 
-    <section class="section" id="risk">
+    <section class="section" id="risk" aria-labelledby="risk-title">
       <header class="section-head reveal">
-        <p class="kicker">04 &middot; Risk</p>
-        <h2>Four levels, one verdict per finding</h2>
-        <p>A finding has exactly one level, the most severe that applies. That's why RSA-1024 is <code>CLASSICALLY_WEAK</code>, not <code>QUANTUM_VULNERABLE</code>: it's already unsafe today.</p>
+        <p class="eyebrow">Risk</p>
+        <h2 id="risk-title">Four levels.<br><span class="dim">One verdict per finding.</span></h2>
+        <p class="lead">A finding has exactly one level, the most severe that applies. That's why RSA-1024 is <code>CLASSICALLY_WEAK</code>, not <code>QUANTUM_VULNERABLE</code>: it's already unsafe today.</p>
       </header>
 
       <ol class="levels">
-        <li class="level level-weak reveal">
-          <div class="level-name"><span class="pulse pulse-red" aria-hidden="true"></span><code>CLASSICALLY_WEAK</code></div>
-          <p>Already unsafe today: MD5, SHA-1, DES, 3DES, RC4, and RSA, DSA or DH under 2048 bits.</p>
-        </li>
-        <li class="level level-quantum reveal">
-          <div class="level-name"><span class="pulse pulse-peach" aria-hidden="true"></span><code>QUANTUM_VULNERABLE</code></div>
-          <p>Broken by Shor's algorithm, so they must migrate: RSA, ECDSA, EdDSA, ECDH, DH and DSA.</p>
-        </li>
-        <li class="level level-review reveal">
-          <div class="level-name"><span class="pulse pulse-yellow" aria-hidden="true"></span><code>REVIEW</code></div>
-          <p>Weakened by Grover's algorithm: AES-128 and other symmetric algorithms.</p>
-        </li>
-        <li class="level level-ok reveal">
-          <div class="level-name"><span class="pulse pulse-green" aria-hidden="true"></span><code>OK</code></div>
-          <p>AES-256, SHA-256 and stronger, ML-KEM, ML-DSA, SLH-DSA. The built-in rules don't report these, but your own rules can.</p>
-        </li>
+        <li class="tile glass level reveal"><span class="dot dot-weak" aria-hidden="true"></span><code>CLASSICALLY_WEAK</code><p>Already unsafe today: MD5, SHA-1, DES, 3DES, RC4, and RSA, DSA or DH under 2048 bits.</p></li>
+        <li class="tile glass level reveal"><span class="dot dot-quantum" aria-hidden="true"></span><code>QUANTUM_VULNERABLE</code><p>Broken by Shor's algorithm, so they must migrate: RSA, ECDSA, EdDSA, ECDH, DH and DSA.</p></li>
+        <li class="tile glass level reveal"><span class="dot dot-review" aria-hidden="true"></span><code>REVIEW</code><p>Weakened by Grover's algorithm: AES-128 and other symmetric algorithms.</p></li>
+        <li class="tile glass level reveal"><span class="dot dot-ok" aria-hidden="true"></span><code>OK</code><p>AES-256, SHA-256 and stronger, ML-KEM, ML-DSA, SLH-DSA. The built-in rules don't report these, but your own rules can.</p></li>
       </ol>
       <p class="note reveal">Severity order, used by <code>--fail-on</code>: <code>OK</code> &lt; <code>REVIEW</code> &lt; <code>QUANTUM_VULNERABLE</code> &lt; <code>CLASSICALLY_WEAK</code>. An <code>unknown</code> key size keeps the algorithm's usual level, because guessing would hide or invent a weakness.</p>
 
-      <h3 class="reveal" id="priority">From level to priority</h3>
+      <h3 class="sub reveal" id="priority">From level to priority</h3>
       <p class="reveal">Every finding also gets a priority from 0 to 100, and reports list the most urgent first. What is broken today scores 100, <code>REVIEW</code> 10 and <code>OK</code> 0. A <code>QUANTUM_VULNERABLE</code> finding scores from 50 to 99, as the sum of:</p>
-      <div class="table-wrap reveal">
+      <div class="table glass reveal">
         <table>
           <thead><tr><th scope="col">Points</th><th scope="col">For</th></tr></thead>
           <tbody>
             <tr><td>50</td><td>Being breakable by Shor's algorithm at all.</td></tr>
             <tr><td>10 or 20</td><td>NIST IR 8547 deprecating the algorithm, after 2030, or disallowing it, after 2035, in the year the migration would end.</td></tr>
-            <tr><td>0 to 29</td><td>Mosca's 10 + <em>X</em> + <em>Y</em> - <em>Q</em>, kept in that range. It is over 10 exactly when the data is exposed, and every year of exposure adds a point.</td></tr>
+            <tr><td>0 to 29</td><td>Mosca's 10 + <em>X</em> + <em>Y</em> &minus; <em>Q</em>, kept in that range. It is over 10 exactly when the data is exposed, and every year of exposure adds a point.</td></tr>
           </tbody>
         </table>
       </div>
       <p class="reveal"><em>Q</em> runs from <code>--as-of</code>, the current year by default, to the quantum year, 2035 unless you say otherwise: the year IR 8547 disallows these algorithms, a planning date rather than a forecast. Without a project file <em>X</em> and <em>Y</em> are 0, so the dates alone decide. With one, each part of the code gets its own:</p>
-      <div class="code-block reveal">
+      <div class="code glass-dark reveal">
         <div class="code-head"><span>.pqscan.json</span><button class="copy" type="button">Copy</button></div>
-<pre><code>{
+<pre data-json><code>{
   "schema_version": 1,
   "quantum_year": 2035,
   "secrecy_years": 0,
@@ -334,36 +426,36 @@ sudo cp -R "pqscan-$version-$platform/." /usr/local/</code></pre>
       <p class="note reveal">The first component with a matching glob wins, and a path no component claims gets the top-level years. Patterns match paths as the report prints them, so run pqscan from the project root, where it reads <code>.pqscan.json</code>. A project file only reorders findings: it never hides one or changes the exit code.</p>
     </section>
 
-    <section class="section" id="reports">
+    <section class="section" id="reports" aria-labelledby="reports-title">
       <header class="section-head reveal">
-        <p class="kicker">05 &middot; Reports</p>
-        <h2>One scan, four formats</h2>
-        <p><code>--format</code> picks what goes to stdout. Warnings always go to stderr, so a report can be redirected to a file as it is. The same files, rules, project file and <code>--as-of</code> year give the same bytes: reports hold no timestamp and no random identifier.</p>
+        <p class="eyebrow">Reports</p>
+        <h2 id="reports-title">One scan.<br><span class="dim">Four formats.</span></h2>
+        <p class="lead"><code>--format</code> picks what goes to stdout. Warnings always go to stderr, so a report can be redirected to a file as it is. The same files, rules, project file and <code>--as-of</code> year give the same bytes: reports hold no timestamp and no random identifier.</p>
       </header>
 
-      <div class="tabs reveal" id="tabs">
-        <div class="tablist" role="tablist" aria-label="Report formats">
+      <div class="tabs reveal" data-tabs>
+        <div class="segmented glass" role="tablist" aria-label="Report formats">
           <button role="tab" id="tab-text" aria-controls="panel-text" aria-selected="true" type="button">text</button>
           <button role="tab" id="tab-json" aria-controls="panel-json" aria-selected="false" tabindex="-1" type="button">json</button>
           <button role="tab" id="tab-cbom" aria-controls="panel-cbom" aria-selected="false" tabindex="-1" type="button">cbom</button>
           <button role="tab" id="tab-sarif" aria-controls="panel-sarif" aria-selected="false" tabindex="-1" type="button">sarif</button>
-          <span class="tab-indicator" id="tab-indicator" aria-hidden="true"></span>
+          <span class="segmented-lens" aria-hidden="true"></span>
         </div>
 
-        <div role="tabpanel" id="panel-text" aria-labelledby="tab-text" tabindex="0">
+        <div class="tab-panel" role="tabpanel" id="panel-text" aria-labelledby="tab-text" tabindex="0">
           <p>For reading in a terminal. One line per finding, most urgent first, then a count. A clean scan prints nothing.</p>
-<pre class="report"><code>report/mixed.c:4: RSA-1024 (CLASSICALLY_WEAK, priority 100)
+          <div class="code glass-dark"><pre><code>report/mixed.c:4: RSA-1024 (CLASSICALLY_WEAK, priority 100)
 report/mixed.c:11: RC4 (CLASSICALLY_WEAK, priority 100)
 report/mixed.c:12: MD5 (CLASSICALLY_WEAK, priority 100)
 report/mixed.c:3: RSA-2048 (QUANTUM_VULNERABLE, priority 51)
 ...
-10 findings: 3 CLASSICALLY_WEAK, 6 QUANTUM_VULNERABLE, 1 REVIEW</code></pre>
+10 findings: 3 CLASSICALLY_WEAK, 6 QUANTUM_VULNERABLE, 1 REVIEW</code></pre></div>
           <p class="note">File names are untrusted input: control characters, bidirectional marks and invalid UTF-8 print as <code>\xNN</code>, and a backslash prints doubled.</p>
         </div>
 
-        <div role="tabpanel" id="panel-json" aria-labelledby="tab-json" tabindex="0" hidden>
+        <div class="tab-panel" role="tabpanel" id="panel-json" aria-labelledby="tab-json" tabindex="0">
           <p>For scripts. <code>key_size</code> is a number, <code>"unknown"</code> when pqscan can't prove it, or <code>null</code> when the algorithm has no key size. <code>line</code> is <code>null</code> for a finding about a whole file, such as a DER certificate, and <code>expires</code> is when a certificate stops being valid. <code>priority</code> shows how the finding was scored.</p>
-<pre class="report" data-json><code>{
+          <div class="code glass-dark"><pre class="report" data-json><code>{
   "schema_version": 2,
   "tool": {
     "name": "pqscan",
@@ -406,12 +498,12 @@ report/mixed.c:3: RSA-2048 (QUANTUM_VULNERABLE, priority 51)
     ...
   ],
   "unanalyzed": []
-}</code></pre>
+}</code></pre></div>
         </div>
 
-        <div role="tabpanel" id="panel-cbom" aria-labelledby="tab-cbom" tabindex="0" hidden>
+        <div class="tab-panel" role="tabpanel" id="panel-cbom" aria-labelledby="tab-cbom" tabindex="0">
           <p>An inventory of the cryptography in use, as a CycloneDX 1.6 CBOM. Each mix of algorithm, key size and primitive is one component, and its occurrences list where it's used.</p>
-<pre class="report" data-json><code>{
+          <div class="code glass-dark"><pre class="report" data-json><code>{
   "type": "cryptographic-asset",
   "bom-ref": "crypto/RSA-2048/unspecified",
   "name": "RSA-2048",
@@ -446,12 +538,12 @@ report/mixed.c:3: RSA-2048 (QUANTUM_VULNERABLE, priority 51)
       "value": "51"
     }
   ]
-}</code></pre>
+}</code></pre></div>
         </div>
 
-        <div role="tabpanel" id="panel-sarif" aria-labelledby="tab-sarif" tabindex="0" hidden>
+        <div class="tab-panel" role="tabpanel" id="panel-sarif" aria-labelledby="tab-sarif" tabindex="0">
           <p>For code scanning services, as SARIF 2.1.0. Each algorithm is one rule. <code>CLASSICALLY_WEAK</code> and <code>QUANTUM_VULNERABLE</code> are errors, <code>REVIEW</code> is a warning and <code>OK</code> is a note. A result's <code>rank</code> is its priority.</p>
-<pre class="report" data-json><code>{
+          <div class="code glass-dark"><pre class="report" data-json><code>{
   "ruleId": "pqscan/RSA",
   "level": "error",
   "rank": 51,
@@ -470,14 +562,14 @@ report/mixed.c:3: RSA-2048 (QUANTUM_VULNERABLE, priority 51)
       }
     }
   ]
-}</code></pre>
+}</code></pre></div>
           <p class="note">Paths are URIs: bytes that aren't plain in a URI are percent-encoded, and a leading <code>./</code> is dropped so that code scanning can match them to the repository.</p>
         </div>
       </div>
 
-      <h3 class="reveal">A partial report can't pass for a whole one</h3>
+      <h3 class="sub reveal">A partial report can't pass for a whole one</h3>
       <p class="reveal">Paths that can't be read are skipped with a warning, as are files over 64 MiB, source and configuration files that contain a NUL byte, source files that take more than 30 seconds to parse, encrypted PKCS#8 keys, certificate or key files that can't be decoded, and ELF files that are 32-bit, damaged, or have no symbol table. Every format says so.</p>
-      <div class="table-wrap reveal">
+      <div class="table glass reveal">
         <table>
           <thead><tr><th scope="col">Format</th><th scope="col">Where to look</th></tr></thead>
           <tbody>
@@ -490,18 +582,18 @@ report/mixed.c:3: RSA-2048 (QUANTUM_VULNERABLE, priority 51)
       </div>
     </section>
 
-    <section class="section" id="ci">
+    <section class="section" id="ci" aria-labelledby="ci-title">
       <header class="section-head reveal">
-        <p class="kicker">06 &middot; CI</p>
-        <h2>Exit codes a pipeline can trust</h2>
-        <p><code>--fail-on</code> sets the lowest level that fails a run. It changes only the exit code, so every finding is still reported. The panel below starts with the ten findings from the run above.</p>
+        <p class="eyebrow">CI</p>
+        <h2 id="ci-title">Exit codes<br><span class="dim">a pipeline can trust.</span></h2>
+        <p class="lead"><code>--fail-on</code> sets the lowest level that fails a run. It changes only the exit code, so every finding is still reported. The panel starts with the ten findings from the run above.</p>
       </header>
 
-      <div class="panel gate reveal" id="gate">
-        <div class="panel-tool">
+      <div class="panel glass gate reveal" id="gate">
+        <div class="gate-tool">
           <fieldset>
             <legend><code>--fail-on</code></legend>
-            <div class="gate-levels" id="gate-levels">
+            <div class="gate-levels">
               <label><input type="radio" name="fail-on" value="0"><span><code>OK</code></span></label>
               <label><input type="radio" name="fail-on" value="1" checked><span><code>REVIEW</code> <small>default</small></span></label>
               <label><input type="radio" name="fail-on" value="2"><span><code>QUANTUM_VULNERABLE</code></span></label>
@@ -510,19 +602,19 @@ report/mixed.c:3: RSA-2048 (QUANTUM_VULNERABLE, priority 51)
           </fieldset>
           <fieldset>
             <legend>Findings at each level</legend>
-            <label class="gate-count"><span><code>CLASSICALLY_WEAK</code></span><input id="count-3" type="number" min="0" max="99" value="3" inputmode="numeric"></label>
-            <label class="gate-count"><span><code>QUANTUM_VULNERABLE</code></span><input id="count-2" type="number" min="0" max="99" value="6" inputmode="numeric"></label>
-            <label class="gate-count"><span><code>REVIEW</code></span><input id="count-1" type="number" min="0" max="99" value="1" inputmode="numeric"></label>
+            <label class="gate-count"><span><span class="dot dot-weak" aria-hidden="true"></span><code>CLASSICALLY_WEAK</code></span><input id="count-3" type="number" min="0" max="99" value="3" inputmode="numeric"></label>
+            <label class="gate-count"><span><span class="dot dot-quantum" aria-hidden="true"></span><code>QUANTUM_VULNERABLE</code></span><input id="count-2" type="number" min="0" max="99" value="6" inputmode="numeric"></label>
+            <label class="gate-count"><span><span class="dot dot-review" aria-hidden="true"></span><code>REVIEW</code></span><input id="count-1" type="number" min="0" max="99" value="1" inputmode="numeric"></label>
           </fieldset>
-          <label class="gate-toggle"><input id="gate-skipped" type="checkbox"><span>A file in scope could not be analyzed</span></label>
+          <label class="switch"><input id="gate-skipped" type="checkbox" role="switch"><span class="switch-track" aria-hidden="true"></span><span>A file in scope could not be analyzed</span></label>
         </div>
         <div class="gate-result" aria-live="polite">
-          <p class="gate-exit" id="gate-exit" data-exit="1"><small>exit</small> <span id="gate-code">1</span></p>
-          <p id="gate-meaning"></p>
+          <p class="gate-exit" id="gate-exit" data-exit="1"><small>exit</small><span id="gate-code">1</span></p>
+          <p class="gate-meaning" id="gate-meaning"></p>
         </div>
       </div>
 
-      <div class="table-wrap reveal">
+      <div class="table glass reveal">
         <table>
           <thead><tr><th scope="col">Exit code</th><th scope="col">Meaning</th></tr></thead>
           <tbody>
@@ -535,7 +627,7 @@ report/mixed.c:3: RSA-2048 (QUANTUM_VULNERABLE, priority 51)
         </table>
       </div>
 
-      <div class="code-block reveal">
+      <div class="code glass-dark reveal">
         <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
 <pre><code>pqscan --fail-on CLASSICALLY_WEAK src        # fail only on what is unsafe today
 pqscan --format sarif src &gt; pqscan.sarif     # for code scanning
@@ -543,16 +635,16 @@ pqscan --format cbom src &gt; pqscan.cdx.json   # for an inventory
 pqscan --format json src | jq .summary.by_risk</code></pre>
       </div>
 
-      <h3 class="reveal" id="baseline">Block new findings, accept the old ones</h3>
+      <h3 class="sub reveal" id="baseline">Block new findings. Accept the old ones.</h3>
       <p class="reveal">A baseline lists the findings a project accepts today, and <code>--diff</code> reports only the others. An entry names a finding by its path, algorithm, symbol, primitive and key size, with a count. The line isn't part of it, so editing code above a finding doesn't make it new, but a third identical call in a file that had two does. Entries no finding used any more are counted on stderr, so that a stale entry can't quietly accept the same call if it comes back.</p>
-      <div class="code-block reveal">
+      <div class="code glass-dark reveal">
         <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
 <pre><code>pqscan --write-baseline .pqscan-baseline.json .   # accept what is there now, and commit it
 pqscan --diff .pqscan-baseline.json .             # exits 1 only on new findings</code></pre>
       </div>
 
       <p class="reveal">The GitHub Action builds pqscan, uploads every finding to code scanning, and fails the job only on findings the baseline doesn't accept. Code scanning still sees the accepted ones, so their alerts stay open.</p>
-      <div class="code-block reveal">
+      <div class="code glass-dark reveal">
         <div class="code-head"><span>yaml</span><button class="copy" type="button">Copy</button></div>
 <pre><code>permissions:
   contents: read
@@ -567,22 +659,22 @@ jobs:
         with:
           baseline: .pqscan-baseline.json</code></pre>
       </div>
-      <p class="note reveal">A pull request can edit the baseline it's checked against. The <a href="https://github.com/HarenaFiantso/pqscan#gating-pull-requests">README</a> shows a gate that reads the baseline from the base branch instead, so that accepting a finding takes a reviewed merge.</p>
+      <p class="note reveal"><code>@v1</code> follows every 1.x release. A pull request can edit the baseline it's checked against, so the <a href="https://github.com/HarenaFiantso/pqscan#gating-pull-requests">README</a> shows a gate that reads it from the base branch instead, and how to pin the action to a commit.</p>
 
-      <aside class="callout reveal">
-        <span class="nf" aria-hidden="true">&#xf071;</span>
+      <aside class="callout glass reveal">
+        <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
         <p><strong>Exit code 0 doesn't prove the code is free of vulnerable cryptography.</strong> pqscan only recognizes the names in its rules, in the kinds of files it reads.</p>
       </aside>
     </section>
 
-    <section class="section" id="rules">
+    <section class="section" id="rules" aria-labelledby="rules-title">
       <header class="section-head reveal">
-        <p class="kicker">07 &middot; Rules</p>
-        <h2>Bring your own rules</h2>
-        <p>The built-in rules live in <a href="https://github.com/HarenaFiantso/pqscan/blob/main/rules/default.json">rules/default.json</a> and are compiled into the binary. <code>--rules FILE</code> replaces them with a file of the same format.</p>
+        <p class="eyebrow">Rules</p>
+        <h2 id="rules-title">Bring your own rules.</h2>
+        <p class="lead">The built-in rules live in <a href="https://github.com/HarenaFiantso/pqscan/blob/main/rules/default.json">rules/default.json</a> and are compiled into the binary. <code>--rules FILE</code> replaces them with a file of the same format. An install puts a copy in <code>share/pqscan/default.json</code> to start from.</p>
       </header>
 
-      <div class="code-block reveal">
+      <div class="code glass-dark reveal">
         <div class="code-head"><span>rules.json</span><button class="copy" type="button">Copy</button></div>
 <pre data-json><code>{
   "schema_version": 1,
@@ -605,7 +697,7 @@ jobs:
 }</code></pre>
       </div>
 
-      <div class="table-wrap reveal">
+      <div class="table glass reveal">
         <table>
           <thead><tr><th scope="col">Section</th><th scope="col">Field</th><th scope="col">Meaning</th></tr></thead>
           <tbody>
@@ -617,94 +709,67 @@ jobs:
             <tr><td><code>algorithm</code></td><td>A name declared in <code>algorithms</code>.</td></tr>
             <tr><td><code>primitive</code></td><td><code>signature</code>, <code>key_exchange</code>, <code>encryption</code>, <code>hash</code> or <code>unspecified</code>.</td></tr>
             <tr><td><code>call_only</code></td><td>Optional, for functions. Count the name only when it's called.</td></tr>
-            <tr><td><code>key_bits</code></td><td>Optional, for <code>config</code> rules. The key size the name itself fixes, as in <code>ffdhe2048</code>.</td></tr>
+            <tr><td><code>key_bits</code></td><td>Optional, for <code>config</code>, <code>function</code>, <code>constant</code> and <code>macro</code> rules. The key size the name itself fixes, as in <code>ffdhe2048</code> or <code>NID_secp384r1</code>.</td></tr>
             <tr><td rowspan="3"><code>calls</code></td><td><code>name</code></td><td>A function whose arguments are worth reading.</td></tr>
             <tr><td><code>key_bits_argument</code></td><td>Optional. Position of the key size, from 0.</td></tr>
             <tr><td><code>algorithm_argument</code></td><td>Optional. Position of a string naming an algorithm, from 0.</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="note reveal">A <code>string</code> pattern only counts as an argument of a call listed in <code>calls</code>. <code>string</code>, <code>config</code> and <code>key</code> patterns ignore case, and each kind has its own names. pqscan refuses the whole file on any mistake, such as an unknown field, and names the entry at fault.</p>
+      <p class="note reveal">A <code>string</code> pattern only counts as an argument of a call listed in <code>calls</code>. <code>string</code>, <code>config</code> and <code>key</code> patterns ignore case, and each kind has its own names. pqscan refuses the whole file on any mistake, such as an unknown field, and names the entry at fault. <a href="https://github.com/HarenaFiantso/pqscan/blob/main/CONTRIBUTING.md#adding-a-rule">CONTRIBUTING.md</a> explains how to add a built-in rule.</p>
     </section>
 
-    <section class="section" id="inside">
+    <section class="section" id="inside" aria-labelledby="inside-title">
       <header class="section-head reveal">
-        <p class="kicker">08 &middot; Inside</p>
-        <h2>Scanners produce, reporters consume</h2>
-        <p>Scanners produce <code>finding</code> structs and reporters consume them, and neither knows about the other. Adding an input type or an output format never requires changes elsewhere.</p>
+        <p class="eyebrow">Inside</p>
+        <h2 id="inside-title">Scanners produce.<br><span class="dim">Reporters consume.</span></h2>
+        <p class="lead">Scanners produce <code>finding</code> structs and reporters consume them, and neither knows about the other. Adding an input type or an output format never requires changes elsewhere.</p>
       </header>
 
-      <div class="pipeline reveal" aria-label="Data flow from paths to reports">
-        <div class="stage"><span class="nf" aria-hidden="true">&#xf1c9;</span><h3>walk</h3><p>Sorted directory walk, ignore patterns, file types.</p></div>
-        <div class="pipe" aria-hidden="true"><span></span><span></span><span></span></div>
-        <div class="stage"><span class="nf" aria-hidden="true">&#xf121;</span><h3>scan</h3><p>Tree-sitter syntax tree, rules, constant flow.</p></div>
-        <div class="pipe" aria-hidden="true"><span></span><span></span><span></span></div>
-        <div class="stage stage-core"><span class="nf" aria-hidden="true">&#xf1c0;</span><h3>findings</h3><p>Path, line, symbol, algorithm, key size, primitive, risk.</p></div>
-        <div class="pipe" aria-hidden="true"><span></span><span></span><span></span></div>
-        <div class="stage"><span class="nf" aria-hidden="true">&#xf0e7;</span><h3>report</h3><p>text, json, cbom or sarif, written as a stream.</p></div>
-      </div>
+      <ol class="pipeline reveal" aria-label="Data flow from paths to reports">
+        <li class="stage glass"><svg class="icon"><use href="#i-search"/></svg><h4>walk</h4><p>Sorted directory walk, ignore patterns, file types.</p></li>
+        <li class="stage glass"><svg class="icon"><use href="#i-code"/></svg><h4>scan</h4><p>Syntax tree, rules, constant flow, configs, certificates, ELF.</p></li>
+        <li class="stage glass stage-core"><svg class="icon"><use href="#i-stack"/></svg><h4>findings</h4><p>Path, line, symbol, algorithm, key size, primitive, risk, priority.</p></li>
+        <li class="stage glass"><svg class="icon"><use href="#i-doc"/></svg><h4>report</h4><p>text, json, cbom or sarif, written as a stream.</p></li>
+      </ol>
 
-      <div class="cards">
-        <article class="card card-mauve reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf023;</span>
-          <h3>Built for hostile input</h3>
-          <p>pqscan reads untrusted repositories. It never runs what it scans, every parse has a time budget, and a crafted file name can't forge a report line or break a JSON document.</p>
-        </article>
-        <article class="card card-blue reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf013;</span>
-          <h3>Plain, strict C11</h3>
-          <p>POSIX, no compiler extensions, zero warnings under strict flags. Every test passes under ASan, UBSan and Valgrind, on GCC and Clang, on Linux and macOS.</p>
-        </article>
-        <article class="card card-teal reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf126;</span>
-          <h3>Checked against the specs</h3>
-          <p>CI validates CBOM and SARIF output against the official CycloneDX and SARIF schemas, including on file names built to break them.</p>
-        </article>
-        <article class="card card-green reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf002;</span>
-          <h3>Measured, not claimed</h3>
-          <p>On hand-labeled code from OpenSSH, curl, nginx, Mosquitto, HAProxy and PostgreSQL, pqscan finds 98.6% of the OpenSSL uses it was never tuned on, with no false positive.</p>
-        </article>
-        <article class="card card-yellow reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf120;</span>
-          <h3>Fuzzed, every parser</h3>
-          <p>Each parser of untrusted input, from the ELF reader to the JSON loaders, has a libFuzzer target that checks its output too. CI runs them on every change, and for half an hour every night.</p>
-        </article>
-        <article class="card card-overlay reveal">
-          <span class="nf card-icon" aria-hidden="true">&#xf0e7;</span>
-          <h3>Fast enough for every pull request</h3>
-          <p>About 5 MiB of C per second on one core. The whole OpenSSL source tree takes under 6 seconds and 38 MiB of memory, and CI fails if that slips.</p>
-        </article>
+      <div class="bento bento-3">
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-lock"/></svg><h4>Built for hostile input</h4><p>pqscan reads untrusted repositories. It never runs what it scans, every parse has a time budget, and a crafted file name can't forge a report line or break a JSON document.</p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-terminal"/></svg><h4>Plain, strict C11</h4><p>POSIX, no compiler extensions, zero warnings under strict flags. Every test passes under ASan, UBSan and Valgrind, on GCC and Clang, on Linux and macOS, and against musl.</p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-doc"/></svg><h4>Checked against the specs</h4><p>CI validates CBOM and SARIF output against the official CycloneDX and SARIF schemas, including on file names built to break them.</p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-flask"/></svg><h4>Measured, not claimed</h4><p>On hand-labeled code from OpenSSH, curl, nginx, Mosquitto, HAProxy and PostgreSQL, pqscan finds 98.6% of the OpenSSL uses it was never tuned on, with no false positive.</p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-dice"/></svg><h4>Fuzzed, every parser</h4><p>Each parser of untrusted input, from the ELF reader to the JSON loaders, has a libFuzzer target that checks its output too. CI runs them on every change, and for half an hour every night.</p></article>
+        <article class="tile glass reveal"><svg class="icon tile-icon"><use href="#i-bolt"/></svg><h4>Fast enough for every pull request</h4><p>About 5 MiB of C per second on one core. The whole OpenSSL source tree takes under 6 seconds and 38 MiB of memory, and CI fails if that slips.</p></article>
       </div>
     </section>
 
-    <section class="section" id="roadmap">
+    <section class="section" id="releases" aria-labelledby="releases-title">
       <header class="section-head reveal">
-        <p class="kicker">09 &middot; Releases</p>
-        <h2>Eleven phases to a stable 1.0</h2>
-        <p>Each phase ended with a tagged release. Since 1.0, options, exit codes and report formats only change as the <a href="https://github.com/HarenaFiantso/pqscan#versioning">versioning promise</a> allows, and the <a href="https://github.com/HarenaFiantso/pqscan/blob/main/CHANGELOG.md">changelog</a> lists every release.</p>
+        <p class="eyebrow">Releases</p>
+        <h2 id="releases-title">Eleven phases.<br><span class="dim">One stable 1.0.</span></h2>
+        <p class="lead">Each phase ended with a tagged release. Since 1.0, options, exit codes and report formats only change as the <a href="https://github.com/HarenaFiantso/pqscan#versioning">versioning promise</a> allows, and the <a href="https://github.com/HarenaFiantso/pqscan/blob/main/CHANGELOG.md">changelog</a> lists every release.</p>
       </header>
 
-      <ol class="roadmap" id="roadmap-list">
-        <li class="phase done reveal"><span class="phase-tag">v0.1.0</span><h3>Foundations</h3><p>CLI, directory walk with ignore patterns, safe file reading.</p></li>
-        <li class="phase done reveal"><span class="phase-tag">v0.2.0</span><h3>Syntax-aware scanning</h3><p>Tree-sitter for C and C++, real calls only, literal arguments.</p></li>
-        <li class="phase done reveal"><span class="phase-tag">v0.3.0</span><h3>Rules engine</h3><p>External JSON rules, and classification by key size.</p></li>
-        <li class="phase done reveal"><span class="phase-tag">v0.4.0</span><h3>Light data flow</h3><p>Constant propagation inside a file, and <code>unknown</code> instead of a guess.</p></li>
-        <li class="phase done reveal"><span class="phase-tag">v0.5.0</span><h3>Outputs</h3><p>JSON, CycloneDX CBOM, SARIF, and exit codes with a threshold.</p></li>
-        <li class="phase done reveal"><span class="phase-tag">v0.6.0</span><h3>Configs, certificates and keys</h3><p>OpenSSL, nginx, Apache and SSH settings, plus PEM and DER files.</p></li>
-        <li class="phase done reveal"><span class="phase-tag">v0.7.0</span><h3>ELF binaries</h3><p>Crypto functions found in symbol tables, without source code.</p></li>
-        <li class="phase done reveal"><span class="phase-tag">v0.8.0</span><h3>Risk prioritization</h3><p>A priority score from the NIST IR 8547 dates and Mosca's theorem, per component.</p></li>
-        <li class="phase done reveal"><span class="phase-tag">v0.9.0</span><h3>CI integration</h3><p>A baseline, a <code>--diff</code> mode, and a GitHub Action that blocks new vulnerable crypto.</p></li>
-        <li class="phase done reveal"><span class="phase-tag">v0.10.0</span><h3>Quality and evaluation</h3><p>A benchmark corpus, measured precision and recall, and fuzzing.</p></li>
-        <li class="phase done reveal"><span class="phase-tag">v1.0.0</span><h3>Release</h3><p>Static binaries, a Docker image, a man page, a changelog, and docs for adding rules.</p></li>
+      <ol class="releases">
+        <li class="tile glass reveal"><span class="tag">v0.1.0</span><h4>Foundations</h4><p>CLI, directory walk with ignore patterns, safe file reading.</p></li>
+        <li class="tile glass reveal"><span class="tag">v0.2.0</span><h4>Syntax-aware scanning</h4><p>Tree-sitter for C and C++, real calls only, literal arguments.</p></li>
+        <li class="tile glass reveal"><span class="tag">v0.3.0</span><h4>Rules engine</h4><p>External JSON rules, and classification by key size.</p></li>
+        <li class="tile glass reveal"><span class="tag">v0.4.0</span><h4>Light data flow</h4><p>Constant propagation inside a file, and <code>unknown</code> instead of a guess.</p></li>
+        <li class="tile glass reveal"><span class="tag">v0.5.0</span><h4>Outputs</h4><p>JSON, CycloneDX CBOM, SARIF, and exit codes with a threshold.</p></li>
+        <li class="tile glass reveal"><span class="tag">v0.6.0</span><h4>Configs, certificates and keys</h4><p>OpenSSL, nginx, Apache and SSH settings, plus PEM and DER files.</p></li>
+        <li class="tile glass reveal"><span class="tag">v0.7.0</span><h4>ELF binaries</h4><p>Crypto functions found in symbol tables, without source code.</p></li>
+        <li class="tile glass reveal"><span class="tag">v0.8.0</span><h4>Risk prioritization</h4><p>A priority score from the NIST IR 8547 dates and Mosca's theorem, per component.</p></li>
+        <li class="tile glass reveal"><span class="tag">v0.9.0</span><h4>CI integration</h4><p>A baseline, a <code>--diff</code> mode, and a GitHub Action that blocks new vulnerable crypto.</p></li>
+        <li class="tile glass reveal"><span class="tag">v0.10.0</span><h4>Quality and evaluation</h4><p>A benchmark corpus, measured precision and recall, and fuzzing.</p></li>
+        <li class="tile glass release-current reveal"><span class="tag">v1.0.0</span><h4>Release</h4><p>Static binaries, a Docker image, a man page, a changelog, and docs for adding rules.</p><a class="button button-solid" href="https://github.com/HarenaFiantso/pqscan/releases/tag/v1.0.0">Get 1.0</a></li>
       </ol>
     </section>
   </main>
 
   <footer class="footer">
     <p><strong>pqscan</strong> is free software under the <a href="https://github.com/HarenaFiantso/pqscan/blob/main/LICENSE">Apache License 2.0</a>.</p>
-    <p><a href="https://github.com/HarenaFiantso/pqscan">Source</a> &middot; <a href="https://github.com/HarenaFiantso/pqscan/blob/main/CONTRIBUTING.md">Contributing</a> &middot; <a href="https://github.com/HarenaFiantso/pqscan/issues">Issues</a></p>
-    <p class="footer-credit">Colors from <a href="https://catppuccin.com">Catppuccin Mocha</a>. Set in Space Grotesk, Nunito and <a href="fonts/OFL.txt">JetBrains Mono Nerd Font</a>.</p>
+    <p><a href="https://github.com/HarenaFiantso/pqscan">Source</a> &middot; <a href="https://github.com/HarenaFiantso/pqscan/blob/main/CONTRIBUTING.md">Contributing</a> &middot; <a href="https://github.com/HarenaFiantso/pqscan/blob/main/CHANGELOG.md">Changelog</a> &middot; <a href="https://github.com/HarenaFiantso/pqscan/security/advisories/new">Report a vulnerability</a></p>
+    <p class="footer-credit">Set in SF Pro or <a href="https://rsms.me/inter/">Inter</a>, and SF Mono or <a href="fonts/OFL.txt">JetBrains Mono</a>.</p>
   </footer>
 </body>
 </html>
