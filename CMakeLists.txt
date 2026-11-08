@@ -96,6 +96,8 @@ target_link_libraries(pqscan_core
 add_executable(pqscan src/cli/main.c)
 target_link_libraries(pqscan PRIVATE pqscan_core pqscan_posix pqscan_warnings)
 
+include(cmake/install.cmake)
+
 if(PQSCAN_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
