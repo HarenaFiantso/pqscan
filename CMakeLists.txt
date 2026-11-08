@@ -61,6 +61,7 @@ add_library(pqscan_core STATIC
     src/scan/config_list.c
     src/scan/config_scanner.c
     src/scan/file_reader.c
+    src/scan/pem_blocks.c
     src/scan/source_scanner.c
     src/scan/syntax_parser.c
     src/walk/file_type.c
