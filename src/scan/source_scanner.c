@@ -4,6 +4,7 @@
 #include "pqscan/core/finding.h"
 #include "pqscan/core/key_size.h"
 #include "pqscan/core/status.h"
+#include "pqscan/core/utc_time.h"
 #include "pqscan/flow/constant_flow.h"
 #include "pqscan/flow/flow_source.h"
 #include "pqscan/risk/risk.h"
@@ -62,6 +63,7 @@ static finding finding_at(const source_walk *walk, TSNode node, const crypto_rul
         {KEY_SIZE_NOT_APPLICABLE, 0},
         rule->primitive,
         rule->pattern,
+        utc_time_none(),
     };
     return item;
 }

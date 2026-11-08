@@ -5,6 +5,7 @@
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/skip_list.h"
 #include "pqscan/core/status.h"
+#include "pqscan/core/utc_time.h"
 #include "pqscan/core/version.h"
 #include "pqscan/report/json_report.h"
 #include "pqscan/report/reporter.h"
@@ -13,7 +14,7 @@
 
 #include <stdio.h>
 
-enum { OUTPUT_SIZE = 4096, SAMPLE_LINE = 12, SAMPLE_BITS = 2048 };
+enum { OUTPUT_SIZE = 4096, SAMPLE_LINE = 12, SAMPLE_BITS = 2048, SAMPLE_YEAR = 2031 };
 
 static const key_size NO_KEY_SIZE = {KEY_SIZE_NOT_APPLICABLE, 0};
 
@@ -37,7 +38,7 @@ void tearDown(void) {
 
 static void add_finding(const char *path, key_size size, risk_level risk) {
     const finding item = {
-        path, SAMPLE_LINE, "RSA", risk, size, PRIMITIVE_SIGNATURE, "RSA_sign",
+        path, SAMPLE_LINE, "RSA", risk, size, PRIMITIVE_SIGNATURE, "RSA_sign", utc_time_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
 }
@@ -70,7 +71,7 @@ static const cJSON *first_finding(void) {
 
 static void test_an_empty_report_is_complete(void) {
     write_and_parse();
-    TEST_ASSERT_EQUAL_INT(1, field(document, "schema_version")->valueint);
+    TEST_ASSERT_EQUAL_INT(2, field(document, "schema_version")->valueint);
     TEST_ASSERT_TRUE(cJSON_IsTrue(field(document, "complete")));
     TEST_ASSERT_EQUAL_INT(0, cJSON_GetArraySize(field(document, "findings")));
     TEST_ASSERT_EQUAL_INT(0, cJSON_GetArraySize(field(document, "unanalyzed")));
@@ -95,6 +96,25 @@ static void test_a_finding_has_every_field(void) {
     TEST_ASSERT_EQUAL_INT(SAMPLE_BITS, field(item, "key_size")->valueint);
     TEST_ASSERT_EQUAL_STRING("signature", field(item, "primitive")->valuestring);
     TEST_ASSERT_EQUAL_STRING("QUANTUM_VULNERABLE", field(item, "risk")->valuestring);
+    TEST_ASSERT_TRUE(cJSON_IsNull(field(item, "expires")));
+}
+
+static void test_a_certificate_finding_has_no_line_and_an_expiry(void) {
+    const finding item = {
+        "server.der",
+        0,
+        "RSA",
+        RISK_QUANTUM_VULNERABLE,
+        {KEY_SIZE_KNOWN, SAMPLE_BITS},
+        PRIMITIVE_SIGNATURE,
+        "rsaEncryption",
+        {true, SAMPLE_YEAR, 5, 1, 12, 0, 0},
+    };
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
+    write_and_parse();
+    TEST_ASSERT_TRUE(cJSON_IsNull(field(first_finding(), "line")));
+    TEST_ASSERT_EQUAL_STRING("2031-05-01T12:00:00Z",
+                             field(first_finding(), "expires")->valuestring);
 }
 
 static void test_an_unresolved_key_size_says_unknown(void) {
@@ -159,6 +179,7 @@ int main(void) {
     RUN_TEST(test_an_empty_report_is_complete);
     RUN_TEST(test_names_the_tool);
     RUN_TEST(test_a_finding_has_every_field);
+    RUN_TEST(test_a_certificate_finding_has_no_line_and_an_expiry);
     RUN_TEST(test_an_unresolved_key_size_says_unknown);
     RUN_TEST(test_no_key_size_is_null);
     RUN_TEST(test_the_summary_counts_by_risk);

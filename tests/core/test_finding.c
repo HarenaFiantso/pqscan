@@ -3,6 +3,7 @@
 #include "pqscan/core/key_size.h"
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/status.h"
+#include "pqscan/core/utc_time.h"
 #include "pqscan/risk/risk.h"
 #include "unity.h"
 
@@ -37,6 +38,7 @@ static void test_add_copies_the_path(void) {
         {KEY_SIZE_KNOWN, SAMPLE_BITS},
         PRIMITIVE_SIGNATURE,
         "RSA_sign",
+        utc_time_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(list, &item));
     free(path);
@@ -56,8 +58,14 @@ static void test_add_copies_the_path(void) {
 static void test_grows_and_keeps_order(void) {
     for (size_t line = 1; line <= MANY_FINDINGS; line++) {
         const finding item = {
-            "a.c",          line,  "MD5", RISK_CLASSICALLY_WEAK, {KEY_SIZE_NOT_APPLICABLE, 0},
-            PRIMITIVE_HASH, "MD5",
+            "a.c",
+            line,
+            "MD5",
+            RISK_CLASSICALLY_WEAK,
+            {KEY_SIZE_NOT_APPLICABLE, 0},
+            PRIMITIVE_HASH,
+            "MD5",
+            utc_time_none(),
         };
         TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(list, &item));
     }
@@ -69,8 +77,14 @@ static void test_grows_and_keeps_order(void) {
 static void test_pointers_follow_the_list_order(void) {
     for (size_t line = 1; line <= MANY_FINDINGS; line++) {
         const finding item = {
-            "a.c",          line,  "MD5", RISK_CLASSICALLY_WEAK, {KEY_SIZE_NOT_APPLICABLE, 0},
-            PRIMITIVE_HASH, "MD5",
+            "a.c",
+            line,
+            "MD5",
+            RISK_CLASSICALLY_WEAK,
+            {KEY_SIZE_NOT_APPLICABLE, 0},
+            PRIMITIVE_HASH,
+            "MD5",
+            utc_time_none(),
         };
         TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(list, &item));
     }

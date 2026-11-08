@@ -5,6 +5,7 @@
 #include "pqscan/core/key_size.h"
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/status.h"
+#include "pqscan/core/utc_time.h"
 #include "pqscan/risk/risk.h"
 
 #include <stddef.h>
@@ -12,12 +13,13 @@
 /** One use of cryptography found by a scanner. */
 typedef struct finding {
     const char *path;           /**< File the finding is in. */
-    size_t line;                /**< Line number, from 1. */
+    size_t line;                /**< Line number, from 1, or 0 when it is the whole file. */
     const char *algorithm;      /**< Normalized name. Borrowed: see finding_list_add(). */
     risk_level risk;            /**< Urgency of the migration. */
     key_size size;              /**< Key size, if the algorithm has one. */
     crypto_primitive primitive; /**< What the use of the algorithm does. */
     const char *symbol;         /**< What matched in the file. Borrowed like the algorithm. */
+    utc_time expires;           /**< When the certificate it belongs to stops being valid. */
 } finding;
 
 /** A growable list of findings, in the order they were added. */
