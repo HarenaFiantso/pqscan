@@ -24,6 +24,7 @@ static void test_every_status_has_a_distinct_message(void) {
                              pqscan_status_message(PQSCAN_ERR_ELF_UNSUPPORTED));
     TEST_ASSERT_EQUAL_STRING("skipped, ELF file without a symbol table",
                              pqscan_status_message(PQSCAN_ERR_ELF_NO_SYMBOLS));
+    TEST_ASSERT_EQUAL_STRING("invalid project file", pqscan_status_message(PQSCAN_ERR_PROJECT));
 }
 
 int main(void) {
