@@ -1,0 +1,16 @@
+# Only what the build reads, so that build/ and .git never reach it. BuildKit reads this file,
+# rather than the root .dockerignore of the development image, for release.Dockerfile.
+*
+!CHANGELOG.md
+!CMakeLists.txt
+!CMakePresets.json
+!LICENSE
+!NOTICE
+!README.md
+!cmake/
+!fuzz/
+!include/
+!man/
+!rules/
+!src/
+!tests/
