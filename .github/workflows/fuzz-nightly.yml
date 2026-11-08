@@ -1,0 +1,54 @@
+name: Nightly fuzzing
+
+# CI fuzzes each target for two minutes. This runs each one for half an hour every night, and
+# keeps what libFuzzer learns, so that each night starts where the last one stopped.
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - elf_reader
+          - config_lexer
+          - pem_blocks
+          - source_scanner
+          - config_scanner
+          - cert_scanner
+          - rule_loader
+          - project_file
+          - baseline
+    env:
+      CC: clang
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/.downloads
+          key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
+          restore-keys: downloads-
+      # A cache entry cannot be overwritten, so each night saves under a new key and the next
+      # one restores the latest.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/fuzz-corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.target }}-
+      - run: sudo apt-get update && sudo apt-get install --yes libssl-dev
+      - run: cmake --preset fuzz
+      - run: cmake --build --preset fuzz --parallel --target fuzz_${{ matrix.target }}
+      - run: scripts/run-fuzzer.sh ${{ matrix.target }} 1800
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crashes-${{ matrix.target }}
+          path: build/fuzz-crashes/
