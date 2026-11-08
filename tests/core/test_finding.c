@@ -8,6 +8,7 @@
 #include "pqscan/risk/risk.h"
 #include "unity.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -159,6 +160,47 @@ static void test_sorting_an_empty_list_does_nothing(void) {
     TEST_ASSERT_EQUAL_size_t(0, finding_list_count(list));
 }
 
+static bool is_even_line(const finding *item, void *context) {
+    size_t *calls = context;
+    TEST_ASSERT_EQUAL_size_t(*calls + 1, item->line);
+    (*calls)++;
+    return item->line % 2 == 0;
+}
+
+static void test_removes_what_the_filter_picks_and_keeps_the_order(void) {
+    for (size_t line = 1; line <= MANY_FINDINGS; line++) {
+        add_line(line);
+    }
+    size_t calls = 0;
+    TEST_ASSERT_EQUAL_size_t(MANY_FINDINGS / 2, finding_list_remove_if(list, is_even_line, &calls));
+    TEST_ASSERT_EQUAL_size_t(MANY_FINDINGS, calls);
+    TEST_ASSERT_EQUAL_size_t(MANY_FINDINGS / 2, finding_list_count(list));
+    for (size_t i = 0; i < MANY_FINDINGS / 2; i++) {
+        TEST_ASSERT_EQUAL_size_t(2 * i + 1, finding_list_get(list, i)->line);
+        TEST_ASSERT_EQUAL_STRING("a.c", finding_list_get(list, i)->path);
+    }
+}
+
+static bool every_finding(const finding *item, void *context) {
+    (void)item;
+    (void)context;
+    return true;
+}
+
+static void test_a_list_can_be_emptied_and_used_again(void) {
+    add_line(1);
+    add_line(2);
+    TEST_ASSERT_EQUAL_size_t(2, finding_list_remove_if(list, every_finding, NULL));
+    TEST_ASSERT_EQUAL_size_t(0, finding_list_count(list));
+    TEST_ASSERT_NULL(finding_list_get(list, 0));
+    add_line(3);
+    TEST_ASSERT_EQUAL_size_t(3, finding_list_get(list, 0)->line);
+}
+
+static void test_removing_from_an_empty_list_does_nothing(void) {
+    TEST_ASSERT_EQUAL_size_t(0, finding_list_remove_if(list, every_finding, NULL));
+}
+
 static void test_destroy_accepts_null(void) { finding_list_destroy(NULL); }
 
 int main(void) {
@@ -173,6 +215,9 @@ int main(void) {
     RUN_TEST(test_setting_a_priority_out_of_range_does_nothing);
     RUN_TEST(test_sorts_with_the_given_order_and_keeps_every_path);
     RUN_TEST(test_sorting_an_empty_list_does_nothing);
+    RUN_TEST(test_removes_what_the_filter_picks_and_keeps_the_order);
+    RUN_TEST(test_a_list_can_be_emptied_and_used_again);
+    RUN_TEST(test_removing_from_an_empty_list_does_nothing);
     RUN_TEST(test_destroy_accepts_null);
     return UNITY_END();
 }

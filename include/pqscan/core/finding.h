@@ -9,6 +9,7 @@
 #include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 
 /** One use of cryptography found by a scanner. */
@@ -68,7 +69,8 @@ size_t finding_list_count(const finding_list *list);
  * @param list The list.
  * @param index The position, from zero.
  * @return The finding, still owned by the list, or NULL if @p index is out of range. It
- *         stays valid until the next finding_list_add() or finding_list_destroy().
+ *         stays valid until the next finding_list_add(), finding_list_remove_if() or
+ *         finding_list_destroy().
  */
 const finding *finding_list_get(const finding_list *list, size_t index);
 
@@ -91,13 +93,33 @@ void finding_list_set_priority(finding_list *list, size_t index, priority value)
 void finding_list_sort(finding_list *list, int (*compare)(const void *left, const void *right));
 
 /**
+ * @brief Tell whether a finding should go.
+ *
+ * @param item The finding.
+ * @param context The context given to finding_list_remove_if().
+ * @return true to remove it.
+ */
+typedef bool (*finding_filter)(const finding *item, void *context);
+
+/**
+ * @brief Remove the findings a filter picks, keeping the others in their order.
+ *
+ * @param list The list. It frees the path of every finding it removes.
+ * @param matches Called once for each finding, in list order, so it may keep state across
+ *                calls, such as how many of something it has already seen.
+ * @param context Passed to @p matches, unchanged.
+ * @return The number of findings removed.
+ */
+size_t finding_list_remove_if(finding_list *list, finding_filter matches, void *context);
+
+/**
  * @brief Point at every finding, so that a reader can sort them without touching the list.
  *
  * @param list The list.
  * @return An array of finding_list_count() pointers in list order, owned by the caller and
  *         freed with free(), or NULL if out of memory. The findings still belong to the list,
- *         and the pointers stay valid until the next finding_list_add() or
- *         finding_list_destroy().
+ *         and the pointers stay valid until the next finding_list_add(),
+ *         finding_list_remove_if() or finding_list_destroy().
  */
 const finding **finding_list_pointers(const finding_list *list);
 
