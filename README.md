@@ -24,7 +24,8 @@ The [website](https://harenafiantso.github.io/pqscan/) is a guided tour of every
 > names. It also reads the TLS and SSH settings of OpenSSL, nginx, Apache and OpenSSH, and
 > certificates and keys in PEM or DER, and the symbol tables of 64-bit ELF binaries. A value
 > it can't prove shows as `unknown`. Each finding gets a priority from the NIST IR 8547 dates and
-> Mosca's theorem, and reports come as text, JSON, a CycloneDX CBOM or SARIF.
+> Mosca's theorem, and reports come as text, JSON, a CycloneDX CBOM or SARIF. A baseline of
+> accepted findings and a GitHub Action let CI fail only on new ones.
 
 ## Build and test
 
@@ -201,6 +202,8 @@ a call either, so `RSA_generate_key_ex` reports `RSA-unknown`.
 | `--as-of YEAR` | Score priorities as if it were this year, from 1970 to 9999. The default is the current year, in UTC. |
 | `-f`, `--format FORMAT` | Write the report as `text` (the default), `json`, `cbom` or `sarif`. |
 | `--fail-on LEVEL` | The lowest risk level that makes pqscan exit 1: `OK`, `REVIEW`, `QUANTUM_VULNERABLE` or `CLASSICALLY_WEAK`. The default is `REVIEW`. It changes only the exit code: every finding is still reported. |
+| `--diff FILE` | Report only the findings this [baseline](#baselines-and-ci) does not accept. |
+| `--write-baseline FILE` | Write a baseline that accepts every finding to this file, and report as usual. |
 | `--max-time SECS` | Start on no new file after this long. The default is 3600. Files left over are skipped, so the scan is incomplete. |
 | `-h`, `--help` | Show the help and exit. |
 | `-V`, `--version` | Show the version and exit. |
@@ -218,8 +221,8 @@ a call either, so `RSA_generate_key_ex` reports `RSA-unknown`.
 | Exit code | Meaning |
 | --- | --- |
 | 0 | No findings at or above `--fail-on`, and everything in scope was analyzed |
-| 1 | Findings at or above `--fail-on`, even if the scan was incomplete |
-| 2 | Usage error, such as a path that doesn't exist or a rule or project file that isn't valid |
+| 1 | Findings at or above `--fail-on`, even if the scan was incomplete. With `--diff`, only new findings count, and with `--write-baseline`, none do |
+| 2 | Usage error, such as a path that doesn't exist or a rule, project or baseline file that isn't valid |
 | 3 | Internal error |
 | 4 | No findings at or above `--fail-on`, but something in scope could not be analyzed |
 
@@ -376,6 +379,131 @@ Text fields use the same `\xNN` escapes as the text report, except for SARIF pat
 in a `json` or `cbom` path is literal text, with its backslash, so a parser never sees invalid
 UTF-8.
 
+## Baselines and CI
+
+A project with findings today can still stop new ones from coming in. A baseline lists the
+findings a project accepts, and `--diff` reports only the others:
+
+```sh
+pqscan --write-baseline .pqscan-baseline.json .   # accept what is there now, and commit the file
+pqscan --diff .pqscan-baseline.json .             # later, exits 1 only on new findings
+```
+
+```json
+{
+  "schema_version": 1,
+  "findings": [
+    {
+      "path": "src/keys.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": 2048,
+      "count": 2
+    }
+  ]
+}
+```
+
+An entry names a finding by its path, without a leading `./`, its algorithm, symbol, primitive
+and key size, as the [JSON report](#reports) writes them. `count` says how many such findings the
+file may have, 1 if it's left out. The line isn't part of it, so editing code above a finding
+doesn't make it new. Neither are the risk and the priority, which depend on the rules and the
+date. A third identical call in a file that had two is one new finding, reported at the last
+of the three. Entries are sorted and identical findings share one, so the file only changes
+when the findings do. pqscan refuses the whole file on any mistake, as for rules.
+
+With `--diff`, the findings the baseline accepts are gone from the report and from the exit code,
+in every format. Entries no finding used are counted on stderr: refresh the baseline then, or
+the call would pass unnoticed if it came back. Paths match the way a report prints them, so
+write and use a baseline from the same directory with the same `PATH` arguments. A baseline is
+only read when `--diff` names it.
+
+`--write-baseline` reports every finding as usual, and exits as a diff against the new file
+would: 0, or 4 if the scan was incomplete, since the baseline then misses what was skipped.
+
+### GitHub Action
+
+The action builds pqscan, scans, uploads the SARIF report to code scanning, and fails the job on
+findings at or above `fail-on`. With a baseline, only new findings fail it, while code scanning
+still gets every finding: it compares a pull request with its base branch by itself, and would
+otherwise mark the accepted findings as fixed. On Linux the action installs OpenSSL's headers if
+they're missing.
+
+```yaml
+name: pqscan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write # to upload the report to code scanning
+
+jobs:
+  pqscan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: HarenaFiantso/pqscan@v0.9.0
+        with:
+          baseline: .pqscan-baseline.json
+```
+
+| Input | Meaning |
+| --- | --- |
+| `paths` | Files and directories to scan, separated by spaces. The default is `.`. |
+| `baseline` | A baseline file. When set, only the findings it doesn't accept fail the job. |
+| `fail-on` | As `--fail-on`. The default is `REVIEW`. |
+| `args` | More options, separated by spaces, such as `--ignore third_party --project ci/pqscan.json`. |
+| `sarif-file` | Where to write the report. The default is `pqscan.sarif`. |
+| `upload-sarif` | `false` to skip code scanning, which needs `security-events: write`. The default is `true`. |
+| `category` | The code scanning category. The default is `pqscan`. |
+
+The `exit-code` output is the exit code the gate went by. A scan that exits 2 or 3 uploads
+nothing. The log shows the new findings, and the runner reads no workflow command while pqscan
+writes to it, since a file name could pass for one.
+
+### Gating pull requests
+
+A pull request can edit the baseline it's checked against, and so accept its own findings. Read
+the baseline from the base branch instead, so that only a reviewed and merged baseline counts:
+
+```yaml
+name: pqscan gate
+
+on: pull_request
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read the baseline of the base branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --depth=1 origin "$BASE_REF"
+          git show FETCH_HEAD:.pqscan-baseline.json > "$RUNNER_TEMP/baseline.json"
+      - uses: HarenaFiantso/pqscan@v0.9.0
+        with:
+          baseline: ${{ runner.temp }}/baseline.json
+          upload-sarif: ${{ !github.event.pull_request.head.repo.fork }}
+```
+
+Pull requests from forks get a read-only token, so code scanning can't take their report, which
+is what the last line is for: the job still fails on new findings. Make the gate a required
+status check in the branch protection rules of `main`, and give `.pqscan-baseline.json` an owner
+in `CODEOWNERS`, so that accepting a finding takes a review. To accept a finding on purpose, run
+`pqscan --write-baseline .pqscan-baseline.json .` on the branch that adds it, and merge the new
+baseline first, in a pull request of its own: an entry no finding uses yet is only a warning.
+
 ## Rules
 
 The built-in rules live in [rules/default.json](rules/default.json) and are compiled into
@@ -427,8 +555,9 @@ at fault.
 
 ## Roadmap
 
-- **CI:** a baseline file and a `--diff` mode that reports only new findings, and a GitHub
-  Action that gates pull requests.
+- **Evaluation:** a corpus of open-source C projects with hand-labeled findings, measured
+  precision and recall, fuzzing of every parser, and performance targets for large repositories.
+- **Release:** a changelog, a man page, a static build and a Docker image.
 
 ## License
 
