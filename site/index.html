@@ -172,6 +172,8 @@ cmake --build --preset release
             <tr><td><code>--as-of YEAR</code></td><td>Score priorities as if it were this year. The default is the current year, in UTC.</td></tr>
             <tr><td><code>-f</code>, <code>--format FORMAT</code></td><td>Write the report as <code>text</code> (the default), <code>json</code>, <code>cbom</code> or <code>sarif</code>.</td></tr>
             <tr><td><code>--fail-on LEVEL</code></td><td>The lowest risk level that makes pqscan exit 1. The default is <code>REVIEW</code>. Every finding is still reported.</td></tr>
+            <tr><td><code>--diff FILE</code></td><td>Report only the findings this <a href="#baseline">baseline</a> does not accept.</td></tr>
+            <tr><td><code>--write-baseline FILE</code></td><td>Write a baseline that accepts every finding to this file, and report as usual.</td></tr>
             <tr><td><code>--max-time SECS</code></td><td>Start on no new file after this long. The default is 3600. Files left over are skipped, so the scan is incomplete.</td></tr>
             <tr><td><code>-h</code>, <code>--help</code></td><td>Show the help and exit.</td></tr>
             <tr><td><code>-V</code>, <code>--version</code></td><td>Show the version and exit.</td></tr>
@@ -518,8 +520,8 @@ report/mixed.c:3: RSA-2048 (QUANTUM_VULNERABLE, priority 51)
           <thead><tr><th scope="col">Exit code</th><th scope="col">Meaning</th></tr></thead>
           <tbody>
             <tr><td><code>0</code></td><td>No findings at or above <code>--fail-on</code>, and everything in scope was analyzed</td></tr>
-            <tr><td><code>1</code></td><td>Findings at or above <code>--fail-on</code>, even if the scan was incomplete</td></tr>
-            <tr><td><code>2</code></td><td>Usage error, such as a path that doesn't exist or a rule or project file that isn't valid</td></tr>
+            <tr><td><code>1</code></td><td>Findings at or above <code>--fail-on</code>, even if the scan was incomplete. With <code>--diff</code>, only new findings count, and with <code>--write-baseline</code>, none do</td></tr>
+            <tr><td><code>2</code></td><td>Usage error, such as a path that doesn't exist or a rule, project or baseline file that isn't valid</td></tr>
             <tr><td><code>3</code></td><td>Internal error</td></tr>
             <tr><td><code>4</code></td><td>No findings at or above <code>--fail-on</code>, but something in scope could not be analyzed</td></tr>
           </tbody>
@@ -533,6 +535,32 @@ pqscan --format sarif src &gt; pqscan.sarif     # for code scanning
 pqscan --format cbom src &gt; pqscan.cdx.json   # for an inventory
 pqscan --format json src | jq .summary.by_risk</code></pre>
       </div>
+
+      <h3 class="reveal" id="baseline">Block new findings, accept the old ones</h3>
+      <p class="reveal">A baseline lists the findings a project accepts today, and <code>--diff</code> reports only the others. An entry names a finding by its path, algorithm, symbol, primitive and key size, with a count. The line isn't part of it, so editing code above a finding doesn't make it new, but a third identical call in a file that had two does. Entries no finding used any more are counted on stderr, so that a stale entry can't quietly accept the same call if it comes back.</p>
+      <div class="code-block reveal">
+        <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
+<pre><code>pqscan --write-baseline .pqscan-baseline.json .   # accept what is there now, and commit it
+pqscan --diff .pqscan-baseline.json .             # exits 1 only on new findings</code></pre>
+      </div>
+
+      <p class="reveal">The GitHub Action builds pqscan, uploads every finding to code scanning, and fails the job only on findings the baseline doesn't accept. Code scanning still sees the accepted ones, so their alerts stay open.</p>
+      <div class="code-block reveal">
+        <div class="code-head"><span>yaml</span><button class="copy" type="button">Copy</button></div>
+<pre><code>permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  pqscan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: HarenaFiantso/pqscan@v0.9.0
+        with:
+          baseline: .pqscan-baseline.json</code></pre>
+      </div>
+      <p class="note reveal">A pull request can edit the baseline it's checked against. The <a href="https://github.com/HarenaFiantso/pqscan#gating-pull-requests">README</a> shows a gate that reads the baseline from the base branch instead, so that accepting a finding takes a reviewed merge.</p>
 
       <aside class="callout reveal">
         <span class="nf" aria-hidden="true">&#xf071;</span>
@@ -632,7 +660,7 @@ pqscan --format json src | jq .summary.by_risk</code></pre>
       <header class="section-head reveal">
         <p class="kicker">09 &middot; Roadmap</p>
         <h2>Today C and C++ source, then everything around it</h2>
-        <p>Each phase ends with a tagged release. Phases 1 to 8 are done.</p>
+        <p>Each phase ends with a tagged release. Phases 1 to 9 are done.</p>
       </header>
 
       <ol class="roadmap" id="roadmap-list">
@@ -644,7 +672,7 @@ pqscan --format json src | jq .summary.by_risk</code></pre>
         <li class="phase done reveal"><span class="phase-tag">v0.6.0</span><h3>Configs, certificates and keys</h3><p>OpenSSL, nginx, Apache and SSH settings, plus PEM and DER files.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.7.0</span><h3>ELF binaries</h3><p>Crypto functions found in symbol tables, without source code.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.8.0</span><h3>Risk prioritization</h3><p>A priority score from the NIST IR 8547 dates and Mosca's theorem, per component.</p></li>
-        <li class="phase reveal"><span class="phase-tag">Phase 9</span><h3>CI integration</h3><p>A baseline, a <code>--diff</code> mode, and a GitHub Action that blocks new vulnerable crypto.</p></li>
+        <li class="phase done reveal"><span class="phase-tag">v0.9.0</span><h3>CI integration</h3><p>A baseline, a <code>--diff</code> mode, and a GitHub Action that blocks new vulnerable crypto.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 10</span><h3>Quality and evaluation</h3><p>A benchmark corpus, measured precision and recall, and fuzzing.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 11</span><h3>Release</h3><p>Versioned packages, a man page, and contributor docs for rules.</p></li>
       </ol>
