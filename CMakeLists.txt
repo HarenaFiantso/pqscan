@@ -54,6 +54,7 @@ add_library(pqscan_core STATIC
     src/report/cbom_report.c
     src/report/json_report.c
     src/report/json_writer.c
+    src/report/key_size_json.c
     src/report/report_format.c
     src/report/report_summary.c
     src/report/sarif_report.c

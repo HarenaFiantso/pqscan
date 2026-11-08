@@ -2,13 +2,13 @@
 #include "pqscan/report/json_report.h"
 
 #include "pqscan/core/finding.h"
-#include "pqscan/core/key_size.h"
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/skip_list.h"
 #include "pqscan/core/status.h"
 #include "pqscan/core/utc_time.h"
 #include "pqscan/core/version.h"
 #include "pqscan/report/json_writer.h"
+#include "pqscan/report/key_size_json.h"
 #include "pqscan/report/report_summary.h"
 #include "pqscan/report/reporter.h"
 #include "pqscan/risk/priority.h"
@@ -40,18 +40,6 @@ static void write_summary(json_writer *json, const finding_list *findings) {
     }
     json_end_object(json);
     json_end_object(json);
-}
-
-/* A number, "unknown" when the code hides it, and null when the algorithm has none. */
-static void write_key_size(json_writer *json, key_size size) {
-    json_key(json, "key_size");
-    if (size.kind == KEY_SIZE_KNOWN) {
-        json_uint(json, size.bits);
-    } else if (size.kind == KEY_SIZE_UNKNOWN) {
-        json_string(json, "unknown");
-    } else {
-        json_null(json);
-    }
 }
 
 /* null when the finding is about the whole file. */
@@ -117,7 +105,8 @@ static void write_finding(json_writer *json, const finding *item) {
     write_line(json, item->line);
     json_field_string(json, "symbol", item->symbol);
     json_field_string(json, "algorithm", item->algorithm);
-    write_key_size(json, item->size);
+    json_key(json, "key_size");
+    key_size_json_write(json, item->size);
     json_field_string(json, "primitive", crypto_primitive_name(item->primitive));
     json_field_string(json, "risk", risk_level_name(item->risk));
     write_expiry(json, &item->expires);
