@@ -17,3 +17,4 @@ CLAUDE.md
 core.[0-9]*
 *.core
 vgcore.*
+__pycache__/

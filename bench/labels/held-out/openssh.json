@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "files": {
+    "openssh/ed25519-openssl.c": [
+      {"line": 53, "algorithm": "EdDSA"},
+      {"line": 106, "algorithm": "EdDSA"},
+      {"line": 141, "algorithm": "EdDSA"},
+      {"line": 212, "algorithm": "EdDSA"}
+    ],
+    "openssh/ssh-pkcs11.c": [
+      {"line": 903, "algorithm": "EC"},
+      {"line": 910, "algorithm": "EC"},
+      {"line": 916, "algorithm": "EC"},
+      {"line": 933, "algorithm": "EC"},
+      {"line": 937, "algorithm": "EC"},
+      {"line": 938, "algorithm": "EC"},
+      {"line": 958, "algorithm": "EC"},
+      {"line": 1035, "algorithm": "RSA"},
+      {"line": 1047, "algorithm": "RSA"},
+      {"line": 1060, "algorithm": "RSA"},
+      {"line": 1276, "algorithm": "RSA"},
+      {"line": 1277, "algorithm": "RSA"},
+      {"line": 1281, "algorithm": "RSA"},
+      {"line": 1295, "algorithm": "RSA"},
+      {"line": 1309, "algorithm": "EC"},
+      {"line": 1310, "algorithm": "EC"},
+      {"line": 1314, "algorithm": "EC"},
+      {"line": 1318, "algorithm": "EC"},
+      {"line": 1319, "algorithm": "EC"},
+      {"line": 1338, "algorithm": "EC"},
+      {"line": 1348, "algorithm": "EdDSA"}
+    ]
+  }
+}

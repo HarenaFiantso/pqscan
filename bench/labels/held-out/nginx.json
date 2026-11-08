@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "files": {
+    "nginx/src/event/ngx_event_openssl_stapling.c": [
+      {"line": 2695, "algorithm": "SHA-1"},
+      {"line": 2701, "algorithm": "SHA-1"}
+    ]
+  }
+}
