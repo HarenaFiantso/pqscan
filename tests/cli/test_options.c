@@ -212,6 +212,44 @@ static void test_refuses_a_bad_year(void) {
     assert_bad_year("99999999999999999999999");
 }
 
+static void test_baselines_are_absent_by_default(void) {
+    char *argv[] = {"pqscan", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_NULL(options.diff_path);
+    TEST_ASSERT_NULL(options.baseline_out);
+}
+
+static void test_parses_the_baseline_to_diff_against(void) {
+    char *argv[] = {"pqscan", "--diff", "base.json", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_EQUAL_STRING("base.json", options.diff_path);
+    TEST_ASSERT_NULL(options.baseline_out);
+}
+
+static void test_parses_the_baseline_to_write(void) {
+    char *argv[] = {"pqscan", "src", "--write-baseline", "base.json", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_EQUAL_STRING("base.json", options.baseline_out);
+    TEST_ASSERT_NULL(options.diff_path);
+    TEST_ASSERT_EQUAL_size_t(1, options.path_count);
+}
+
+static void test_a_run_cannot_both_use_and_write_a_baseline(void) {
+    char *argv[] = {"pqscan", "--diff", "a.json", "--write-baseline", "b.json", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_USAGE_ERROR,
+                          cli_options_parse(ARG_COUNT(argv), argv, &options));
+}
+
+static void test_baselines_without_a_file_are_a_usage_error(void) {
+    char *diff[] = {"pqscan", "src", "--diff", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_USAGE_ERROR,
+                          cli_options_parse(ARG_COUNT(diff), diff, &options));
+    cli_options_destroy(&options);
+    char *write[] = {"pqscan", "src", "--write-baseline", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_USAGE_ERROR,
+                          cli_options_parse(ARG_COUNT(write), write, &options));
+}
+
 static void test_unknown_option_is_a_usage_error(void) {
     char *argv[] = {"pqscan", "--nope", "src", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_USAGE_ERROR,
@@ -242,6 +280,11 @@ int main(void) {
     RUN_TEST(test_parses_the_project_and_year);
     RUN_TEST(test_accepts_the_ends_of_the_year_range);
     RUN_TEST(test_refuses_a_bad_year);
+    RUN_TEST(test_baselines_are_absent_by_default);
+    RUN_TEST(test_parses_the_baseline_to_diff_against);
+    RUN_TEST(test_parses_the_baseline_to_write);
+    RUN_TEST(test_a_run_cannot_both_use_and_write_a_baseline);
+    RUN_TEST(test_baselines_without_a_file_are_a_usage_error);
     RUN_TEST(test_the_report_defaults_to_text_failing_on_review);
     RUN_TEST(test_parses_the_format);
     RUN_TEST(test_refuses_an_unknown_format);

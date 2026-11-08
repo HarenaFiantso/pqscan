@@ -22,6 +22,8 @@ typedef struct cli_options {
     size_t path_count;
     const char *rules_path;   /**< File given to --rules, or NULL. Borrowed from argv. */
     const char *project_path; /**< File given to --project, or NULL. Borrowed from argv. */
+    const char *diff_path;    /**< Baseline given to --diff, or NULL. Borrowed from argv. */
+    const char *baseline_out; /**< File given to --write-baseline, or NULL. Borrowed from argv. */
     int as_of_year;           /**< Year given to --as-of, or CLI_AS_OF_NOW. */
     unsigned max_seconds;     /**< How long to keep starting on new files. */
     const reporter *format;   /**< The output format. Has static storage duration. */
@@ -46,7 +48,9 @@ typedef enum cli_parse_result {
  * @param argc The argument count.
  * @param argv The arguments. They must outlive @p options.
  * @param options Out: the result. Always pass it to cli_options_destroy(), even on failure.
- * @return CLI_PARSE_OK, CLI_PARSE_USAGE_ERROR or CLI_PARSE_NOMEM.
+ * @return CLI_PARSE_OK, CLI_PARSE_USAGE_ERROR or CLI_PARSE_NOMEM. Giving both --diff and
+ *         --write-baseline is a usage error, as one run cannot both use a baseline and replace
+ *         it.
  */
 cli_parse_result cli_options_parse(int argc, char **argv, cli_options *options);
 
