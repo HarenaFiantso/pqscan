@@ -272,12 +272,15 @@ scripts/build-site.sh
 python3 -m http.server --directory build/site
 ```
 
-The script adds JetBrains Mono Nerd Font, pinned by hash and cut down to the glyphs the page
-uses, so a new icon also has to be added to the list in the script.
+Text is set in SF Pro on Apple devices and Inter elsewhere, and code in SF Mono or JetBrains Mono.
+The script adds JetBrains Mono, pinned by hash and cut down to the characters the page uses, so a
+new character outside Latin text, such as an arrow, also has to be added to the list in the script.
+Icons are inline SVG symbols at the top of `index.html`, drawn on a 24-unit grid with a 1.6 stroke.
 
 The page repeats facts from the README, and its examples are real output. Update it when options,
-exit codes or report formats change. The page must also read well without JavaScript and with
-`prefers-reduced-motion`.
+exit codes or report formats change. The page must also read well without JavaScript, where every
+tab panel shows, and with `prefers-reduced-motion`, where nothing moves. Check it in both color
+schemes and at phone width.
 
 ## Adding a rule
 
