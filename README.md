@@ -18,23 +18,85 @@ The [website](https://harenafiantso.github.io/pqscan/) is a guided tour of every
 
 ## Status
 
-> [!WARNING]
-> Early development. pqscan scans C/C++ source for the OpenSSL identifiers in its rules,
-> through the syntax tree, and follows constants inside a file to find key sizes and algorithm
-> names. It also reads the TLS and SSH settings of OpenSSL, nginx, Apache and OpenSSH, and
-> certificates and keys in PEM or DER, and the symbol tables of 64-bit ELF binaries. A value
-> it can't prove shows as `unknown`. Each finding gets a priority from the NIST IR 8547 dates and
-> Mosca's theorem, and reports come as text, JSON, a CycloneDX CBOM or SARIF. A baseline of
-> accepted findings and a GitHub Action let CI fail only on new ones. On six open-source projects,
-> it finds 98.6% of the labeled uses of OpenSSL it has never been tuned on, with no false positive:
-> see [Evaluation](#evaluation).
+pqscan is stable since 1.0: its options, exit codes, reports and input files change only as
+[Versioning](#versioning) allows, and [CHANGELOG.md](CHANGELOG.md) lists what each release
+changed.
 
-## Build and test
+pqscan scans C/C++ source for the OpenSSL identifiers in its rules, through the syntax tree, and
+follows constants inside a file to find key sizes and algorithm names. It also reads the TLS and
+SSH settings of OpenSSL, nginx, Apache and OpenSSH, certificates and keys in PEM or DER, and the
+symbol tables of 64-bit ELF binaries. A value it can't prove shows as `unknown`. Each finding gets
+a priority from the NIST IR 8547 dates and Mosca's theorem, and reports come as text, JSON, a
+CycloneDX CBOM or SARIF. A baseline of accepted findings and a GitHub Action let CI fail only on
+new ones. On six open-source projects, it finds 98.6% of the labeled uses of OpenSSL it has never
+been tuned on, with no false positive: see [Evaluation](#evaluation).
+
+## Install
+
+### Release archives
+
+Each [release](https://github.com/HarenaFiantso/pqscan/releases) has an archive for Linux on
+x86-64 (`linux-x86_64`) and on arm64 (`linux-aarch64`), and for macOS on Apple silicon
+(`macos-arm64`). It holds the binary, its man page, a copy of the built-in rules and the
+licenses. The Linux binary is fully static, so it runs on any distribution. The macOS binary has
+OpenSSL built in, and needs macOS 15 or newer.
+
+```sh
+version=1.0.0 platform=linux-x86_64
+base=https://github.com/HarenaFiantso/pqscan/releases/download/v$version
+curl -fL -O "$base/pqscan-$version-$platform.tar.gz" -O "$base/SHA256SUMS"
+sha256sum --check --ignore-missing SHA256SUMS
+tar -xzf "pqscan-$version-$platform.tar.gz"
+sudo cp -R "pqscan-$version-$platform/." /usr/local/
+```
+
+Every archive is attested by the workflow that built it, which
+`gh attestation verify pqscan-$version-$platform.tar.gz --repo HarenaFiantso/pqscan` checks.
+
+> [!NOTE]
+> The macOS binary isn't notarized. `curl` doesn't mark what it downloads, but a browser does,
+> and macOS then refuses to run it. `xattr -dr com.apple.quarantine pqscan-$version-macos-arm64`
+> lifts the mark.
+
+### Docker
+
+The image holds the static binary and nothing else, for x86-64 and arm64. It scans the directory
+mounted on `/src`, as the `nobody` user, so mount it read-only:
+
+```sh
+docker run --rm -v "$PWD:/src:ro" ghcr.io/harenafiantso/pqscan:1
+docker run --rm -v "$PWD:/src:ro" ghcr.io/harenafiantso/pqscan:1 --format sarif . > pqscan.sarif
+```
+
+Options replace the default path, so name `.` after them. The tags are `1.0.0`, `1.0`, `1` and
+`latest`. To write a baseline into the tree, mount it read-write and run as yourself, with
+`--user "$(id -u):$(id -g)"`. To check where an image was built:
+
+```sh
+gh attestation verify oci://ghcr.io/harenafiantso/pqscan:1.0.0 --repo HarenaFiantso/pqscan
+```
+
+### From source
 
 You need CMake 3.20 or newer, a C11 compiler (GCC or Clang) and OpenSSL 3.0 or newer with its
 headers, on Linux or macOS: `brew install openssl@3` or `apt-get install libssl-dev`. On macOS
 CMake finds Homebrew's OpenSSL by itself. Elsewhere, set `OPENSSL_ROOT_DIR` if it's not in a
-standard place.
+standard place. CMake downloads the other dependencies, pinned by hash, during the first configure.
+
+```sh
+cmake --preset release -DPQSCAN_BUILD_TESTS=OFF
+cmake --build --preset release
+sudo cmake --install build/release
+```
+
+That installs into `/usr/local`, unless `--prefix` names another place: `bin/pqscan`, its man
+page, so that `man pqscan` works, the built-in rules in `share/pqscan/default.json` to start a
+[rules file](#rules) from, and the changelog and licenses in `share/doc/pqscan`.
+`-DPQSCAN_BUILD_TESTS=OFF` leaves out the tests, so their framework is not downloaded. The
+`static` preset builds what the release archives hold: on Linux it needs musl, as
+[docker/release.Dockerfile](docker/release.Dockerfile) has on Alpine.
+
+## Build and test
 
 > [!TIP]
 > If you have Docker, `docker compose run --rm dev` opens a Linux shell with everything
@@ -47,15 +109,17 @@ ctest --preset debug
 ./build/debug/pqscan --help
 ```
 
-The `debug` preset builds with ASan and UBSan, `release` is optimized, `valgrind` also
-runs each test under a memory checker, and `fuzz` builds the libFuzzer targets. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
-full developer setup.
+The `debug` preset builds with ASan and UBSan, `release` is optimized, `static` builds the
+release binary, `valgrind` also runs each test under a memory checker, and `fuzz` builds the
+libFuzzer targets. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full developer setup.
 
 ## Usage
 
 ```sh
 pqscan [OPTIONS] PATH...
 ```
+
+`man pqscan` has the options, the exit codes and the files pqscan reads, once it's installed.
 
 Each `PATH` is a file or a directory. Directories are walked recursively and symlinks are
 never followed. pqscan reads four kinds of files, and skips every other file. The first three
@@ -91,6 +155,20 @@ The number is the key size. `unknown` means the algorithm has one, but pqscan ca
 value. RSA, DSA and DH keys under 2048 bits are `CLASSICALLY_WEAK`, because they are already
 unsafe today. An `unknown` size keeps the algorithm's usual level. The priority says how soon to
 migrate, as [Priorities](#priorities) explains.
+
+### Risk levels
+
+A finding has one level, the most severe that applies, so RSA-1024 is `CLASSICALLY_WEAK`:
+
+| Level | Algorithms in the built-in rules | Why |
+| --- | --- | --- |
+| `CLASSICALLY_WEAK` | MD5, SHA-1, DES, 3DES, RC4, and RSA, DSA or DH under 2048 bits | They are unsafe today. |
+| `QUANTUM_VULNERABLE` | RSA, ECDSA, EdDSA, ECDH, DH and DSA | Shor's algorithm breaks them. They must migrate to ML-KEM or ML-DSA. |
+| `REVIEW` | AES-128 | Grover's algorithm weakens it. |
+| `OK` | None | AES-256, SHA-256 and stronger, ML-KEM, ML-DSA and SLH-DSA need no action, so the built-in rules leave them out. A rules file can use the level. |
+
+`--fail-on` orders them from `OK`, the least severe, through `REVIEW` and `QUANTUM_VULNERABLE`, to
+`CLASSICALLY_WEAK`.
 
 ### Source
 
@@ -449,10 +527,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - uses: HarenaFiantso/pqscan@v0.10.0
+      - uses: HarenaFiantso/pqscan@v1
         with:
           baseline: .pqscan-baseline.json
 ```
+
+`@v1` follows every 1.x release. To decide yourself which code runs in your CI, pin the full
+commit SHA of a release tag instead, as in `HarenaFiantso/pqscan@<sha> # v1.0.0`, and let
+Dependabot propose each new one.
 
 | Input | Meaning |
 | --- | --- |
@@ -493,7 +575,7 @@ jobs:
         run: |
           git fetch --depth=1 origin "$BASE_REF"
           git show FETCH_HEAD:.pqscan-baseline.json > "$RUNNER_TEMP/baseline.json"
-      - uses: HarenaFiantso/pqscan@v0.10.0
+      - uses: HarenaFiantso/pqscan@v1
         with:
           baseline: ${{ runner.temp }}/baseline.json
           upload-sarif: ${{ !github.event.pull_request.head.repo.fork }}
@@ -593,9 +675,33 @@ precision or recall drops under 95%.
 Every parser of untrusted input, from the ELF reader to the three JSON loaders, has a libFuzzer
 target that CI runs for two minutes and a nightly workflow for half an hour.
 
-## Roadmap
+## Versioning
 
-- **Release:** a changelog, a man page, a static build and a Docker image.
+pqscan follows [Semantic Versioning](https://semver.org). Within a major version, a release never
+breaks a script, a CI job or a file that relies on an older one:
+
+* The options keep their meaning, and the exit codes theirs.
+* The text report keeps the form of its lines.
+* The JSON report, baselines, rules files and project files keep every field, with its meaning.
+  A minor release can add fields, which a consumer that ignores unknown fields reads unchanged.
+  Each of these files has a `schema_version`, which only goes up in a major release.
+* The CBOM stays CycloneDX 1.6 and the SARIF report stays SARIF 2.1.0, with the same
+  `pqscan:` properties and rule names.
+* The GitHub Action keeps its inputs and its `exit-code` output.
+
+What pqscan finds is not frozen. A new rule, or a fixed false positive, adds or removes findings
+in any release, and so can change an exit code, so pin the version a CI job uses and refresh its
+baseline when you move it. The wording of warnings on stderr can change too.
+
+The action's `v1` tag and the image's `1` tag follow the latest 1.x release.
+
+## Reporting a vulnerability
+
+pqscan reads untrusted input, so a crash, a read out of bounds, or a way for a scanned file to
+forge, hide or change a finding is a vulnerability. Report it privately through
+[GitHub's vulnerability reporting](https://github.com/HarenaFiantso/pqscan/security/advisories/new),
+not in a public issue, with the smallest input that shows it. Fixes go into a release of the
+latest minor version.
 
 ## License
 
