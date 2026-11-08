@@ -12,26 +12,33 @@ void setUp(void) {}
 
 void tearDown(void) {}
 
+/* Where a description is written. */
+typedef struct output {
+    char *text;
+    size_t size;
+} output;
+
 /* Describes each block as "line:label[length]" and joins them with spaces. */
-static void describe(const char *text, size_t len, char *description, size_t size) {
+static void describe(const char *text, size_t len, const output *out) {
     pem_finder finder;
     pem_finder_init(&finder, text, len);
     pem_block block;
     size_t used = 0;
-    description[0] = '\0';
+    out->text[0] = '\0';
     while (pem_finder_next(&finder, &block)) {
         TEST_ASSERT_TRUE(block.text >= text && block.text + block.len <= text + len);
         const int written =
-            snprintf(description + used, size - used, "%s%zu:%.*s[%zu]", (used > 0) ? " " : "",
+            snprintf(out->text + used, out->size - used, "%s%zu:%.*s[%zu]", (used > 0) ? " " : "",
                      block.line, (int)block.label_len, block.label, block.len);
-        TEST_ASSERT_TRUE(written > 0 && (size_t)written < size - used);
+        TEST_ASSERT_TRUE(written > 0 && (size_t)written < out->size - used);
         used += (size_t)written;
     }
 }
 
 static void assert_blocks(const char *text, const char *expected) {
     char description[DESCRIPTION_SIZE];
-    describe(text, strlen(text), description, sizeof(description));
+    const output out = {description, sizeof(description)};
+    describe(text, strlen(text), &out);
     TEST_ASSERT_EQUAL_STRING(expected, description);
 }
 
@@ -88,24 +95,27 @@ static void test_reads_crlf_files(void) {
 
 static void test_never_reads_past_the_length(void) {
     char description[DESCRIPTION_SIZE];
-    describe(CERTIFICATE, strlen("-----BEGIN CERTIFICATE-----\nAA"), description,
-             sizeof(description));
+    const output out = {description, sizeof(description)};
+    describe(CERTIFICATE, strlen("-----BEGIN CERTIFICATE-----\nAA"), &out);
     TEST_ASSERT_EQUAL_STRING("1:CERTIFICATE[30]", description);
 }
 
 static void test_a_nul_is_an_ordinary_byte(void) {
     const char text[] = "\0\n-----BEGIN X-----\n\0\n-----END X-----\n";
     char description[DESCRIPTION_SIZE];
-    describe(text, sizeof(text) - 1, description, sizeof(description));
+    const output out = {description, sizeof(description)};
+    describe(text, sizeof(text) - 1, &out);
     TEST_ASSERT_EQUAL_STRING("2:X[36]", description);
 }
 
 static void test_finds_many_blocks(void) {
-    const size_t len = MANY_BLOCKS * strlen(CERTIFICATE);
-    char *text = malloc(len);
+    const size_t block_len = strlen(CERTIFICATE);
+    const size_t len = MANY_BLOCKS * block_len;
+    char *text = malloc(len + 1);
     TEST_ASSERT_NOT_NULL(text);
+    /* Each copy's NUL is overwritten by the next, and the last one ends the text. */
     for (size_t i = 0; i < MANY_BLOCKS; i++) {
-        memcpy(text + (i * strlen(CERTIFICATE)), CERTIFICATE, strlen(CERTIFICATE));
+        memcpy(text + (i * block_len), CERTIFICATE, sizeof(CERTIFICATE));
     }
     pem_finder finder;
     pem_finder_init(&finder, text, len);

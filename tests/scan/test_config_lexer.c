@@ -6,45 +6,60 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum { DESCRIPTION_SIZE = 512, HUGE_LINE_SIZE = 1024 * 1024, STRAY_QUOTES = 100000 };
+enum {
+    DESCRIPTION_SIZE = 512,
+    LINE_LABEL_SIZE = 32,
+    HUGE_LINE_SIZE = 1024 * 1024,
+    STRAY_QUOTES = 100000,
+};
+
+/* Where a description is written. */
+typedef struct output {
+    char *text;
+    size_t size;
+} output;
 
 void setUp(void) {}
 
 void tearDown(void) {}
 
-static void append(char *description, size_t size, const char *text, size_t len) {
-    const size_t used = strlen(description);
-    TEST_ASSERT_TRUE_MESSAGE(used + len < size, "description too long");
-    memcpy(description + used, text, len);
-    description[used + len] = '\0';
+static void append(const output *out, const char *text, size_t len) {
+    const size_t used = strlen(out->text);
+    TEST_ASSERT_TRUE_MESSAGE(used + len < out->size, "description too long");
+    memcpy(out->text + used, text, len);
+    out->text[used + len] = '\0';
+}
+
+static void append_statement(const output *out, const config_statement *statement) {
+    TEST_ASSERT_GREATER_THAN_size_t(0, statement->count);
+    char line[LINE_LABEL_SIZE];
+    const int written = snprintf(line, sizeof(line), "%s%zu:", (out->text[0] != '\0') ? " " : "",
+                                 statement->words[0].line);
+    TEST_ASSERT_GREATER_THAN_INT(0, written);
+    append(out, line, (size_t)written);
+    for (size_t i = 0; i < statement->count; i++) {
+        if (i > 0) {
+            append(out, "|", 1);
+        }
+        append(out, statement->words[i].text, statement->words[i].len);
+    }
 }
 
 /* Describes each statement as "line:word|word" and joins them with spaces. */
-static void describe(const char *text, size_t len, char *description, size_t size) {
+static void describe(const char *text, size_t len, const output *out) {
     config_lexer lexer;
     config_lexer_init(&lexer, text, len);
     config_statement statement;
-    description[0] = '\0';
+    out->text[0] = '\0';
     while (config_lexer_next(&lexer, &statement)) {
-        TEST_ASSERT_GREATER_THAN_size_t(0, statement.count);
-        char line[32];
-        const int written =
-            snprintf(line, sizeof(line), "%s%zu:", (description[0] != '\0') ? " " : "",
-                     statement.words[0].line);
-        TEST_ASSERT_GREATER_THAN_INT(0, written);
-        append(description, size, line, (size_t)written);
-        for (size_t i = 0; i < statement.count; i++) {
-            if (i > 0) {
-                append(description, size, "|", 1);
-            }
-            append(description, size, statement.words[i].text, statement.words[i].len);
-        }
+        append_statement(out, &statement);
     }
 }
 
 static void assert_statements(const char *text, const char *expected) {
     char description[DESCRIPTION_SIZE];
-    describe(text, strlen(text), description, sizeof(description));
+    const output out = {description, sizeof(description)};
+    describe(text, strlen(text), &out);
     TEST_ASSERT_EQUAL_STRING(expected, description);
 }
 
@@ -121,7 +136,8 @@ static void test_keeps_at_most_the_word_limit(void) {
 static void test_never_reads_past_the_length(void) {
     const char text[] = "Ciphers aes128-ctr\"";
     char description[DESCRIPTION_SIZE];
-    describe(text, strlen("Ciphers aes"), description, sizeof(description));
+    const output out = {description, sizeof(description)};
+    describe(text, strlen("Ciphers aes"), &out);
     TEST_ASSERT_EQUAL_STRING("1:Ciphers|aes", description);
 }
 
@@ -138,10 +154,11 @@ static void test_a_nul_is_an_ordinary_byte(void) {
 }
 
 static void test_reads_a_huge_line(void) {
-    char *text = malloc(HUGE_LINE_SIZE);
+    char *text = malloc(HUGE_LINE_SIZE + 1);
     TEST_ASSERT_NOT_NULL(text);
     memset(text, 'x', HUGE_LINE_SIZE);
     memcpy(text, "Ciphers ", strlen("Ciphers "));
+    text[HUGE_LINE_SIZE] = '\0';
     config_lexer lexer;
     config_lexer_init(&lexer, text, HUGE_LINE_SIZE);
     config_statement statement;

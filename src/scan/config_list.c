@@ -61,16 +61,15 @@ static bool is_entry_separator(char byte) {
 static bool is_part_separator(char byte) { return byte == '-' || byte == '+'; }
 
 /* Fills ends with where each of the next parts ends, and returns how many there are. */
-static size_t find_part_ends(const list_walk *walk, size_t start, size_t stop,
-                             size_t ends[MAX_PARTS_PER_NAME]) {
+static size_t find_part_ends(const list_walk *walk, span range, size_t ends[MAX_PARTS_PER_NAME]) {
     size_t count = 0;
-    size_t pos = start;
+    size_t pos = range.start;
     while (count < MAX_PARTS_PER_NAME) {
-        while (pos < stop && !is_part_separator(byte_at(walk, pos))) {
+        while (pos < range.end && !is_part_separator(byte_at(walk, pos))) {
             pos++;
         }
         ends[count++] = pos;
-        if (pos == stop) {
+        if (pos == range.end) {
             break;
         }
         pos++;
@@ -78,16 +77,16 @@ static size_t find_part_ends(const list_walk *walk, size_t start, size_t stop,
     return count;
 }
 
-/* Reports the longest run of parts from start that a rule names. Returns where that run ends,
- * or where the first part ends when no run is named. */
-static size_t longest_known_run(list_walk *walk, size_t start, size_t stop, pqscan_status *status) {
+/* Reports the longest run of parts at the start of range that a rule names. Returns where
+ * that run ends, or where the first part ends when no run is named. */
+static size_t longest_known_run(list_walk *walk, span range, pqscan_status *status) {
     size_t ends[MAX_PARTS_PER_NAME];
-    const size_t count = find_part_ends(walk, start, stop, ends);
+    const size_t count = find_part_ends(walk, range, ends);
     for (size_t parts = count; parts > 0; parts--) {
-        const span run = {start, ends[parts - 1]};
+        const span run = {range.start, ends[parts - 1]};
         const crypto_rule *rule = find_name(walk, run);
         if (rule != NULL) {
-            *status = report(walk, rule, start);
+            *status = report(walk, rule, range.start);
             return run.end;
         }
     }
@@ -99,7 +98,8 @@ static pqscan_status match_parts(list_walk *walk, span entry) {
     size_t pos = entry.start;
     while (pos < entry.end) {
         pqscan_status status = PQSCAN_OK;
-        const size_t end = longest_known_run(walk, pos, entry.end, &status);
+        const span rest = {pos, entry.end};
+        const size_t end = longest_known_run(walk, rest, &status);
         if (status != PQSCAN_OK) {
             return status;
         }
@@ -122,21 +122,26 @@ static pqscan_status match_openssl_entry(list_walk *walk, span entry) {
     return match_parts(walk, entry);
 }
 
+/* How a list splits into entries, and what to do with each. */
+typedef struct entry_splitter {
+    bool (*is_separator)(char byte);
+    pqscan_status (*match)(list_walk *walk, span entry);
+} entry_splitter;
+
 /* Calls match for each run between separators, in order. */
-static pqscan_status match_entries(list_walk *walk, size_t start, bool (*is_separator)(char),
-                                   pqscan_status (*match)(list_walk *, span)) {
+static pqscan_status match_entries(list_walk *walk, size_t start, const entry_splitter *splitter) {
     const size_t len = walk->word->len;
     size_t pos = start;
     while (pos < len) {
-        if (is_separator(byte_at(walk, pos))) {
+        if (splitter->is_separator(byte_at(walk, pos))) {
             pos++;
             continue;
         }
         span entry = {pos, pos};
-        while (entry.end < len && !is_separator(byte_at(walk, entry.end))) {
+        while (entry.end < len && !splitter->is_separator(byte_at(walk, entry.end))) {
             entry.end++;
         }
-        const pqscan_status status = match(walk, entry);
+        const pqscan_status status = splitter->match(walk, entry);
         if (status != PQSCAN_OK) {
             return status;
         }
@@ -156,14 +161,17 @@ static pqscan_status match_ssh(list_walk *walk) {
         return PQSCAN_OK;
     }
     const size_t start = (first == '+' || first == '^') ? 1 : 0;
-    return match_entries(walk, start, is_ssh_separator, match_whole);
+    const entry_splitter splitter = {is_ssh_separator, match_whole};
+    return match_entries(walk, start, &splitter);
 }
 
 pqscan_status config_list_match(const config_list_scan *scan, const config_word *word) {
     list_walk walk = {scan, word, 0, word->line};
     switch (scan->syntax) {
-    case CONFIG_LIST_OPENSSL:
-        return match_entries(&walk, 0, is_entry_separator, match_openssl_entry);
+    case CONFIG_LIST_OPENSSL: {
+        const entry_splitter splitter = {is_entry_separator, match_openssl_entry};
+        return match_entries(&walk, 0, &splitter);
+    }
     case CONFIG_LIST_SSH:
         return match_ssh(&walk);
     case CONFIG_LIST_SINGLE: {

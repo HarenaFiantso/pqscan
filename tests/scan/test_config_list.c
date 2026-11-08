@@ -63,16 +63,20 @@ static pqscan_status collect(const config_match *match, void *context) {
     return (out->stop_after != 0 && out->count == out->stop_after) ? PQSCAN_ERR_NOMEM : PQSCAN_OK;
 }
 
-static pqscan_status match_into(collected *out, config_list_syntax syntax, const char *text,
-                                size_t len) {
+static pqscan_status match_into(collected *out, config_list_syntax syntax, const char *text) {
     const config_list_scan scan = {rules, syntax, collect, out};
-    const config_word word = {text, len, 1};
+    const config_word word = {text, strlen(text), 1};
     return config_list_match(&scan, &word);
+}
+
+static pqscan_status match_bytes(collected *out, const config_word *word) {
+    const config_list_scan scan = {rules, CONFIG_LIST_OPENSSL, collect, out};
+    return config_list_match(&scan, word);
 }
 
 static void assert_matches(config_list_syntax syntax, const char *text, const char *expected) {
     collected out = {"", 0, 0};
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, match_into(&out, syntax, text, strlen(text)));
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, match_into(&out, syntax, text));
     TEST_ASSERT_EQUAL_STRING_MESSAGE(expected, out.text, text);
 }
 
@@ -148,35 +152,33 @@ static void test_a_single_name_is_matched_whole(void) {
 }
 
 static void test_never_reads_past_the_length(void) {
-    assert_matches(CONFIG_LIST_SINGLE, "SHA1", "1:SHA1");
     collected out = {"", 0, 0};
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK,
-                          match_into(&out, CONFIG_LIST_OPENSSL, "RSA-PSS", strlen("RSA-P")));
+    const config_word cut = {"RSA-PSS", strlen("RSA-P"), 1};
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, match_bytes(&out, &cut));
     TEST_ASSERT_EQUAL_STRING("1:RSA", out.text);
 }
 
 static void test_stops_when_the_visitor_fails(void) {
     collected out = {"", 0, STOP_AFTER};
-    TEST_ASSERT_EQUAL_INT(
-        PQSCAN_ERR_NOMEM,
-        match_into(&out, CONFIG_LIST_OPENSSL, "RSA:DES:SHA:SHA1", strlen("RSA:DES:SHA:SHA1")));
+    TEST_ASSERT_EQUAL_INT(PQSCAN_ERR_NOMEM,
+                          match_into(&out, CONFIG_LIST_OPENSSL, "RSA:DES:SHA:SHA1"));
     TEST_ASSERT_EQUAL_size_t(STOP_AFTER, out.count);
     collected ssh = {"", 0, 1};
-    TEST_ASSERT_EQUAL_INT(PQSCAN_ERR_NOMEM, match_into(&ssh, CONFIG_LIST_SSH, "ssh-rsa,ssh-rsa",
-                                                       strlen("ssh-rsa,ssh-rsa")));
+    TEST_ASSERT_EQUAL_INT(PQSCAN_ERR_NOMEM, match_into(&ssh, CONFIG_LIST_SSH, "ssh-rsa,ssh-rsa"));
     TEST_ASSERT_EQUAL_size_t(1, ssh.count);
 }
 
 /* Trying every run of parts would take about HOSTILE_PARTS squared lookups. */
 static void test_a_hostile_entry_stays_linear(void) {
-    const size_t len = 2 * HOSTILE_PARTS;
+    const size_t len = (size_t)2 * HOSTILE_PARTS;
     char *text = malloc(len);
     TEST_ASSERT_NOT_NULL(text);
     for (size_t i = 0; i < len; i++) {
         text[i] = (i % 2 == 0) ? 'a' : '-';
     }
     collected out = {"", 0, 0};
-    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, match_into(&out, CONFIG_LIST_OPENSSL, text, len));
+    const config_word hostile = {text, len, 1};
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, match_bytes(&out, &hostile));
     TEST_ASSERT_EQUAL_size_t(0, out.count);
     free(text);
 }

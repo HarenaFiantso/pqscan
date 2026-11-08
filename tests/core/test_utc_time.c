@@ -15,6 +15,7 @@ enum {
     LAST_HOUR = 23,
     LAST_MINUTE = 59,
     LEAP_SECOND = 60,
+    SHORT_BUFFER_SIZE = 5,
 };
 
 void setUp(void) {}
@@ -65,7 +66,7 @@ static void test_no_moment_writes_nothing(void) {
 }
 
 static void test_a_short_buffer_is_truncated_not_overrun(void) {
-    char text[5];
+    char text[SHORT_BUFFER_SIZE];
     utc_time_format(&SAMPLE, text, sizeof(text));
     TEST_ASSERT_EQUAL_STRING("2031", text);
 }
