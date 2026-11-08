@@ -176,7 +176,7 @@ static void test_removes_what_the_filter_picks_and_keeps_the_order(void) {
     TEST_ASSERT_EQUAL_size_t(MANY_FINDINGS, calls);
     TEST_ASSERT_EQUAL_size_t(MANY_FINDINGS / 2, finding_list_count(list));
     for (size_t i = 0; i < MANY_FINDINGS / 2; i++) {
-        TEST_ASSERT_EQUAL_size_t(2 * i + 1, finding_list_get(list, i)->line);
+        TEST_ASSERT_EQUAL_size_t((2 * i) + 1, finding_list_get(list, i)->line);
         TEST_ASSERT_EQUAL_STRING("a.c", finding_list_get(list, i)->path);
     }
 }

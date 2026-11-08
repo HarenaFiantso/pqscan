@@ -219,7 +219,7 @@ static size_t first_not_before(const baseline *accepted, const baseline_identity
     size_t low = 0;
     size_t high = accepted->count;
     while (low < high) {
-        const size_t middle = low + (high - low) / 2;
+        const size_t middle = low + ((high - low) / 2);
         if (baseline_identity_compare_safe(raw, &accepted->entries[middle].identity) > 0) {
             low = middle + 1;
         } else {
