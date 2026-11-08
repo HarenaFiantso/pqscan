@@ -1,0 +1,180 @@
+name: Release
+
+# Every change builds and checks the release archives, so a tag never finds a release that
+# cannot be built. Only a version tag publishes them, with the image.
+on:
+  push:
+    branches: [main]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/harenafiantso/pqscan
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: version
+        name: Read the version, and check the tag and the changelog against it
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^    VERSION \([0-9.]*\)$/\1/p' CMakeLists.txt)
+          if [ "$REF_TYPE" = tag ] && [ "$REF_NAME" != "v$version" ]; then
+            echo "::error::the tag is $REF_NAME, but CMakeLists.txt says $version"
+            exit 1
+          fi
+          scripts/release-notes.sh "$version" > /dev/null
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  # The Linux binary is built and tested on Alpine, natively on each processor.
+  linux:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, platform: linux-x86_64 }
+          - { runner: ubuntu-24.04-arm, platform: linux-aarch64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker buildx build --file docker/release.Dockerfile --target dist --output type=local,dest=dist .
+      - id: package
+        run: echo "archive=$(scripts/package-release.sh dist ${{ matrix.platform }})" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.platform }}
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+
+  macos:
+    needs: version
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/.downloads
+          key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
+          restore-keys: downloads-
+      - run: cmake --preset static
+      - run: cmake --build --preset static --parallel
+      - run: ctest --preset static
+      - run: cmake --install build/static --strip --prefix dist
+      - id: package
+        run: echo "archive=$(scripts/package-release.sh dist macos-arm64)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos-arm64
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+
+  # The image holds the very files of the Linux archives: --build-context replaces the Dockerfile's
+  # build stage with them, so nothing is compiled again. The last stage only copies, so both
+  # processors build on one runner without emulation.
+  image:
+    if: github.ref_type == 'tag'
+    needs: [version, linux]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: linux-*
+          merge-multiple: true
+      - name: Log in to the GitHub container registry
+        env:
+          TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
+      - id: push
+        name: Push one image for each processor, then the index that names both
+        run: |
+          # Pushing by digest needs a builder that runs in a container.
+          docker buildx create --use --driver docker-container
+          images=""
+          for pair in amd64:linux-x86_64 arm64:linux-aarch64; do
+            arch=${pair%%:*}
+            context="context-$arch"
+            mkdir -p "$context/dist"
+            tar -xzf "pqscan-$VERSION-${pair#*:}.tar.gz" -C "$context/dist" --strip-components 1
+            docker buildx build --file docker/release.Dockerfile --platform "linux/$arch" \
+              --build-context "build=$context" \
+              --label "org.opencontainers.image.version=$VERSION" \
+              --output "type=image,name=$IMAGE,push-by-digest=true,name-canonical=true,push=true" \
+              --metadata-file "metadata-$arch.json" .
+            images="$images $IMAGE@$(jq -r '."containerimage.digest"' "metadata-$arch.json")"
+          done
+          minor=${VERSION%.*}
+          # shellcheck disable=SC2086
+          docker buildx imagetools create --tag "$IMAGE:$VERSION" --tag "$IMAGE:$minor" \
+            --tag "$IMAGE:${VERSION%%.*}" --tag "$IMAGE:latest" $images
+          digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+  publish:
+    if: github.ref_type == 'tag'
+    needs: [version, linux, macos, image]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - run: cd dist && sha256sum -- *.tar.gz > SHA256SUMS
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*.tar.gz
+      - name: Write the release notes
+        run: |
+          {
+            scripts/release-notes.sh "$VERSION"
+            cat <<EOF
+
+          ### Verifying
+
+          Check an archive with \`sha256sum --check --ignore-missing SHA256SUMS\`, and where it was
+          built with \`gh attestation verify pqscan-$VERSION-linux-x86_64.tar.gz --repo $GITHUB_REPOSITORY\`.
+
+          The image is \`$IMAGE:$VERSION\`, for x86-64 and arm64.
+          EOF
+          } > notes.md
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" dist/* --verify-tag --title "pqscan $VERSION" --notes-file notes.md
+      # Workflows can use the action as HarenaFiantso/pqscan@v1 and get each 1.x release.
+      - name: Move the major version tag
+        run: |
+          major="v${VERSION%%.*}"
+          git tag --force "$major" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$major"
