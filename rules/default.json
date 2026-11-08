@@ -351,6 +351,8 @@
     {"pattern": "i2d_RSAPrivateKey", "kind": "function", "algorithm": "RSA", "primitive": "unspecified"},
     {"pattern": "i2d_RSAPublicKey", "kind": "function", "algorithm": "RSA", "primitive": "unspecified"},
     {"pattern": "i2d_RSA_PUBKEY", "kind": "function", "algorithm": "RSA", "primitive": "unspecified"},
+    {"pattern": "i2o_ECPublicKey", "kind": "function", "algorithm": "EC", "primitive": "unspecified"},
+    {"pattern": "o2i_ECPublicKey", "kind": "function", "algorithm": "EC", "primitive": "unspecified"},
     {"pattern": "MD5", "kind": "function", "algorithm": "MD5", "primitive": "hash", "call_only": true},
     {"pattern": "SHA1", "kind": "function", "algorithm": "SHA-1", "primitive": "hash", "call_only": true},
     {"pattern": "RC4", "kind": "function", "algorithm": "RC4", "primitive": "encryption", "call_only": true},
