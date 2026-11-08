@@ -62,8 +62,9 @@ jobs:
           path: build/.downloads
           key: downloads-${{ hashFiles('tests/CMakeLists.txt', 'cmake/dependencies.cmake') }}
           restore-keys: downloads-
+      # macOS ships mandoc, which lints the man page.
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install --yes libssl-dev
+        run: sudo apt-get update && sudo apt-get install --yes libssl-dev mandoc
       - run: cmake --preset debug
       - run: cmake --build --preset debug --parallel
       - run: ctest --preset debug
