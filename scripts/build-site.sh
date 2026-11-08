@@ -14,7 +14,7 @@ font_url=https://github.com/ryanoasis/nerd-fonts/releases/download/$font_version
 
 # Latin text, the punctuation the page uses, then the Nerd Font icons and Powerline shapes.
 font_unicodes=U+0020-007E,U+00A0-00FF,U+2013-2014,U+2018-201D,U+2026,U+2192,U+2264-2265,U+2713
-font_icons=U+E0B0,U+F002,U+F00C,U+F013,U+F023,U+F071,U+F09B,U+F0E7
+font_icons=U+E0B0,U+F002,U+F00C,U+F013,U+F023,U+F05E,U+F071,U+F084,U+F09B,U+F0E7
 font_icons=$font_icons,U+F120,U+F121,U+F126,U+F132,U+F1C0,U+F1C9
 
 downloads=build/.downloads

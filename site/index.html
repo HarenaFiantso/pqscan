@@ -45,7 +45,7 @@
     <canvas id="lattice" aria-hidden="true"></canvas>
     <div class="hero-inner">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="pulse" aria-hidden="true"></span>v0.5.0 &middot; early development</p>
+        <p class="eyebrow"><span class="pulse" aria-hidden="true"></span>v0.6.0 &middot; early development</p>
         <h1>pqscan</h1>
         <p class="tagline">Find the cryptography quantum computers will break.</p>
         <p class="lede">A command-line tool, written in C, that reads your C and C++ source through its syntax tree and shows where RSA, ECDSA, EdDSA, ECDH, DH and DSA are used, with which key size, and how urgent the migration is.</p>
@@ -130,7 +130,7 @@
       <header class="section-head reveal">
         <p class="kicker">02 &middot; Start</p>
         <h2>Build it, then point it at your code</h2>
-        <p>You need CMake 3.20 or newer and a C11 compiler (GCC or Clang), on Linux or macOS. CMake downloads the pinned dependencies during the first configure. Packages are planned for a later release.</p>
+        <p>You need CMake 3.20 or newer, a C11 compiler (GCC or Clang) and OpenSSL 3.0 or newer with its headers, on Linux or macOS: <code>brew install openssl@3</code> or <code>apt-get install libssl-dev</code>. CMake downloads the other pinned dependencies during the first configure. Packages are planned for a later release.</p>
       </header>
 
       <div class="code-block reveal">
@@ -147,7 +147,18 @@ cmake --build --preset release
         <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
 <pre><code>pqscan [OPTIONS] PATH...</code></pre>
       </div>
-      <p class="reveal">Each <code>PATH</code> is a file or a directory. Directories are walked recursively, symlinks are never followed, and only C and C++ sources are scanned: <code>.c</code>, <code>.h</code>, <code>.cpp</code>, <code>.hpp</code>, <code>.cc</code>, <code>.cxx</code>, <code>.C</code>, <code>.hh</code>, <code>.hxx</code>, <code>.ipp</code>, <code>.inl</code> and <code>.tcc</code>.</p>
+      <p class="reveal">Each <code>PATH</code> is a file or a directory. Directories are walked recursively and symlinks are never followed. pqscan reads three kinds of files, chosen by name, and skips every other file:</p>
+
+      <div class="table-wrap reveal">
+        <table>
+          <thead><tr><th scope="col">Kind</th><th scope="col">Files</th></tr></thead>
+          <tbody>
+            <tr><td>C and C++ source</td><td><code>.c</code>, <code>.h</code>, <code>.cpp</code>, <code>.hpp</code>, <code>.cc</code>, <code>.cxx</code>, <code>.C</code>, <code>.hh</code>, <code>.hxx</code>, <code>.ipp</code>, <code>.inl</code> and <code>.tcc</code></td></tr>
+            <tr><td>Configuration</td><td><code>.conf</code>, <code>.cnf</code>, <code>sshd_config</code>, <code>ssh_config</code>, <code>.htaccess</code>, and any file in a <code>sites-available</code> or <code>sites-enabled</code> directory</td></tr>
+            <tr><td>Certificates and keys</td><td><code>.pem</code>, <code>.crt</code>, <code>.cer</code>, <code>.der</code>, <code>.key</code> and <code>.csr</code></td></tr>
+          </tbody>
+        </table>
+      </div>
 
       <div class="table-wrap reveal">
         <table>
@@ -227,6 +238,26 @@ cmake --build --preset release
           <li>Enum constants, which aren't followed yet.</li>
         </ul>
       </details>
+
+      <h3 class="reveal">Configs, certificates and keys</h3>
+      <div class="cards">
+        <article class="card card-green reveal">
+          <span class="nf card-icon" aria-hidden="true">&#xf013;</span>
+          <h3>TLS and SSH settings</h3>
+          <p>Cipher strings, groups and signature algorithms in <code>openssl.cnf</code>, nginx and Apache, and OpenSSH's <code>KexAlgorithms</code>, <code>HostKeyAlgorithms</code>, <code>Ciphers</code> and <code>MACs</code>. <code>ECDHE-RSA-AES128-GCM-SHA256</code> reports ECDH, RSA and AES-128.</p>
+        </article>
+        <article class="card card-yellow reveal">
+          <span class="nf card-icon" aria-hidden="true">&#xf084;</span>
+          <h3>Certificates and keys</h3>
+          <p>PEM or DER, decoded by OpenSSL's libcrypto: the key and its size, what the key usage says it does, the signature and its digest, and when the certificate expires. Each PEM block names its own line.</p>
+        </article>
+        <article class="card card-overlay reveal">
+          <span class="nf card-icon" aria-hidden="true">&#xf05e;</span>
+          <h3>Not reported</h3>
+          <p>Names a setting takes away, such as <code>!RSA</code> or <code>-ssh-rsa</code>, and hybrid post-quantum groups such as <code>X25519MLKEM768</code>. Aliases such as <code>DEFAULT</code> or <code>HIGH</code> aren't expanded, since their meaning depends on the OpenSSL build.</p>
+        </article>
+      </div>
+      <p class="note reveal">Where one name stands for two weaknesses, pqscan reports the more severe: <code>ssh-rsa</code> signs with SHA-1, so it's <code>SHA-1</code>. An encrypted PKCS#8 key hides its algorithm, so its file isn't analyzed, and pqscan never asks for a passphrase.</p>
     </section>
 
     <section class="section" id="risk">
@@ -284,12 +315,12 @@ report/mixed.c:5: RSA-unknown (QUANTUM_VULNERABLE)
         </div>
 
         <div role="tabpanel" id="panel-json" aria-labelledby="tab-json" tabindex="0" hidden>
-          <p>For scripts. <code>key_size</code> is a number, <code>"unknown"</code> when pqscan can't prove it, or <code>null</code> when the algorithm has no key size.</p>
+          <p>For scripts. <code>key_size</code> is a number, <code>"unknown"</code> when pqscan can't prove it, or <code>null</code> when the algorithm has no key size. <code>line</code> is <code>null</code> for a finding about a whole file, such as a DER certificate, and <code>expires</code> is when a certificate stops being valid.</p>
 <pre class="report" data-json><code>{
-  "schema_version": 1,
+  "schema_version": 2,
   "tool": {
     "name": "pqscan",
-    "version": "0.5.0"
+    "version": "0.6.0"
   },
   "complete": true,
   "summary": {
@@ -309,7 +340,8 @@ report/mixed.c:5: RSA-unknown (QUANTUM_VULNERABLE)
       "algorithm": "RSA",
       "key_size": 2048,
       "primitive": "unspecified",
-      "risk": "QUANTUM_VULNERABLE"
+      "risk": "QUANTUM_VULNERABLE",
+      "expires": null
     },
     ...
   ],
@@ -379,7 +411,7 @@ report/mixed.c:5: RSA-unknown (QUANTUM_VULNERABLE)
       </div>
 
       <h3 class="reveal">A partial report can't pass for a whole one</h3>
-      <p class="reveal">Paths that can't be read are skipped with a warning, as are files that contain a NUL byte, exceed 64 MiB, or take more than 30 seconds to scan. Every format says so.</p>
+      <p class="reveal">Paths that can't be read are skipped with a warning, as are files over 64 MiB, source and configuration files that contain a NUL byte, source files that take more than 30 seconds to parse, encrypted PKCS#8 keys, and certificate or key files that can't be decoded. Every format says so.</p>
       <div class="table-wrap reveal">
         <table>
           <thead><tr><th scope="col">Format</th><th scope="col">Where to look</th></tr></thead>
@@ -448,7 +480,7 @@ pqscan --format json src | jq .summary.by_risk</code></pre>
 
       <aside class="callout reveal">
         <span class="nf" aria-hidden="true">&#xf071;</span>
-        <p><strong>Exit code 0 doesn't prove the code is free of vulnerable cryptography.</strong> pqscan only recognizes the identifiers in its rules, in C and C++ source files.</p>
+        <p><strong>Exit code 0 doesn't prove the code is free of vulnerable cryptography.</strong> pqscan only recognizes the names in its rules, in the kinds of files it reads.</p>
       </aside>
     </section>
 
@@ -471,7 +503,9 @@ pqscan --format json src | jq .summary.by_risk</code></pre>
     {"pattern": "RSA_sign", "kind": "function", "algorithm": "RSA", "primitive": "signature"},
     {"pattern": "EVP_PKEY_RSA", "kind": "constant", "algorithm": "RSA", "primitive": "unspecified"},
     {"pattern": "MD5", "kind": "function", "algorithm": "MD5", "primitive": "hash", "call_only": true},
-    {"pattern": "RSA", "kind": "string", "algorithm": "RSA", "primitive": "unspecified"}
+    {"pattern": "RSA", "kind": "string", "algorithm": "RSA", "primitive": "unspecified"},
+    {"pattern": "ffdhe2048", "kind": "config", "algorithm": "DH", "primitive": "key_exchange", "key_bits": 2048},
+    {"pattern": "rsaEncryption", "kind": "key", "algorithm": "RSA", "primitive": "unspecified"}
   ],
   "calls": [
     {"name": "RSA_generate_key_ex", "key_bits_argument": 1},
@@ -487,18 +521,19 @@ pqscan --format json src | jq .summary.by_risk</code></pre>
             <tr><td rowspan="3"><code>algorithms</code></td><td><code>name</code></td><td>The normalized name shown in reports.</td></tr>
             <tr><td><code>risk</code></td><td><code>OK</code>, <code>REVIEW</code>, <code>QUANTUM_VULNERABLE</code> or <code>CLASSICALLY_WEAK</code>.</td></tr>
             <tr><td><code>weak_below_bits</code></td><td>Optional. Shorter keys are <code>CLASSICALLY_WEAK</code>.</td></tr>
-            <tr><td rowspan="5"><code>rules</code></td><td><code>pattern</code></td><td>The identifier or string to find.</td></tr>
-            <tr><td><code>kind</code></td><td><code>function</code>, <code>constant</code>, <code>macro</code> or <code>string</code>.</td></tr>
+            <tr><td rowspan="6"><code>rules</code></td><td><code>pattern</code></td><td>The identifier, string or name to find.</td></tr>
+            <tr><td><code>kind</code></td><td><code>function</code>, <code>constant</code> or <code>macro</code> for source identifiers, <code>string</code> for an algorithm name passed to a call, <code>config</code> for a name in a TLS or SSH setting, or <code>key</code> for OpenSSL's short name of a key or digest type.</td></tr>
             <tr><td><code>algorithm</code></td><td>A name declared in <code>algorithms</code>.</td></tr>
             <tr><td><code>primitive</code></td><td><code>signature</code>, <code>key_exchange</code>, <code>encryption</code>, <code>hash</code> or <code>unspecified</code>.</td></tr>
             <tr><td><code>call_only</code></td><td>Optional, for functions. Count the name only when it's called.</td></tr>
+            <tr><td><code>key_bits</code></td><td>Optional, for <code>config</code> rules. The key size the name itself fixes, as in <code>ffdhe2048</code>.</td></tr>
             <tr><td rowspan="3"><code>calls</code></td><td><code>name</code></td><td>A function whose arguments are worth reading.</td></tr>
             <tr><td><code>key_bits_argument</code></td><td>Optional. Position of the key size, from 0.</td></tr>
             <tr><td><code>algorithm_argument</code></td><td>Optional. Position of a string naming an algorithm, from 0.</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="note reveal">A <code>string</code> pattern only counts as an argument of a call listed in <code>calls</code>, and ignores case. pqscan refuses the whole file on any mistake, such as an unknown field, and names the entry at fault.</p>
+      <p class="note reveal">A <code>string</code> pattern only counts as an argument of a call listed in <code>calls</code>. <code>string</code>, <code>config</code> and <code>key</code> patterns ignore case, and each kind has its own names. pqscan refuses the whole file on any mistake, such as an unknown field, and names the entry at fault.</p>
     </section>
 
     <section class="section" id="inside">
@@ -541,7 +576,7 @@ pqscan --format json src | jq .summary.by_risk</code></pre>
       <header class="section-head reveal">
         <p class="kicker">09 &middot; Roadmap</p>
         <h2>Today C and C++ source, then everything around it</h2>
-        <p>Each phase ends with a tagged release. Phases 1 to 5 are done. Configs, certificates and ELF binaries aren't scanned yet.</p>
+        <p>Each phase ends with a tagged release. Phases 1 to 6 are done. ELF binaries aren't scanned yet.</p>
       </header>
 
       <ol class="roadmap" id="roadmap-list">
@@ -550,7 +585,7 @@ pqscan --format json src | jq .summary.by_risk</code></pre>
         <li class="phase done reveal"><span class="phase-tag">v0.3.0</span><h3>Rules engine</h3><p>External JSON rules, and classification by key size.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.4.0</span><h3>Light data flow</h3><p>Constant propagation inside a file, and <code>unknown</code> instead of a guess.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.5.0</span><h3>Outputs</h3><p>JSON, CycloneDX CBOM, SARIF, and exit codes with a threshold.</p></li>
-        <li class="phase reveal"><span class="phase-tag">Phase 6</span><h3>Configs, certificates and keys</h3><p>OpenSSL, nginx, Apache and SSH settings, plus PEM and DER files.</p></li>
+        <li class="phase done reveal"><span class="phase-tag">v0.6.0</span><h3>Configs, certificates and keys</h3><p>OpenSSL, nginx, Apache and SSH settings, plus PEM and DER files.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 7</span><h3>ELF binaries</h3><p>Linked crypto functions found without source code.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 8</span><h3>Risk prioritization</h3><p>A priority score from the NIST IR 8547 dates and Mosca's theorem.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 9</span><h3>CI integration</h3><p>A baseline, a <code>--diff</code> mode, and a GitHub Action that blocks new vulnerable crypto.</p></li>
