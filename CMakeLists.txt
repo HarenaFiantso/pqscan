@@ -37,6 +37,7 @@ add_library(pqscan_core STATIC
     src/core/skip_list.c
     src/core/status.c
     src/core/string_list.c
+    src/core/utc_time.c
     src/core/version.c
     src/flow/constant_eval.c
     src/flow/constant_flow.c
