@@ -23,7 +23,8 @@ The [website](https://harenafiantso.github.io/pqscan/) is a guided tour of every
 > through the syntax tree, and follows constants inside a file to find key sizes and algorithm
 > names. It also reads the TLS and SSH settings of OpenSSL, nginx, Apache and OpenSSH, and
 > certificates and keys in PEM or DER, and the symbol tables of 64-bit ELF binaries. A value
-> it can't prove shows as `unknown`. Reports come as text, JSON, a CycloneDX CBOM or SARIF.
+> it can't prove shows as `unknown`. Each finding gets a priority from the NIST IR 8547 dates and
+> Mosca's theorem, and reports come as text, JSON, a CycloneDX CBOM or SARIF.
 
 ## Build and test
 
@@ -65,17 +66,18 @@ first four bytes instead, whatever their name:
 | Certificates and keys | `.pem`, `.crt`, `.cer`, `.der`, `.key` and `.csr` |
 | ELF binaries | 64-bit executables, shared libraries and object files |
 
-Each finding is one line, and a last line counts them. A clean scan prints nothing:
+Each finding is one line, most urgent first, and a last line counts them. A clean scan prints
+nothing:
 
 ```text
-src/keys.c:42: RSA-2048 (QUANTUM_VULNERABLE)
-src/keys.c:51: RSA-1024 (CLASSICALLY_WEAK)
-src/keys.c:57: RSA-unknown (QUANTUM_VULNERABLE)
-src/hash.c:12: MD5 (CLASSICALLY_WEAK)
-etc/ssh/sshd_config:4: SHA-1 (CLASSICALLY_WEAK)
-tls/server.pem:1: RSA-2048 (QUANTUM_VULNERABLE, expires 2031-05-01)
-tls/ca.der: EC-256 (QUANTUM_VULNERABLE, expires 2035-01-01)
-bin/server: ECDSA (QUANTUM_VULNERABLE)
+etc/ssh/sshd_config:4: SHA-1 (CLASSICALLY_WEAK, priority 100)
+src/hash.c:12: MD5 (CLASSICALLY_WEAK, priority 100)
+src/keys.c:51: RSA-1024 (CLASSICALLY_WEAK, priority 100)
+bin/server: ECDSA (QUANTUM_VULNERABLE, priority 51)
+src/keys.c:42: RSA-2048 (QUANTUM_VULNERABLE, priority 51)
+src/keys.c:57: RSA-unknown (QUANTUM_VULNERABLE, priority 51)
+tls/ca.der: EC-256 (QUANTUM_VULNERABLE, priority 51, expires 2035-01-01)
+tls/server.pem:1: RSA-2048 (QUANTUM_VULNERABLE, priority 51, expires 2031-05-01)
 8 findings: 3 CLASSICALLY_WEAK, 5 QUANTUM_VULNERABLE
 ```
 
@@ -84,7 +86,8 @@ in them print as `\xNN`, and a backslash prints doubled.
 
 The number is the key size. `unknown` means the algorithm has one, but pqscan can't prove its
 value. RSA, DSA and DH keys under 2048 bits are `CLASSICALLY_WEAK`, because they are already
-unsafe today. An `unknown` size keeps the algorithm's usual level.
+unsafe today. An `unknown` size keeps the algorithm's usual level. The priority says how soon to
+migrate, as [Priorities](#priorities) explains.
 
 ### Source
 
@@ -194,6 +197,8 @@ a call either, so `RSA_generate_key_ex` reports `RSA-unknown`.
 | --- | --- |
 | `-i`, `--ignore PATTERN` | Skip paths matching a glob, tried on the file name, the path, and the path relative to `PATH`. Repeatable. `.git` is always skipped. |
 | `-r`, `--rules FILE` | Use the rules in this JSON file instead of the built-in ones. |
+| `--project FILE` | Read how long data must stay secret from this [project file](#the-project-file). The default is `.pqscan.json` in the current directory, if there is one. |
+| `--as-of YEAR` | Score priorities as if it were this year, from 1970 to 9999. The default is the current year, in UTC. |
 | `-f`, `--format FORMAT` | Write the report as `text` (the default), `json`, `cbom` or `sarif`. |
 | `--fail-on LEVEL` | The lowest risk level that makes pqscan exit 1: `OK`, `REVIEW`, `QUANTUM_VULNERABLE` or `CLASSICALLY_WEAK`. The default is `REVIEW`. It changes only the exit code: every finding is still reported. |
 | `--max-time SECS` | Start on no new file after this long. The default is 3600. Files left over are skipped, so the scan is incomplete. |
@@ -214,7 +219,7 @@ a call either, so `RSA_generate_key_ex` reports `RSA-unknown`.
 | --- | --- |
 | 0 | No findings at or above `--fail-on`, and everything in scope was analyzed |
 | 1 | Findings at or above `--fail-on`, even if the scan was incomplete |
-| 2 | Usage error, such as a path that doesn't exist or a rule file that isn't valid |
+| 2 | Usage error, such as a path that doesn't exist or a rule or project file that isn't valid |
 | 3 | Internal error |
 | 4 | No findings at or above `--fail-on`, but something in scope could not be analyzed |
 
@@ -222,11 +227,81 @@ a call either, so `RSA_generate_key_ex` reports `RSA-unknown`.
 > Exit code 0 doesn't prove the code is free of vulnerable cryptography. pqscan only
 > recognizes the names in its rules, in the kinds of files listed above.
 
+## Priorities
+
+Every finding gets a priority from 0 to 100, and reports list the most urgent first. Findings
+with the same priority go by path, then line.
+
+| Risk level | Priority |
+| --- | --- |
+| `CLASSICALLY_WEAK` | 100. It is broken today, so nothing can be more urgent. |
+| `QUANTUM_VULNERABLE` | From 50 to 99, from the timeline below. |
+| `REVIEW` | 10. Grover's algorithm weakens it, but there is no deadline. |
+| `OK` | 0. |
+
+For a quantum-vulnerable finding, pqscan applies Mosca's theorem. If data must stay secret for
+X years, migrating takes Y years, and a quantum computer arrives in Q years, then the data is
+exposed when X + Y > Q, because what an attacker records today can be decrypted later. The
+priority is the sum of:
+
+* 50.
+* 10 if NIST IR 8547 deprecates the algorithm in the year the migration would end, which is any
+  year after 2030, or 20 if it disallows it, after 2035.
+* 10 + X + Y − Q, kept between 0 and 29. It is over 10 exactly when the data is exposed, and
+  every year of exposure adds a point.
+
+Q counts the years from `--as-of`, the current year by default, to the quantum year, which is
+2035 unless the project file says otherwise. 2035 is when IR 8547 disallows these algorithms:
+a planning date, not a forecast.
+
+Without a project file, X and Y are 0, so the priority comes from the dates alone: 51 in 2026,
+and more each year after. A component whose data must stay secret for 25 years and takes 7
+years to migrate scores 89 in 2026: 50, plus 10 because 2033 is after 2030, plus 29, the cap of
+10 + 25 + 7 − 9.
+
+### The project file
+
+A project file says how long the data behind each part of the code must stay secret:
+
+```json
+{
+  "schema_version": 1,
+  "quantum_year": 2035,
+  "secrecy_years": 0,
+  "migration_years": 3,
+  "components": [
+    {"name": "payments", "paths": ["src/payments/*", "*.pem"], "secrecy_years": 25, "migration_years": 7},
+    {"name": "telemetry", "paths": ["src/telemetry/*"], "secrecy_years": 1}
+  ]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `schema_version` | Always 1. |
+| `quantum_year` | Optional. The year a quantum computer is assumed to break RSA and ECC. The default is 2035. |
+| `secrecy_years` | Optional. X, in years, for a path no component claims. The default is 0. |
+| `migration_years` | Optional. Y, in years, for a path no component claims. The default is 0. |
+| `components` | Optional. Parts of the project with their own years. |
+| `components[].name` | A name, shown in reports. |
+| `components[].paths` | Globs, as for `--ignore`, tried on the file name and on the path as the report prints it, without a leading `./`. A `*` also matches `/`. |
+| `components[].secrecy_years`, `components[].migration_years` | Optional. X and Y for these paths. The defaults are the top-level ones. |
+
+The first component with a matching pattern wins, so put a narrow component before a broad one.
+Years go from 0 to 1000. Patterns match the paths a report prints, so run pqscan from the
+directory the patterns start at, usually the root of the project, where `.pqscan.json` is read
+from. pqscan refuses the whole file on any mistake, such as an unknown field, and a file that
+exists but can't be used is a usage error rather than a reason to score without it.
+
+> [!NOTE]
+> A project file changes only priorities and their order. It never hides a finding or changes
+> the exit code, so reading one from the tree being scanned is safe.
+
 ## Reports
 
 `--format` picks what goes to stdout. Warnings always go to stderr, so a report can be
-redirected to a file as it is. The same files give the same bytes: reports hold no date and no
-random identifier.
+redirected to a file as it is. The same files, rules, project file and `--as-of` year give the
+same bytes: reports hold no timestamp and no random identifier.
 
 | Format | What it's for |
 | --- | --- |
@@ -249,33 +324,53 @@ prove it, or `null` when the algorithm has no key size. `symbol` is the rule pat
 matched, or for a certificate's signature, the signature algorithm, such as
 `sha256WithRSAEncryption`. `line` is `null` for a finding about a whole file, such as a DER
 certificate. `expires` is when the certificate stops being valid, in UTC, and `null` for
-anything that isn't a certificate.
+anything that isn't a certificate. `priority` has the score and the component, `null` when no
+component claims the path. Its `quantum_timeline` shows how a quantum-vulnerable finding was
+scored, and is `null` at other levels: X, Y and Q, whether X + Y > Q, the year the migration
+would end, and what IR 8547 says then, `acceptable`, `deprecated` or `disallowed`.
+`years_to_quantum` goes negative once the quantum year has passed.
 
 ```json
 {
-  "path": "src/keys.c",
+  "path": "src/payments/sign.c",
   "line": 42,
   "symbol": "RSA_generate_key_ex",
   "algorithm": "RSA",
   "key_size": 2048,
   "primitive": "unspecified",
   "risk": "QUANTUM_VULNERABLE",
-  "expires": null
+  "expires": null,
+  "priority": {
+    "score": 89,
+    "component": "payments",
+    "quantum_timeline": {
+      "secrecy_years": 25,
+      "migration_years": 7,
+      "years_to_quantum": 9,
+      "exposed": true,
+      "migration_ends": 2033,
+      "ir8547": "deprecated"
+    }
+  }
 }
 ```
 
-The document's `schema_version` is 2. It went up from 1 when `line` could become `null`.
+The document's `schema_version` is 2. It went up from 1 when `line` could become `null`, and
+`priority` was added without changing it, as nothing a consumer already read changed.
 
 The `cbom` format has one component for each mix of algorithm, key size and primitive, and its
 occurrences list where that mix is used. CycloneDX has no field for the risk, so it's in the
-`pqscan:risk` property, and an unresolved size is in `pqscan:key-size`. An occurrence from a
+`pqscan:risk` property, and an unresolved size is in `pqscan:key-size`. `pqscan:priority` is the
+highest priority among the occurrences, since one algorithm can be used by code whose data must
+stay secret for different times. An occurrence from a
 certificate says when it expires in `additionalContext`, as `expires 2031-05-01T12:00:00Z`.
 
 In `sarif`, each algorithm is one rule, named like `pqscan/RSA`. `CLASSICALLY_WEAK` and
 `QUANTUM_VULNERABLE` are errors, `REVIEW` is a warning and `OK` is a note. Paths are URIs: bytes
 that aren't plain in a URI are percent-encoded, and a leading `./` is dropped so that code
 scanning can match them to the repository. A result about a whole file has no `region`, and one
-from a certificate has its expiry in `properties.expires`.
+from a certificate has its expiry in `properties.expires`. A result's `rank` is its priority,
+and `properties.component` names its component, if one claims it.
 
 Text fields use the same `\xNN` escapes as the text report, except for SARIF paths. A `\xNN`
 in a `json` or `cbom` path is literal text, with its backslash, so a parser never sees invalid
@@ -332,8 +427,8 @@ at fault.
 
 ## Roadmap
 
-- **Prioritization and CI:** urgency scoring from the NIST IR 8547 dates and Mosca's
-  theorem, and a gate that blocks new vulnerable crypto in pull requests.
+- **CI:** a baseline file and a `--diff` mode that reports only new findings, and a GitHub
+  Action that gates pull requests.
 
 ## License
 
