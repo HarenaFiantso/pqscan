@@ -1,12 +1,18 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/walk/file_type.h"
+#include "temp_tree.h"
 #include "unity.h"
 
 #include <stddef.h>
 
-void setUp(void) {}
+/* The magic number, then the start of a 64-bit little-endian header. */
+static const char ELF_START[] = "\177ELF\002\001\001";
 
-void tearDown(void) {}
+static temp_tree *tree;
+
+void setUp(void) { tree = temp_tree_create(); }
+
+void tearDown(void) { temp_tree_destroy(tree); }
 
 static void test_accepts_c_and_cpp_extensions(void) {
     TEST_ASSERT_TRUE(file_type_is_source("a.c"));
@@ -96,6 +102,33 @@ static void test_accepts_certificates_and_keys(void) {
     }
 }
 
+static void test_elf_magic_needs_all_four_bytes(void) {
+    static const unsigned char MAGIC[] = {0x7f, 'E', 'L', 'F'};
+    static const unsigned char LOOKALIKE[] = {0x7f, 'E', 'L', 'G'};
+    TEST_ASSERT_TRUE(file_type_has_elf_magic(MAGIC, sizeof(MAGIC)));
+    TEST_ASSERT_FALSE(file_type_has_elf_magic(MAGIC, sizeof(MAGIC) - 1));
+    TEST_ASSERT_FALSE(file_type_has_elf_magic(LOOKALIKE, sizeof(LOOKALIKE)));
+    TEST_ASSERT_FALSE(file_type_has_elf_magic(MAGIC, 0));
+}
+
+static void test_recognizes_elf_files_by_content_not_name(void) {
+    TEST_ASSERT_TRUE(file_type_is_elf(temp_tree_add_file(tree, "server", ELF_START)));
+    TEST_ASSERT_TRUE(file_type_is_elf(temp_tree_add_file(tree, "libssl.so.3", ELF_START)));
+    TEST_ASSERT_FALSE(file_type_is_elf(temp_tree_add_file(tree, "fake.so", "not an ELF file")));
+}
+
+static void test_rejects_what_cannot_be_an_elf_file(void) {
+    TEST_ASSERT_FALSE(file_type_is_elf(temp_tree_add_file(tree, "short", "\177EL")));
+    TEST_ASSERT_FALSE(file_type_is_elf(temp_tree_add_file(tree, "empty", "")));
+    TEST_ASSERT_FALSE(file_type_is_elf(temp_tree_add_dir(tree, "dir")));
+    TEST_ASSERT_FALSE(file_type_is_elf("no-such-file"));
+}
+
+static void test_does_not_follow_symlinks_to_elf_files(void) {
+    (void)temp_tree_add_file(tree, "real", ELF_START);
+    TEST_ASSERT_FALSE(file_type_is_elf(temp_tree_add_symlink(tree, "link", "real")));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_accepts_c_and_cpp_extensions);
@@ -106,5 +139,9 @@ int main(void) {
     RUN_TEST(test_accepts_config_files);
     RUN_TEST(test_rejects_other_files_as_config);
     RUN_TEST(test_accepts_certificates_and_keys);
+    RUN_TEST(test_elf_magic_needs_all_four_bytes);
+    RUN_TEST(test_recognizes_elf_files_by_content_not_name);
+    RUN_TEST(test_rejects_what_cannot_be_an_elf_file);
+    RUN_TEST(test_does_not_follow_symlinks_to_elf_files);
     return UNITY_END();
 }

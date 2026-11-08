@@ -3,6 +3,7 @@
 #define PQSCAN_WALK_FILE_TYPE_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 /** The grammar a source file is parsed with. */
 typedef enum source_language {
@@ -36,6 +37,29 @@ bool file_type_is_config(const char *path);
  * @return true for .pem, .crt, .cer, .der, .key and .csr files. The match is case-sensitive.
  */
 bool file_type_is_crypto_object(const char *path);
+
+/**
+ * @brief Tell whether bytes start with the ELF magic number, 0x7f followed by "ELF".
+ *
+ * @param data The bytes. Only the first four are read.
+ * @param len How many there are.
+ * @return true if there are at least four and they are the magic number.
+ */
+bool file_type_has_elf_magic(const unsigned char *data, size_t len);
+
+/**
+ * @brief Tell whether a path names an ELF file, by its first bytes, since executables and
+ *        shared libraries rarely have an extension that says what they are.
+ *
+ * Unlike the other functions here, this one opens the file. It refuses symlinks and special
+ * files the way file_contents_read() does, and reads four bytes at most.
+ *
+ * @param path The path.
+ * @return true for a regular file that starts with the ELF magic number. false for anything
+ *         else, including a file that cannot be opened or read: a file that is not
+ *         recognized is not in scope for any scanner.
+ */
+bool file_type_is_elf(const char *path);
 
 /**
  * @brief Choose the grammar for a source file, by its extension.
