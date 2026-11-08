@@ -61,7 +61,10 @@ def sha256_of(path):
 
 
 def archive_urls(project):
-    """GitHub serves the same tag archive from two hosts, and either can fail for a while."""
+    """A project's own release archive if corpus.json names one, else GitHub's archive of the
+    tag, which GitHub serves from two hosts that can each fail for a while."""
+    if "url" in project:
+        return (project["url"],)
     repository, tag = project["repository"], project["tag"]
     return (
         f"https://codeload.github.com/{repository}/tar.gz/refs/tags/{tag}",

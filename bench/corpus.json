@@ -5,7 +5,7 @@
     {"name": "curl", "repository": "curl/curl", "tag": "curl-8_22_0", "sha256": "222c6b5c1f368ac63aed59bce2774eb5def9e8e67e46e800be182e684d2845a3", "labeled": true},
     {"name": "nginx", "repository": "nginx/nginx", "tag": "release-1.30.6", "sha256": "eecb978190f28a0c3dc074939087e6853f3d485eb549dedf522b96a67a7ae664", "labeled": true},
     {"name": "mosquitto", "repository": "eclipse-mosquitto/mosquitto", "tag": "v2.1.1", "sha256": "c992e14868b719bb1f085bf8fb45b55902443e79790ee6ad53289bb326e35051", "labeled": true},
-    {"name": "haproxy", "repository": "haproxy/haproxy", "tag": "v3.4.0", "sha256": "0897d2eb8e2be71196d5bbd1b25bebc3221813658df807d26c6b88972a971dc1", "labeled": true},
+    {"name": "haproxy", "repository": "haproxy/haproxy", "tag": "v3.4.0", "url": "https://www.haproxy.org/download/3.4/src/haproxy-3.4.0.tar.gz", "sha256": "9298f565c2a9ba8a4e7f89c54be2c5d3fd960b5b304eb5515e15d29d2c15d4f7", "labeled": true},
     {"name": "postgres", "repository": "postgres/postgres", "tag": "REL_18_4", "sha256": "9b4f86dd2ac00b914582e9893d1bad1f54bc9be7108fa794318b8184f921ec08", "labeled": true},
     {"name": "openssl", "repository": "openssl/openssl", "tag": "openssl-3.6.5", "sha256": "f3091b7ccb41a11d877b7406b7afc9dd9c5003d299c6bb33cff882127bc06c91", "labeled": false}
   ]
