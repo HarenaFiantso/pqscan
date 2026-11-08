@@ -42,35 +42,40 @@ make_trees() {
 }
 
 # Exit codes 0, 1 and 4 all come with a report. Anything else is a failure of the run itself.
+# Usage: write_report FORMAT OUTPUT PQSCAN_ARGUMENT...
 write_report() {
+    format=$1
+    output=$2
+    shift 2
     status=0
-    "$pqscan" --format "$1" "$2" >"$3" 2>/dev/null || status=$?
+    "$pqscan" --format "$format" "$@" >"$output" 2>/dev/null || status=$?
     case "$status" in
     0 | 1 | 4) ;;
     *)
-        echo "pqscan --format $1 $2 exited with $status" >&2
+        echo "pqscan --format $format $* exited with $status" >&2
         exit 1
         ;;
     esac
 }
 
+# Usage: check_tree PQSCAN_ARGUMENT...
 check_tree() {
-    tree=$1
-
-    write_report cbom "$tree" "$work/report.cbom.json"
+    write_report cbom "$work/report.cbom.json" "$@"
     check-jsonschema --base-uri "file://$cyclonedx_dir/" \
         --schemafile "$cyclonedx_dir/bom-1.6.schema.json" "$work/report.cbom.json"
 
-    write_report sarif "$tree" "$work/report.sarif.json"
+    write_report sarif "$work/report.sarif.json" "$@"
     check-jsonschema --schemafile "$sarif_schema" "$work/report.sarif.json"
 
-    write_report json "$tree" "$work/report.json"
+    write_report json "$work/report.json" "$@"
     python3 -I -m json.tool "$work/report.json" >/dev/null
 }
 
-# The fixtures add findings of whole files and certificates that expire.
+# The fixtures add findings of whole files and certificates that expire, and the project gives
+# findings a component. Its patterns match paths relative to the fixtures.
 make_trees
 check_tree "$work/clean"
 check_tree "$work/hostile"
 check_tree "$fixtures/configs"
 check_tree "$fixtures/crypto"
+(cd "$fixtures" && check_tree --project ../projects/priority.json priority)
