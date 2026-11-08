@@ -5,6 +5,7 @@
 #include "pqscan/core/string_list.h"
 #include "pqscan/report/report_format.h"
 #include "pqscan/report/text_report.h"
+#include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 
 #include <ctype.h>
@@ -19,16 +20,18 @@
 enum { DECIMAL = 10 };
 
 /* Past every char, as these have no short form. */
-enum { OPTION_MAX_TIME = 256, OPTION_FAIL_ON };
+enum { OPTION_MAX_TIME = 256, OPTION_FAIL_ON, OPTION_PROJECT, OPTION_AS_OF };
 
 static const char SHORT_OPTIONS[] = "f:hi:r:V";
 
 static const struct option LONG_OPTIONS[] = {
+    {"as-of", required_argument, NULL, OPTION_AS_OF},
     {"fail-on", required_argument, NULL, OPTION_FAIL_ON},
     {"format", required_argument, NULL, 'f'},
     {"help", no_argument, NULL, 'h'},
     {"ignore", required_argument, NULL, 'i'},
     {"max-time", required_argument, NULL, OPTION_MAX_TIME},
+    {"project", required_argument, NULL, OPTION_PROJECT},
     {"rules", required_argument, NULL, 'r'},
     {"version", no_argument, NULL, 'V'},
     {NULL, 0, NULL, 0},
@@ -44,16 +47,35 @@ static cli_parse_result add_ignore(cli_options *options, const char *pattern) {
     return (status == PQSCAN_OK) ? CLI_PARSE_OK : CLI_PARSE_NOMEM;
 }
 
-/* strtoul() would accept spaces and a sign, and turn -1 into a huge budget. */
-static cli_parse_result set_max_seconds(cli_options *options, const char *text) {
+/* strtoul() would accept spaces and a sign, and turn -1 into a huge number. */
+static bool parse_bounded(const char *text, unsigned long max, unsigned long *out) {
     char *end = NULL;
     errno = 0;
     const unsigned long value = strtoul(text, &end, DECIMAL);
-    if (!isdigit((unsigned char)text[0]) || *end != '\0' || errno != 0 || value > INT_MAX) {
+    if (!isdigit((unsigned char)text[0]) || *end != '\0' || errno != 0 || value > max) {
+        return false;
+    }
+    *out = value;
+    return true;
+}
+
+static cli_parse_result set_max_seconds(cli_options *options, const char *text) {
+    unsigned long value = 0;
+    if (!parse_bounded(text, INT_MAX, &value)) {
         (void)fputs("pqscan: --max-time: expected a number of seconds\n", stderr);
         return CLI_PARSE_USAGE_ERROR;
     }
     options->max_seconds = (unsigned)value;
+    return CLI_PARSE_OK;
+}
+
+static cli_parse_result set_as_of_year(cli_options *options, const char *text) {
+    unsigned long value = 0;
+    if (!parse_bounded(text, PRIORITY_MAX_YEAR, &value) || value < PRIORITY_MIN_YEAR) {
+        (void)fputs("pqscan: --as-of: expected a year from 1970 to 9999\n", stderr);
+        return CLI_PARSE_USAGE_ERROR;
+    }
+    options->as_of_year = (int)value;
     return CLI_PARSE_OK;
 }
 
@@ -95,6 +117,11 @@ static cli_parse_result apply_option(int option, cli_options *options) {
     case 'r':
         options->rules_path = optarg;
         return CLI_PARSE_OK;
+    case OPTION_PROJECT:
+        options->project_path = optarg;
+        return CLI_PARSE_OK;
+    case OPTION_AS_OF:
+        return set_as_of_year(options, optarg);
     default:
         return CLI_PARSE_USAGE_ERROR;
     }
@@ -102,7 +129,17 @@ static cli_parse_result apply_option(int option, cli_options *options) {
 
 cli_parse_result cli_options_parse(int argc, char **argv, cli_options *options) {
     *options = (cli_options){
-        NULL, NULL, 0, NULL, CLI_DEFAULT_MAX_SECONDS, &text_reporter, DEFAULT_FAIL_ON, false, false,
+        NULL,
+        NULL,
+        0,
+        NULL,
+        NULL,
+        CLI_AS_OF_NOW,
+        CLI_DEFAULT_MAX_SECONDS,
+        &text_reporter,
+        DEFAULT_FAIL_ON,
+        false,
+        false,
     };
     options->ignores = string_list_create();
     if (options->ignores == NULL) {

@@ -12,15 +12,20 @@
 /** How long a run analyzes files unless told otherwise. A CI job must end on a hostile repo. */
 enum { CLI_DEFAULT_MAX_SECONDS = 3600 };
 
+/** The as-of year of a run that did not give --as-of, which then reads the clock. */
+enum { CLI_AS_OF_NOW = 0 };
+
 /** The parsed command line. */
 typedef struct cli_options {
     string_list *ignores; /**< Patterns, including the defaults. Owned by this struct. */
     char **paths;         /**< Paths to scan. Borrowed from argv. */
     size_t path_count;
-    const char *rules_path; /**< File given to --rules, or NULL. Borrowed from argv. */
-    unsigned max_seconds;   /**< How long to keep starting on new files. */
-    const reporter *format; /**< The output format. Has static storage duration. */
-    risk_level fail_on;     /**< The lowest level that makes the run exit with findings. */
+    const char *rules_path;   /**< File given to --rules, or NULL. Borrowed from argv. */
+    const char *project_path; /**< File given to --project, or NULL. Borrowed from argv. */
+    int as_of_year;           /**< Year given to --as-of, or CLI_AS_OF_NOW. */
+    unsigned max_seconds;     /**< How long to keep starting on new files. */
+    const reporter *format;   /**< The output format. Has static storage duration. */
+    risk_level fail_on;       /**< The lowest level that makes the run exit with findings. */
     bool show_help;
     bool show_version;
 } cli_options;

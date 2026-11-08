@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/cli/options.h"
 #include "pqscan/core/string_list.h"
+#include "pqscan/risk/priority.h"
 #include "pqscan/risk/risk.h"
 #include "unity.h"
 
@@ -169,6 +170,48 @@ static void test_double_dash_ends_options(void) {
     TEST_ASSERT_EQUAL_STRING("--help", options.paths[0]);
 }
 
+static void test_the_project_and_year_are_absent_by_default(void) {
+    char *argv[] = {"pqscan", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_NULL(options.project_path);
+    TEST_ASSERT_EQUAL_INT(CLI_AS_OF_NOW, options.as_of_year);
+}
+
+static void test_parses_the_project_and_year(void) {
+    char *argv[] = {"pqscan", "--project", "p.json", "--as-of=2031", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(argv), argv, &options));
+    TEST_ASSERT_EQUAL_STRING("p.json", options.project_path);
+    TEST_ASSERT_EQUAL_INT(IR8547_DEPRECATED_AFTER + 1, options.as_of_year);
+}
+
+static void test_accepts_the_ends_of_the_year_range(void) {
+    char *first[] = {"pqscan", "--as-of", "1970", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(first), first, &options));
+    TEST_ASSERT_EQUAL_INT(PRIORITY_MIN_YEAR, options.as_of_year);
+    cli_options_destroy(&options);
+    char *last[] = {"pqscan", "--as-of", "9999", "src", NULL};
+    TEST_ASSERT_EQUAL_INT(CLI_PARSE_OK, cli_options_parse(ARG_COUNT(last), last, &options));
+    TEST_ASSERT_EQUAL_INT(PRIORITY_MAX_YEAR, options.as_of_year);
+}
+
+static void assert_bad_year(char *value) {
+    char *argv[] = {"pqscan", "--as-of", value, "src", NULL};
+    TEST_ASSERT_EQUAL_INT_MESSAGE(CLI_PARSE_USAGE_ERROR,
+                                  cli_options_parse(ARG_COUNT(argv), argv, &options), value);
+    cli_options_destroy(&options);
+}
+
+static void test_refuses_a_bad_year(void) {
+    assert_bad_year("soon");
+    assert_bad_year("");
+    assert_bad_year("1969");
+    assert_bad_year("10000");
+    assert_bad_year("-2030");
+    assert_bad_year(" 2030");
+    assert_bad_year("2030 ");
+    assert_bad_year("99999999999999999999999");
+}
+
 static void test_unknown_option_is_a_usage_error(void) {
     char *argv[] = {"pqscan", "--nope", "src", NULL};
     TEST_ASSERT_EQUAL_INT(CLI_PARSE_USAGE_ERROR,
@@ -195,6 +238,10 @@ int main(void) {
     RUN_TEST(test_the_last_rules_path_wins);
     RUN_TEST(test_rules_without_a_path_is_a_usage_error);
     RUN_TEST(test_ignore_is_repeatable);
+    RUN_TEST(test_the_project_and_year_are_absent_by_default);
+    RUN_TEST(test_parses_the_project_and_year);
+    RUN_TEST(test_accepts_the_ends_of_the_year_range);
+    RUN_TEST(test_refuses_a_bad_year);
     RUN_TEST(test_the_report_defaults_to_text_failing_on_review);
     RUN_TEST(test_parses_the_format);
     RUN_TEST(test_refuses_an_unknown_format);
