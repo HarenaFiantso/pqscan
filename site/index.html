@@ -147,7 +147,7 @@ cmake --build --preset release
         <div class="code-head"><span>shell</span><button class="copy" type="button">Copy</button></div>
 <pre><code>pqscan [OPTIONS] PATH...</code></pre>
       </div>
-      <p class="reveal">Each <code>PATH</code> is a file or a directory. Directories are walked recursively and symlinks are never followed. pqscan reads three kinds of files, chosen by name, and skips every other file:</p>
+      <p class="reveal">Each <code>PATH</code> is a file or a directory. Directories are walked recursively and symlinks are never followed. pqscan reads four kinds of files, and skips every other file. The first three are chosen by name. ELF files are recognized by their first four bytes, whatever their name:</p>
 
       <div class="table-wrap reveal">
         <table>
@@ -156,6 +156,7 @@ cmake --build --preset release
             <tr><td>C and C++ source</td><td><code>.c</code>, <code>.h</code>, <code>.cpp</code>, <code>.hpp</code>, <code>.cc</code>, <code>.cxx</code>, <code>.C</code>, <code>.hh</code>, <code>.hxx</code>, <code>.ipp</code>, <code>.inl</code> and <code>.tcc</code></td></tr>
             <tr><td>Configuration</td><td><code>.conf</code>, <code>.cnf</code>, <code>sshd_config</code>, <code>ssh_config</code>, <code>.htaccess</code>, and any file in a <code>sites-available</code> or <code>sites-enabled</code> directory</td></tr>
             <tr><td>Certificates and keys</td><td><code>.pem</code>, <code>.crt</code>, <code>.cer</code>, <code>.der</code>, <code>.key</code> and <code>.csr</code></td></tr>
+            <tr><td>ELF binaries</td><td>64-bit executables, shared libraries and object files</td></tr>
           </tbody>
         </table>
       </div>
@@ -239,7 +240,7 @@ cmake --build --preset release
         </ul>
       </details>
 
-      <h3 class="reveal">Configs, certificates and keys</h3>
+      <h3 class="reveal">Configs, certificates, keys and binaries</h3>
       <div class="cards">
         <article class="card card-green reveal">
           <span class="nf card-icon" aria-hidden="true">&#xf013;</span>
@@ -251,13 +252,18 @@ cmake --build --preset release
           <h3>Certificates and keys</h3>
           <p>PEM or DER, decoded by OpenSSL's libcrypto: the key and its size, what the key usage says it does, the signature and its digest, and when the certificate expires. Each PEM block names its own line.</p>
         </article>
+        <article class="card card-green reveal">
+          <span class="nf card-icon" aria-hidden="true">&#xf471;</span>
+          <h3>ELF binaries</h3>
+          <p>The symbol tables of 64-bit executables, libraries and object files, read by a bounds-checked reader that is fuzzed in CI. A function a binary imports or contains, such as <code>RSA_sign</code>, is reported for the whole file.</p>
+        </article>
         <article class="card card-overlay reveal">
           <span class="nf card-icon" aria-hidden="true">&#xf05e;</span>
           <h3>Not reported</h3>
           <p>Names a setting takes away, such as <code>!RSA</code> or <code>-ssh-rsa</code>, and hybrid post-quantum groups such as <code>X25519MLKEM768</code>. Aliases such as <code>DEFAULT</code> or <code>HIGH</code> aren't expanded, since their meaning depends on the OpenSSL build.</p>
         </article>
       </div>
-      <p class="note reveal">Where one name stands for two weaknesses, pqscan reports the more severe: <code>ssh-rsa</code> signs with SHA-1, so it's <code>SHA-1</code>. An encrypted PKCS#8 key hides its algorithm, so its file isn't analyzed, and pqscan never asks for a passphrase.</p>
+      <p class="note reveal">Where one name stands for two weaknesses, pqscan reports the more severe: <code>ssh-rsa</code> signs with SHA-1, so it's <code>SHA-1</code>. An encrypted PKCS#8 key hides its algorithm, so its file isn't analyzed, and pqscan never asks for a passphrase. Neither is a stripped static executable, which keeps no symbols to read.</p>
     </section>
 
     <section class="section" id="risk">
@@ -411,7 +417,7 @@ report/mixed.c:5: RSA-unknown (QUANTUM_VULNERABLE)
       </div>
 
       <h3 class="reveal">A partial report can't pass for a whole one</h3>
-      <p class="reveal">Paths that can't be read are skipped with a warning, as are files over 64 MiB, source and configuration files that contain a NUL byte, source files that take more than 30 seconds to parse, encrypted PKCS#8 keys, and certificate or key files that can't be decoded. Every format says so.</p>
+      <p class="reveal">Paths that can't be read are skipped with a warning, as are files over 64 MiB, source and configuration files that contain a NUL byte, source files that take more than 30 seconds to parse, encrypted PKCS#8 keys, certificate or key files that can't be decoded, and ELF files that are 32-bit, damaged, or have no symbol table. Every format says so.</p>
       <div class="table-wrap reveal">
         <table>
           <thead><tr><th scope="col">Format</th><th scope="col">Where to look</th></tr></thead>
@@ -576,7 +582,7 @@ pqscan --format json src | jq .summary.by_risk</code></pre>
       <header class="section-head reveal">
         <p class="kicker">09 &middot; Roadmap</p>
         <h2>Today C and C++ source, then everything around it</h2>
-        <p>Each phase ends with a tagged release. Phases 1 to 6 are done. ELF binaries aren't scanned yet.</p>
+        <p>Each phase ends with a tagged release. Phases 1 to 7 are done.</p>
       </header>
 
       <ol class="roadmap" id="roadmap-list">
@@ -586,7 +592,7 @@ pqscan --format json src | jq .summary.by_risk</code></pre>
         <li class="phase done reveal"><span class="phase-tag">v0.4.0</span><h3>Light data flow</h3><p>Constant propagation inside a file, and <code>unknown</code> instead of a guess.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.5.0</span><h3>Outputs</h3><p>JSON, CycloneDX CBOM, SARIF, and exit codes with a threshold.</p></li>
         <li class="phase done reveal"><span class="phase-tag">v0.6.0</span><h3>Configs, certificates and keys</h3><p>OpenSSL, nginx, Apache and SSH settings, plus PEM and DER files.</p></li>
-        <li class="phase reveal"><span class="phase-tag">Phase 7</span><h3>ELF binaries</h3><p>Linked crypto functions found without source code.</p></li>
+        <li class="phase done reveal"><span class="phase-tag">v0.7.0</span><h3>ELF binaries</h3><p>Crypto functions found in symbol tables, without source code.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 8</span><h3>Risk prioritization</h3><p>A priority score from the NIST IR 8547 dates and Mosca's theorem.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 9</span><h3>CI integration</h3><p>A baseline, a <code>--diff</code> mode, and a GitHub Action that blocks new vulnerable crypto.</p></li>
         <li class="phase reveal"><span class="phase-tag">Phase 10</span><h3>Quality and evaluation</h3><p>A benchmark corpus, measured precision and recall, and fuzzing.</p></li>
