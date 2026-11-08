@@ -17,6 +17,16 @@
 
 enum { OUTPUT_SIZE = 4096, SAMPLE_LINE = 12, SAMPLE_BITS = 2048, SAMPLE_YEAR = 2031 };
 
+/* A payments component scored in 2026: 50 + 10 for a migration ending in 2033, + 29. */
+enum {
+    AS_OF = 2026,
+    QUANTUM_YEAR = 2035,
+    LONG_SECRET = 25,
+    MIGRATION = 7,
+    PAYMENTS_SCORE = 89,
+    LATE_AS_OF = 2040,
+};
+
 static const key_size NO_KEY_SIZE = {KEY_SIZE_NOT_APPLICABLE, 0};
 
 static finding_list *findings;
@@ -167,6 +177,54 @@ static void test_a_hostile_file_name_stays_inside_its_string(void) {
     TEST_ASSERT_EQUAL_STRING("\"\\\\\\x1b", field(entry, "path")->valuestring);
 }
 
+static void add_scored(risk_level risk, int as_of_year) {
+    const data_lifetime lifetime = {"payments", LONG_SECRET, MIGRATION};
+    const priority_basis basis = {as_of_year, QUANTUM_YEAR};
+    const finding item = {
+        "pay.c",    SAMPLE_LINE,     "RSA",
+        risk,       NO_KEY_SIZE,     PRIMITIVE_SIGNATURE,
+        "RSA_sign", utc_time_none(), priority_assess(risk, &lifetime, &basis),
+    };
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
+}
+
+static void test_a_quantum_vulnerable_finding_explains_its_priority(void) {
+    add_scored(RISK_QUANTUM_VULNERABLE, AS_OF);
+    write_and_parse();
+    const cJSON *rank = field(first_finding(), "priority");
+    TEST_ASSERT_EQUAL_INT(PAYMENTS_SCORE, field(rank, "score")->valueint);
+    TEST_ASSERT_EQUAL_STRING("payments", field(rank, "component")->valuestring);
+    const cJSON *timeline = field(rank, "quantum_timeline");
+    TEST_ASSERT_EQUAL_INT(LONG_SECRET, field(timeline, "secrecy_years")->valueint);
+    TEST_ASSERT_EQUAL_INT(MIGRATION, field(timeline, "migration_years")->valueint);
+    TEST_ASSERT_EQUAL_INT(QUANTUM_YEAR - AS_OF, field(timeline, "years_to_quantum")->valueint);
+    TEST_ASSERT_TRUE(cJSON_IsTrue(field(timeline, "exposed")));
+    TEST_ASSERT_EQUAL_INT(AS_OF + MIGRATION, field(timeline, "migration_ends")->valueint);
+    TEST_ASSERT_EQUAL_STRING("deprecated", field(timeline, "ir8547")->valuestring);
+}
+
+static void test_years_to_quantum_go_negative_once_it_has_passed(void) {
+    add_scored(RISK_QUANTUM_VULNERABLE, LATE_AS_OF);
+    write_and_parse();
+    const cJSON *timeline = field(field(first_finding(), "priority"), "quantum_timeline");
+    TEST_ASSERT_EQUAL_INT(QUANTUM_YEAR - LATE_AS_OF, field(timeline, "years_to_quantum")->valueint);
+    TEST_ASSERT_EQUAL_STRING("disallowed", field(timeline, "ir8547")->valuestring);
+}
+
+static void test_other_levels_have_no_quantum_timeline(void) {
+    add_scored(RISK_CLASSICALLY_WEAK, AS_OF);
+    write_and_parse();
+    const cJSON *rank = field(first_finding(), "priority");
+    TEST_ASSERT_EQUAL_INT(PRIORITY_MAX_SCORE, field(rank, "score")->valueint);
+    TEST_ASSERT_TRUE(cJSON_IsNull(field(rank, "quantum_timeline")));
+}
+
+static void test_a_finding_no_component_claims_has_a_null_component(void) {
+    add_finding("a.c", NO_KEY_SIZE, RISK_OK);
+    write_and_parse();
+    TEST_ASSERT_TRUE(cJSON_IsNull(field(field(first_finding(), "priority"), "component")));
+}
+
 static void test_reports_a_failed_write(void) {
     FILE *read_only = fopen("/dev/null", "r");
     TEST_ASSERT_NOT_NULL(read_only);
@@ -188,6 +246,10 @@ int main(void) {
     RUN_TEST(test_the_summary_counts_by_risk);
     RUN_TEST(test_says_what_was_not_analyzed);
     RUN_TEST(test_a_hostile_file_name_stays_inside_its_string);
+    RUN_TEST(test_a_quantum_vulnerable_finding_explains_its_priority);
+    RUN_TEST(test_years_to_quantum_go_negative_once_it_has_passed);
+    RUN_TEST(test_other_levels_have_no_quantum_timeline);
+    RUN_TEST(test_a_finding_no_component_claims_has_a_null_component);
     RUN_TEST(test_reports_a_failed_write);
     return UNITY_END();
 }

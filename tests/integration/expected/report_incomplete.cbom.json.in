@@ -48,6 +48,10 @@
         {
           "name": "pqscan:risk",
           "value": "REVIEW"
+        },
+        {
+          "name": "pqscan:priority",
+          "value": "10"
         }
       ]
     },
@@ -74,6 +78,10 @@
         {
           "name": "pqscan:risk",
           "value": "QUANTUM_VULNERABLE"
+        },
+        {
+          "name": "pqscan:priority",
+          "value": "51"
         }
       ]
     },
@@ -100,6 +108,10 @@
         {
           "name": "pqscan:risk",
           "value": "QUANTUM_VULNERABLE"
+        },
+        {
+          "name": "pqscan:priority",
+          "value": "51"
         }
       ]
     },
@@ -126,6 +138,10 @@
         {
           "name": "pqscan:risk",
           "value": "CLASSICALLY_WEAK"
+        },
+        {
+          "name": "pqscan:priority",
+          "value": "100"
         }
       ]
     },
@@ -152,6 +168,10 @@
         {
           "name": "pqscan:risk",
           "value": "CLASSICALLY_WEAK"
+        },
+        {
+          "name": "pqscan:priority",
+          "value": "100"
         }
       ]
     },
@@ -178,6 +198,10 @@
         {
           "name": "pqscan:risk",
           "value": "QUANTUM_VULNERABLE"
+        },
+        {
+          "name": "pqscan:priority",
+          "value": "51"
         }
       ]
     },
@@ -204,6 +228,10 @@
         {
           "name": "pqscan:risk",
           "value": "QUANTUM_VULNERABLE"
+        },
+        {
+          "name": "pqscan:priority",
+          "value": "51"
         },
         {
           "name": "pqscan:key-size",
@@ -235,6 +263,10 @@
         {
           "name": "pqscan:risk",
           "value": "CLASSICALLY_WEAK"
+        },
+        {
+          "name": "pqscan:priority",
+          "value": "100"
         }
       ]
     },
@@ -267,6 +299,10 @@
         {
           "name": "pqscan:risk",
           "value": "QUANTUM_VULNERABLE"
+        },
+        {
+          "name": "pqscan:priority",
+          "value": "51"
         }
       ]
     }

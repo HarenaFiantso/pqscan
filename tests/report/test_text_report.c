@@ -14,7 +14,13 @@
 #include <stdio.h>
 #include <string.h>
 
-enum { OUTPUT_SIZE = 256, SAMPLE_LINE = 12, SAMPLE_BITS = 2048, SAMPLE_YEAR = 2031 };
+enum {
+    OUTPUT_SIZE = 256,
+    SAMPLE_LINE = 12,
+    SAMPLE_BITS = 2048,
+    SAMPLE_YEAR = 2031,
+    SAMPLE_PRIORITY = 89,
+};
 
 static const key_size NO_KEY_SIZE = {KEY_SIZE_NOT_APPLICABLE, 0};
 
@@ -77,8 +83,8 @@ static void test_writes_one_line_per_finding(void) {
     char output[OUTPUT_SIZE];
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(&report, out));
     read_back(output, sizeof(output));
-    TEST_ASSERT_EQUAL_STRING("src/a.c:12: RSA (QUANTUM_VULNERABLE)\n"
-                             "b.h:1: MD5 (CLASSICALLY_WEAK)\n"
+    TEST_ASSERT_EQUAL_STRING("src/a.c:12: RSA (QUANTUM_VULNERABLE, priority 0)\n"
+                             "b.h:1: MD5 (CLASSICALLY_WEAK, priority 0)\n"
                              "2 findings: 1 CLASSICALLY_WEAK, 1 QUANTUM_VULNERABLE\n",
                              output);
 }
@@ -112,8 +118,8 @@ static void test_appends_the_key_size_to_the_algorithm(void) {
     char output[OUTPUT_SIZE];
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(&report, out));
     read_back(output, sizeof(output));
-    TEST_ASSERT_EQUAL_STRING("a.c:1: RSA-2048 (QUANTUM_VULNERABLE)\n"
-                             "a.c:2: RSA-unknown (QUANTUM_VULNERABLE)\n"
+    TEST_ASSERT_EQUAL_STRING("a.c:1: RSA-2048 (QUANTUM_VULNERABLE, priority 0)\n"
+                             "a.c:2: RSA-unknown (QUANTUM_VULNERABLE, priority 0)\n"
                              "2 findings: 2 QUANTUM_VULNERABLE\n",
                              output);
 }
@@ -135,9 +141,10 @@ static void test_a_certificate_finding_names_the_file_and_its_expiry(void) {
     char output[OUTPUT_SIZE];
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(&report, out));
     read_back(output, sizeof(output));
-    TEST_ASSERT_EQUAL_STRING("server.der: RSA-2048 (QUANTUM_VULNERABLE, expires 2031-05-01)\n"
-                             "1 finding: 1 QUANTUM_VULNERABLE\n",
-                             output);
+    TEST_ASSERT_EQUAL_STRING(
+        "server.der: RSA-2048 (QUANTUM_VULNERABLE, priority 0, expires 2031-05-01)\n"
+        "1 finding: 1 QUANTUM_VULNERABLE\n",
+        output);
 }
 
 static void test_a_file_name_cannot_forge_a_line(void) {
@@ -158,7 +165,7 @@ static void test_a_file_name_cannot_forge_a_line(void) {
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(&report, out));
     read_back(output, sizeof(output));
     TEST_ASSERT_EQUAL_STRING("evil\\x0afake.c:1: AES-256 (OK)\\x0a\\x1b[2K.c:7: RSA "
-                             "(QUANTUM_VULNERABLE)\n"
+                             "(QUANTUM_VULNERABLE, priority 0)\n"
                              "1 finding: 1 QUANTUM_VULNERABLE\n",
                              output);
 }
@@ -180,7 +187,8 @@ static void test_an_algorithm_name_cannot_forge_a_line(void) {
     char output[OUTPUT_SIZE];
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(&report, out));
     read_back(output, sizeof(output));
-    TEST_ASSERT_EQUAL_STRING("a.c:1: X\\x0ab.c:1: AES-256 (OK)\n1 finding: 1 OK\n", output);
+    TEST_ASSERT_EQUAL_STRING("a.c:1: X\\x0ab.c:1: AES-256 (OK, priority 0)\n1 finding: 1 OK\n",
+                             output);
 }
 
 static void test_the_summary_runs_from_most_to_least_severe(void) {
@@ -201,6 +209,23 @@ static void test_the_summary_runs_from_most_to_least_severe(void) {
     read_back(output, sizeof(output));
     TEST_ASSERT_NOT_NULL(
         strstr(output, "5 findings: 1 CLASSICALLY_WEAK, 1 QUANTUM_VULNERABLE, 2 REVIEW, 1 OK\n"));
+}
+
+static void test_shows_the_priority_of_each_finding(void) {
+    priority urgent = priority_none();
+    urgent.score = SAMPLE_PRIORITY;
+    const finding item = {
+        "a.c", SAMPLE_LINE,     "RSA",  RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED,
+        "X",   utc_time_none(), urgent,
+    };
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
+
+    char output[OUTPUT_SIZE];
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(&report, out));
+    read_back(output, sizeof(output));
+    TEST_ASSERT_EQUAL_STRING("a.c:12: RSA (QUANTUM_VULNERABLE, priority 89)\n"
+                             "1 finding: 1 QUANTUM_VULNERABLE\n",
+                             output);
 }
 
 static void test_reports_a_failed_write(void) {
@@ -234,6 +259,7 @@ int main(void) {
     RUN_TEST(test_a_file_name_cannot_forge_a_line);
     RUN_TEST(test_an_algorithm_name_cannot_forge_a_line);
     RUN_TEST(test_the_summary_runs_from_most_to_least_severe);
+    RUN_TEST(test_shows_the_priority_of_each_finding);
     RUN_TEST(test_reports_a_failed_write);
     return UNITY_END();
 }

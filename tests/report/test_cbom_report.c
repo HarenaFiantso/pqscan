@@ -22,6 +22,8 @@ enum {
     SAMPLE_BITS = 2048,
     SHORT_BITS = 1024,
     SAMPLE_YEAR = 2031,
+    LOW_PRIORITY = 51,
+    HIGH_PRIORITY = 89,
 };
 
 static const key_size NO_KEY_SIZE = {KEY_SIZE_NOT_APPLICABLE, 0};
@@ -263,6 +265,26 @@ static void test_a_certificate_occurrence_has_no_line_and_tells_its_expiry(void)
                              field(place, "additionalContext")->valuestring);
 }
 
+static void add_ranked(const char *path, unsigned score) {
+    priority rank = priority_none();
+    rank.score = score;
+    const finding item = {
+        path,        SAMPLE_LINE,         "RSA",        RISK_QUANTUM_VULNERABLE,
+        NO_KEY_SIZE, PRIMITIVE_SIGNATURE, "the_symbol", utc_time_none(),
+        rank,
+    };
+    add(&item);
+}
+
+static void test_a_component_is_as_urgent_as_its_most_urgent_use(void) {
+    add_ranked("lib/a.c", LOW_PRIORITY);
+    add_ranked("pay/b.c", HIGH_PRIORITY);
+    add_ranked("lib/c.c", LOW_PRIORITY);
+    write_and_parse();
+    TEST_ASSERT_EQUAL_INT(1, cJSON_GetArraySize(field(document, "components")));
+    TEST_ASSERT_EQUAL_STRING("89", property(component(0), "pqscan:priority"));
+}
+
 static void test_says_what_was_not_analyzed(void) {
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, skip_list_add(skipped, "b.c", PQSCAN_ERR_BINARY));
     write_and_parse();
@@ -315,6 +337,7 @@ int main(void) {
     RUN_TEST(test_bits_only_count_when_they_are_known);
     RUN_TEST(test_occurrences_are_sorted_whatever_the_scan_order);
     RUN_TEST(test_a_certificate_occurrence_has_no_line_and_tells_its_expiry);
+    RUN_TEST(test_a_component_is_as_urgent_as_its_most_urgent_use);
     RUN_TEST(test_says_what_was_not_analyzed);
     RUN_TEST(test_a_hostile_file_name_stays_inside_its_string);
     RUN_TEST(test_reports_a_failed_write);

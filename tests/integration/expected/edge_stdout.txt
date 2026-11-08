@@ -1,3 +1,3 @@
-edge/latin1.c:2: SHA-1 (CLASSICALLY_WEAK)
-edge/crlf.c:2: DH (QUANTUM_VULNERABLE)
+edge/latin1.c:2: SHA-1 (CLASSICALLY_WEAK, priority 100)
+edge/crlf.c:2: DH (QUANTUM_VULNERABLE, priority 51)
 2 findings: 1 CLASSICALLY_WEAK, 1 QUANTUM_VULNERABLE

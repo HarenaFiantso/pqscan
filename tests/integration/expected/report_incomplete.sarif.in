@@ -117,6 +117,7 @@
         {
           "ruleId": "pqscan/RSA",
           "level": "error",
+          "rank": 100,
           "message": {
             "text": "RSA_generate_key_ex uses RSA-1024: CLASSICALLY_WEAK"
           },
@@ -136,6 +137,7 @@
         {
           "ruleId": "pqscan/RC4",
           "level": "error",
+          "rank": 100,
           "message": {
             "text": "EVP_rc4 uses RC4: CLASSICALLY_WEAK"
           },
@@ -155,6 +157,7 @@
         {
           "ruleId": "pqscan/MD5",
           "level": "error",
+          "rank": 100,
           "message": {
             "text": "EVP_md5 uses MD5: CLASSICALLY_WEAK"
           },
@@ -174,6 +177,7 @@
         {
           "ruleId": "pqscan/RSA",
           "level": "error",
+          "rank": 51,
           "message": {
             "text": "RSA_generate_key_ex uses RSA-2048: QUANTUM_VULNERABLE"
           },
@@ -193,6 +197,7 @@
         {
           "ruleId": "pqscan/RSA",
           "level": "error",
+          "rank": 51,
           "message": {
             "text": "RSA_generate_key_ex uses RSA-unknown: QUANTUM_VULNERABLE"
           },
@@ -212,6 +217,7 @@
         {
           "ruleId": "pqscan/RSA",
           "level": "error",
+          "rank": 51,
           "message": {
             "text": "RSA_generate_key_ex uses RSA-2048: QUANTUM_VULNERABLE"
           },
@@ -231,6 +237,7 @@
         {
           "ruleId": "pqscan/ECDSA",
           "level": "error",
+          "rank": 51,
           "message": {
             "text": "ECDSA_sign uses ECDSA: QUANTUM_VULNERABLE"
           },
@@ -250,6 +257,7 @@
         {
           "ruleId": "pqscan/DH",
           "level": "error",
+          "rank": 51,
           "message": {
             "text": "DH_compute_key uses DH: QUANTUM_VULNERABLE"
           },
@@ -269,6 +277,7 @@
         {
           "ruleId": "pqscan/RSA",
           "level": "error",
+          "rank": 51,
           "message": {
             "text": "RSA_public_encrypt uses RSA: QUANTUM_VULNERABLE"
           },
@@ -288,6 +297,7 @@
         {
           "ruleId": "pqscan/AES-128",
           "level": "warning",
+          "rank": 10,
           "message": {
             "text": "EVP_aes_128_gcm uses AES-128: REVIEW"
           },

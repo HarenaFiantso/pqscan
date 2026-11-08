@@ -23,7 +23,19 @@
       "key_size": null,
       "primitive": "signature",
       "risk": "QUANTUM_VULNERABLE",
-      "expires": "2031-05-01T12:00:00Z"
+      "expires": "2031-05-01T12:00:00Z",
+      "priority": {
+        "score": 51,
+        "component": null,
+        "quantum_timeline": {
+          "secrecy_years": 0,
+          "migration_years": 0,
+          "years_to_quantum": 9,
+          "exposed": false,
+          "migration_ends": 2026,
+          "ir8547": "acceptable"
+        }
+      }
     },
     {
       "path": "crypto/certs/ec-p256.der",
@@ -33,7 +45,19 @@
       "key_size": 256,
       "primitive": "signature",
       "risk": "QUANTUM_VULNERABLE",
-      "expires": "2031-05-01T12:00:00Z"
+      "expires": "2031-05-01T12:00:00Z",
+      "priority": {
+        "score": 51,
+        "component": null,
+        "quantum_timeline": {
+          "secrecy_years": 0,
+          "migration_years": 0,
+          "years_to_quantum": 9,
+          "exposed": false,
+          "migration_ends": 2026,
+          "ir8547": "acceptable"
+        }
+      }
     }
   ],
   "unanalyzed": []

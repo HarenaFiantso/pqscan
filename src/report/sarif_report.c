@@ -152,16 +152,26 @@ static void write_finding_message(json_writer *json, const finding *item) {
     json_end_object(json);
 }
 
-/* SARIF has no field for when a certificate expires, so it goes in the result's property bag. */
-static void write_expiry(json_writer *json, const utc_time *expires) {
-    if (!expires->known) {
+static bool has_properties(const finding *item) {
+    return item->expires.known || item->priority.component != NULL;
+}
+
+/* SARIF has no field for when a certificate expires or what a finding belongs to, so they go
+ * in the result's property bag. */
+static void write_properties(json_writer *json, const finding *item) {
+    if (!has_properties(item)) {
         return;
     }
-    char text[UTC_TIME_TEXT_SIZE];
-    utc_time_format(expires, text, sizeof(text));
     json_key(json, "properties");
     json_begin_object(json);
-    json_field_string(json, "expires", text);
+    if (item->expires.known) {
+        char text[UTC_TIME_TEXT_SIZE];
+        utc_time_format(&item->expires, text, sizeof(text));
+        json_field_string(json, "expires", text);
+    }
+    if (item->priority.component != NULL) {
+        json_field_string(json, "component", item->priority.component);
+    }
     json_end_object(json);
 }
 
@@ -169,12 +179,13 @@ static void write_result(json_writer *json, const finding *item) {
     json_begin_object(json);
     write_rule_id(json, "ruleId", item->algorithm);
     json_field_string(json, "level", RISK_STYLES[item->risk].level);
+    json_field_uint(json, "rank", item->priority.score);
     write_finding_message(json, item);
     json_key(json, "locations");
     json_begin_array(json);
     write_location(json, item->path, item->line);
     json_end_array(json);
-    write_expiry(json, &item->expires);
+    write_properties(json, item);
     json_end_object(json);
 }
 
