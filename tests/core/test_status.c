@@ -15,6 +15,9 @@ static void test_every_status_has_a_distinct_message(void) {
     TEST_ASSERT_EQUAL_STRING("invalid rules", pqscan_status_message(PQSCAN_ERR_RULES));
     TEST_ASSERT_EQUAL_STRING("skipped, scan time budget used up",
                              pqscan_status_message(PQSCAN_ERR_BUDGET));
+    TEST_ASSERT_EQUAL_STRING("skipped, encrypted key", pqscan_status_message(PQSCAN_ERR_ENCRYPTED));
+    TEST_ASSERT_EQUAL_STRING("skipped, not a certificate or key that can be read",
+                             pqscan_status_message(PQSCAN_ERR_MALFORMED));
 }
 
 int main(void) {
