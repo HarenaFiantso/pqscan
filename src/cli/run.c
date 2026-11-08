@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "pqscan/cli/run.h"
 
+#include "pqscan/baseline/baseline.h"
+#include "pqscan/cli/baseline_option.h"
 #include "pqscan/cli/diagnostic.h"
 #include "pqscan/cli/exit_code.h"
 #include "pqscan/cli/options.h"
@@ -42,6 +44,9 @@ static const char USAGE[] =
     "      --project FILE    read how long data must stay secret from this project file\n"
     "                        (default .pqscan.json in the current directory, if there is one)\n"
     "      --as-of YEAR      score priorities as if it were this year (default the current year)\n"
+    "      --diff FILE       report only the findings this baseline does not accept\n"
+    "      --write-baseline FILE\n"
+    "                        write a baseline that accepts every finding to this file\n"
     "  -f, --format FORMAT   write the report as text, json, cbom or sarif\n"
     "      --fail-on LEVEL   lowest risk level that exits 1: OK, REVIEW, QUANTUM_VULNERABLE or\n"
     "                        CLASSICALLY_WEAK (default REVIEW)\n"
@@ -51,7 +56,8 @@ static const char USAGE[] =
     "\n"
     "Exit codes:\n"
     "  0  no findings at or above --fail-on, and everything was analyzed\n"
-    "  1  findings at or above --fail-on\n"
+    "  1  findings at or above --fail-on (with --diff, new findings only; with\n"
+    "     --write-baseline, never)\n"
     "  2  usage error\n"
     "  3  internal error\n"
     "  4  no findings at or above --fail-on, but something could not be analyzed\n";
@@ -67,6 +73,7 @@ static const scanner *const SCANNERS[] = {
 typedef struct run_inputs {
     const rule_set *rules;
     const project *target;
+    baseline *accepted; /* The baseline of --diff, or NULL. Used up as findings match it. */
     int as_of_year;
 } run_inputs;
 
@@ -76,6 +83,7 @@ typedef struct scan_job {
     finding_list *findings;
     skip_list *skipped;     /* Paths in scope that were not analyzed. */
     risk_level fail_on;     /* The lowest level that counts for the exit code. */
+    bool accepts_all;       /* A run that writes a baseline accepts what it finds. */
     const char *root;       /* The PATH being walked. */
     time_t deadline;        /* When to stop starting on new files. */
     pqscan_status recorded; /* Whether skipped is whole, as a walk callback cannot fail. */
@@ -162,7 +170,7 @@ static bool has_finding_at_or_above(const finding_list *findings, risk_level lev
 
 /* Findings win over an incomplete scan, because they already need acting on. */
 static int exit_code_of(const scan_job *job) {
-    if (has_finding_at_or_above(job->findings, job->fail_on)) {
+    if (!job->accepts_all && has_finding_at_or_above(job->findings, job->fail_on)) {
         return PQSCAN_EXIT_FINDINGS;
     }
     return (skip_list_count(job->skipped) > 0) ? PQSCAN_EXIT_INCOMPLETE : PQSCAN_EXIT_CLEAN;
@@ -182,8 +190,23 @@ static int report_findings(const scan_job *job, const reporter *format) {
     return exit_code_of(job);
 }
 
+/* A baseline is written from every finding, before any is filtered or reordered. */
+static int apply_baseline(const cli_options *options, scan_job *job, baseline *accepted) {
+    if (options->baseline_out != NULL) {
+        job->accepts_all = true;
+        return cli_write_baseline(options->baseline_out, job->findings);
+    }
+    if (accepted != NULL) {
+        cli_diff_against_baseline(options->diff_path, accepted, job->findings);
+    }
+    return PQSCAN_EXIT_CLEAN;
+}
+
 static int scan_and_report(const cli_options *options, scan_job *job, const run_inputs *inputs) {
-    const int code = scan_paths(options, job);
+    int code = scan_paths(options, job);
+    if (code == PQSCAN_EXIT_CLEAN) {
+        code = apply_baseline(options, job, inputs->accepted);
+    }
     if (code != PQSCAN_EXIT_CLEAN) {
         return code;
     }
@@ -195,8 +218,12 @@ static int scan_and_report(const cli_options *options, scan_job *job, const run_
 static int scan_with_inputs(const cli_options *options, const run_inputs *inputs) {
     const time_t deadline = pqscan_monotonic_seconds() + (time_t)options->max_seconds;
     scan_job job = {
-        inputs->rules, finding_list_create(), skip_list_create(), options->fail_on, NULL, deadline,
-        PQSCAN_OK,
+        .rules = inputs->rules,
+        .findings = finding_list_create(),
+        .skipped = skip_list_create(),
+        .fail_on = options->fail_on,
+        .deadline = deadline,
+        .recorded = PQSCAN_OK,
     };
     int code = PQSCAN_EXIT_INTERNAL;
     if (job.findings != NULL && job.skipped != NULL) {
@@ -221,24 +248,34 @@ static int as_of_year_of(const cli_options *options, int *year) {
     return PQSCAN_EXIT_CLEAN;
 }
 
-static int scan_with_project(const cli_options *options, const rule_set *rules,
-                             const project *target) {
-    run_inputs inputs = {rules, target, CLI_AS_OF_NOW};
-    const int code = as_of_year_of(options, &inputs.as_of_year);
-    return (code == PQSCAN_EXIT_CLEAN) ? scan_with_inputs(options, &inputs) : code;
+static int scan_with_loaded(const cli_options *options, run_inputs *inputs) {
+    const int code = as_of_year_of(options, &inputs->as_of_year);
+    return (code == PQSCAN_EXIT_CLEAN) ? scan_with_inputs(options, inputs) : code;
+}
+
+static int load_inputs(const cli_options *options, rule_set **rules, project **target,
+                       baseline **accepted) {
+    int code = cli_load_rules(options->rules_path, rules);
+    if (code == PQSCAN_EXIT_CLEAN) {
+        code = cli_load_project(options->project_path, target);
+    }
+    if (code == PQSCAN_EXIT_CLEAN) {
+        code = cli_load_baseline(options->diff_path, accepted);
+    }
+    return code;
 }
 
 /* Findings borrow names from the rules and the project, so these are freed last. */
 static int run_scan(const cli_options *options) {
     rule_set *rules = NULL;
     project *target = NULL;
-    int code = cli_load_rules(options->rules_path, &rules);
+    baseline *accepted = NULL;
+    int code = load_inputs(options, &rules, &target, &accepted);
     if (code == PQSCAN_EXIT_CLEAN) {
-        code = cli_load_project(options->project_path, &target);
+        run_inputs inputs = {rules, target, accepted, CLI_AS_OF_NOW};
+        code = scan_with_loaded(options, &inputs);
     }
-    if (code == PQSCAN_EXIT_CLEAN) {
-        code = scan_with_project(options, rules, target);
-    }
+    baseline_destroy(accepted);
     project_destroy(target);
     rule_set_destroy(rules);
     return code;

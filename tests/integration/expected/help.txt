@@ -9,6 +9,9 @@ Options:
       --project FILE    read how long data must stay secret from this project file
                         (default .pqscan.json in the current directory, if there is one)
       --as-of YEAR      score priorities as if it were this year (default the current year)
+      --diff FILE       report only the findings this baseline does not accept
+      --write-baseline FILE
+                        write a baseline that accepts every finding to this file
   -f, --format FORMAT   write the report as text, json, cbom or sarif
       --fail-on LEVEL   lowest risk level that exits 1: OK, REVIEW, QUANTUM_VULNERABLE or
                         CLASSICALLY_WEAK (default REVIEW)
@@ -18,7 +21,8 @@ Options:
 
 Exit codes:
   0  no findings at or above --fail-on, and everything was analyzed
-  1  findings at or above --fail-on
+  1  findings at or above --fail-on (with --diff, new findings only; with
+     --write-baseline, never)
   2  usage error
   3  internal error
   4  no findings at or above --fail-on, but something could not be analyzed

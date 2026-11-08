@@ -1,0 +1,2 @@
+pqscan: --diff and --write-baseline cannot be used together
+Try 'pqscan --help' for more information.

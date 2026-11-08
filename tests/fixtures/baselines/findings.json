@@ -1,0 +1,389 @@
+{
+  "schema_version": 1,
+  "findings": [
+    {
+      "path": "findings/algorithm_names.c",
+      "algorithm": "AES-128",
+      "symbol": "AES-128-GCM",
+      "primitive": "encryption",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/algorithm_names.c",
+      "algorithm": "EC",
+      "symbol": "EC",
+      "primitive": "unspecified",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/algorithm_names.c",
+      "algorithm": "MD5",
+      "symbol": "MD5",
+      "primitive": "hash",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/algorithm_names.c",
+      "algorithm": "RSA",
+      "symbol": "RSA",
+      "primitive": "unspecified",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/algorithm_names.c",
+      "algorithm": "RSA",
+      "symbol": "RSA",
+      "primitive": "unspecified",
+      "key_size": 4096,
+      "count": 1
+    },
+    {
+      "path": "findings/algorithm_names.c",
+      "algorithm": "SHA-1",
+      "symbol": "SHA1",
+      "primitive": "hash",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/broken_syntax.c",
+      "algorithm": "DSA",
+      "symbol": "DSA_new",
+      "primitive": "signature",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/broken_syntax.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_new",
+      "primitive": "unspecified",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/conditional.c",
+      "algorithm": "DSA",
+      "symbol": "DSA_new",
+      "primitive": "signature",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/conditional.c",
+      "algorithm": "ECDSA",
+      "symbol": "ECDSA_do_sign",
+      "primitive": "signature",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/conditional.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_new",
+      "primitive": "unspecified",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/constants.c",
+      "algorithm": "MD5",
+      "symbol": "MD5",
+      "primitive": "hash",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/constants.c",
+      "algorithm": "RSA",
+      "symbol": "RSA",
+      "primitive": "unspecified",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/constants.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": 1024,
+      "count": 1
+    },
+    {
+      "path": "findings/constants.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": 3072,
+      "count": 1
+    },
+    {
+      "path": "findings/constants.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": 4096,
+      "count": 1
+    },
+    {
+      "path": "findings/constants.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": 8192,
+      "count": 1
+    },
+    {
+      "path": "findings/function_pointers.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_new",
+      "primitive": "unspecified",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/function_pointers.c",
+      "algorithm": "SHA-1",
+      "symbol": "EVP_sha1",
+      "primitive": "hash",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/header_constants.h",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": 3072,
+      "count": 1
+    },
+    {
+      "path": "findings/key_sizes.c",
+      "algorithm": "DSA",
+      "symbol": "DSA_generate_parameters_ex",
+      "primitive": "signature",
+      "key_size": 2048,
+      "count": 1
+    },
+    {
+      "path": "findings/key_sizes.c",
+      "algorithm": "RSA",
+      "symbol": "EVP_PKEY_CTX_set_rsa_keygen_bits",
+      "primitive": "unspecified",
+      "key_size": 2048,
+      "count": 1
+    },
+    {
+      "path": "findings/key_sizes.c",
+      "algorithm": "RSA",
+      "symbol": "EVP_PKEY_RSA",
+      "primitive": "unspecified",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/key_sizes.c",
+      "algorithm": "RSA",
+      "symbol": "EVP_RSA_gen",
+      "primitive": "unspecified",
+      "key_size": 3072,
+      "count": 1
+    },
+    {
+      "path": "findings/key_sizes.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": "unknown",
+      "count": 1
+    },
+    {
+      "path": "findings/key_sizes.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": 1024,
+      "count": 1
+    },
+    {
+      "path": "findings/key_sizes.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": 2048,
+      "count": 1
+    },
+    {
+      "path": "findings/key_sizes.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": 4096,
+      "count": 1
+    },
+    {
+      "path": "findings/macros.h",
+      "algorithm": "DSA",
+      "symbol": "EVP_PKEY_DSA",
+      "primitive": "signature",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/macros.h",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": 2048,
+      "count": 1
+    },
+    {
+      "path": "findings/macros.h",
+      "algorithm": "RSA",
+      "symbol": "RSA_new",
+      "primitive": "unspecified",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/namespaces.cpp",
+      "algorithm": "DH",
+      "symbol": "DH_new",
+      "primitive": "key_exchange",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/namespaces.cpp",
+      "algorithm": "DSA",
+      "symbol": "DSA_new",
+      "primitive": "signature",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/namespaces.cpp",
+      "algorithm": "EC",
+      "symbol": "EVP_PKEY_EC",
+      "primitive": "unspecified",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/namespaces.cpp",
+      "algorithm": "MD5",
+      "symbol": "EVP_md5",
+      "primitive": "hash",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/namespaces.cpp",
+      "algorithm": "RSA",
+      "symbol": "RSA_new",
+      "primitive": "unspecified",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/one_shot_hash.c",
+      "algorithm": "MD5",
+      "symbol": "MD5",
+      "primitive": "hash",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/one_shot_hash.c",
+      "algorithm": "SHA-1",
+      "symbol": "SHA1",
+      "primitive": "hash",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/references.cpp",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": "unknown",
+      "count": 2
+    },
+    {
+      "path": "findings/references.cpp",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": 4096,
+      "count": 1
+    },
+    {
+      "path": "findings/rsa.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_new",
+      "primitive": "unspecified",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/short_keys.c",
+      "algorithm": "DH",
+      "symbol": "DH_generate_parameters_ex",
+      "primitive": "key_exchange",
+      "key_size": 1024,
+      "count": 1
+    },
+    {
+      "path": "findings/short_keys.c",
+      "algorithm": "DSA",
+      "symbol": "DSA_generate_parameters_ex",
+      "primitive": "signature",
+      "key_size": 1024,
+      "count": 1
+    },
+    {
+      "path": "findings/short_keys.c",
+      "algorithm": "RSA",
+      "symbol": "EVP_RSA_gen",
+      "primitive": "unspecified",
+      "key_size": 2047,
+      "count": 1
+    },
+    {
+      "path": "findings/short_keys.c",
+      "algorithm": "RSA",
+      "symbol": "EVP_RSA_gen",
+      "primitive": "unspecified",
+      "key_size": 2048,
+      "count": 1
+    },
+    {
+      "path": "findings/sub/hash.hpp",
+      "algorithm": "AES-128",
+      "symbol": "EVP_aes_128_gcm",
+      "primitive": "encryption",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/sub/hash.hpp",
+      "algorithm": "MD5",
+      "symbol": "EVP_md5",
+      "primitive": "hash",
+      "key_size": null,
+      "count": 1
+    },
+    {
+      "path": "findings/unresolved.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_generate_key_ex",
+      "primitive": "unspecified",
+      "key_size": "unknown",
+      "count": 9
+    }
+  ]
+}

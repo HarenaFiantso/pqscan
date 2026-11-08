@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "findings": [
+    {
+      "path": "findings/rsa.c",
+      "algorithm": "RSA",
+      "symbol": "RSA_new",
+      "primitive": "unspecified",
+      "key_size": null,
+      "line": 4
+    }
+  ]
+}
