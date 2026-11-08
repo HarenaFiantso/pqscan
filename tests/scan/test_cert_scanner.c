@@ -106,9 +106,16 @@ static void test_a_weak_key_and_digest_are_classically_weak(void) {
 }
 
 static void test_key_usage_says_what_a_certificate_key_does(void) {
-    assert_findings("certs/ec-p256.der", "0:EC-256 0:EC");
+    assert_findings("certs/ec-p256.der", "0:EC-256 0:ECDSA");
     TEST_ASSERT_EQUAL_INT(PRIMITIVE_SIGNATURE, nth(0)->primitive);
     TEST_ASSERT_EQUAL_STRING("id-ecPublicKey", nth(0)->symbol);
+}
+
+/* An EC key can sign or agree on keys, but a signature made with one is ECDSA. */
+static void test_a_signature_by_an_ec_key_is_ecdsa(void) {
+    assert_findings("certs/ec-p256.der", "0:EC-256 0:ECDSA");
+    TEST_ASSERT_EQUAL_INT(PRIMITIVE_SIGNATURE, nth(1)->primitive);
+    TEST_ASSERT_EQUAL_STRING("ecdsa-with-SHA256", nth(1)->symbol);
 }
 
 static void test_reads_an_eddsa_certificate(void) {
@@ -117,7 +124,7 @@ static void test_reads_an_eddsa_certificate(void) {
 }
 
 static void test_a_request_has_no_expiry(void) {
-    assert_findings("certs/ec-p384.csr", "1:EC-384 1:EC");
+    assert_findings("certs/ec-p384.csr", "1:EC-384 1:ECDSA");
     TEST_ASSERT_FALSE(nth(0)->expires.known);
 }
 
@@ -185,7 +192,7 @@ static void test_a_broken_block_keeps_the_findings_of_the_others(void) {
     TEST_ASSERT_EQUAL_INT(PQSCAN_ERR_MALFORMED, scan_fixture("broken/good-then-cut.pem"));
     char actual[DESCRIPTION_SIZE];
     describe_findings(findings, actual, sizeof(actual));
-    TEST_ASSERT_EQUAL_STRING("1:EC-384 1:EC", actual);
+    TEST_ASSERT_EQUAL_STRING("1:EC-384 1:ECDSA", actual);
 }
 
 static void test_blocks_of_other_kinds_give_nothing(void) {
@@ -244,6 +251,7 @@ int main(void) {
     RUN_TEST(test_a_certificate_gives_its_key_and_its_signature);
     RUN_TEST(test_a_weak_key_and_digest_are_classically_weak);
     RUN_TEST(test_key_usage_says_what_a_certificate_key_does);
+    RUN_TEST(test_a_signature_by_an_ec_key_is_ecdsa);
     RUN_TEST(test_reads_an_eddsa_certificate);
     RUN_TEST(test_a_request_has_no_expiry);
     RUN_TEST(test_names_the_line_of_each_block);

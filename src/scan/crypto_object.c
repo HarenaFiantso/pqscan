@@ -86,8 +86,11 @@ static const char *long_name(int nid) { return (nid > NID_undef) ? OBJ_nid2ln(ni
 
 static key_use use_of(const object_context *context, const char *type_name) {
     const key_use use = {
-        type_name,          NULL,           {KEY_SIZE_NOT_APPLICABLE, 0},
-        context->has_usage, context->usage, context->expires,
+        .type_name = type_name,
+        .size = {KEY_SIZE_NOT_APPLICABLE, 0},
+        .has_usage = context->has_usage,
+        .usage = context->usage,
+        .expires = context->expires,
     };
     return use;
 }
@@ -129,7 +132,8 @@ static pqscan_status visit_key(const object_context *context, const EVP_PKEY *ke
 }
 
 /* A signature algorithm such as sha1WithRSAEncryption names a key type and a digest, and
- * each can be weak on its own. */
+ * each can be weak on its own. The key type alone can say too little: an EC key may sign or
+ * agree on keys, so the signature's own name is offered to the rules first. */
 static pqscan_status visit_signature(const object_context *context, int signature) {
     int digest = NID_undef;
     int key_type = NID_undef;
@@ -137,6 +141,7 @@ static pqscan_status visit_signature(const object_context *context, int signatur
         return PQSCAN_OK;
     }
     key_use use = use_of(context, short_name(key_type));
+    use.signature_name = short_name(signature);
     use.symbol = long_name(signature);
     use.has_usage = true;
     use.usage = PRIMITIVE_SIGNATURE;
@@ -145,6 +150,7 @@ static pqscan_status visit_signature(const object_context *context, int signatur
         return status;
     }
     use.type_name = short_name(digest);
+    use.signature_name = NULL;
     use.has_usage = false;
     return visit(context, &use);
 }
