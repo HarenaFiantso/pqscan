@@ -5,6 +5,7 @@
 #include "pqscan/core/key_size.h"
 #include "pqscan/core/skip_list.h"
 #include "pqscan/core/status.h"
+#include "pqscan/core/utc_time.h"
 #include "pqscan/core/version.h"
 #include "pqscan/report/json_writer.h"
 #include "pqscan/report/reporter.h"
@@ -151,6 +152,19 @@ static void write_finding_message(json_writer *json, const finding *item) {
     json_end_object(json);
 }
 
+/* SARIF has no field for when a certificate expires, so it goes in the result's property bag. */
+static void write_expiry(json_writer *json, const utc_time *expires) {
+    if (!expires->known) {
+        return;
+    }
+    char text[UTC_TIME_TEXT_SIZE];
+    utc_time_format(expires, text, sizeof(text));
+    json_key(json, "properties");
+    json_begin_object(json);
+    json_field_string(json, "expires", text);
+    json_end_object(json);
+}
+
 static void write_result(json_writer *json, const finding *item) {
     json_begin_object(json);
     write_rule_id(json, "ruleId", item->algorithm);
@@ -160,6 +174,7 @@ static void write_result(json_writer *json, const finding *item) {
     json_begin_array(json);
     write_location(json, item->path, item->line);
     json_end_array(json);
+    write_expiry(json, &item->expires);
     json_end_object(json);
 }
 

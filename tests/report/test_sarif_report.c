@@ -5,6 +5,7 @@
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/skip_list.h"
 #include "pqscan/core/status.h"
+#include "pqscan/core/utc_time.h"
 #include "pqscan/core/version.h"
 #include "pqscan/report/reporter.h"
 #include "pqscan/report/sarif_report.h"
@@ -13,9 +14,26 @@
 
 #include <stdio.h>
 
-enum { OUTPUT_SIZE = 8192, SAMPLE_LINE = 12, SAMPLE_BITS = 2048, SHORT_BITS = 1024 };
+enum {
+    OUTPUT_SIZE = 8192,
+    SAMPLE_LINE = 12,
+    SAMPLE_BITS = 2048,
+    SHORT_BITS = 1024,
+    SAMPLE_YEAR = 2031,
+};
 
 static const key_size NO_KEY_SIZE = {KEY_SIZE_NOT_APPLICABLE, 0};
+
+static const finding CERTIFICATE_KEY = {
+    "server.der",
+    0,
+    "RSA",
+    RISK_QUANTUM_VULNERABLE,
+    {KEY_SIZE_KNOWN, SAMPLE_BITS},
+    PRIMITIVE_SIGNATURE,
+    "rsaEncryption",
+    {true, SAMPLE_YEAR, 5, 1, 12, 0, 0},
+};
 
 static finding_list *findings;
 static skip_list *skipped;
@@ -37,7 +55,8 @@ void tearDown(void) {
 
 static void add_finding(const char *algorithm, key_size size, risk_level risk) {
     const finding item = {
-        "./src/a.c", SAMPLE_LINE, algorithm, risk, size, PRIMITIVE_SIGNATURE, "the_symbol",
+        "./src/a.c", SAMPLE_LINE,         algorithm,    risk,
+        size,        PRIMITIVE_SIGNATURE, "the_symbol", utc_time_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
 }
@@ -101,6 +120,22 @@ static void test_a_result_points_at_its_rule_and_line(void) {
     TEST_ASSERT_EQUAL_STRING("src/a.c",
                              field(field(physical, "artifactLocation"), "uri")->valuestring);
     TEST_ASSERT_EQUAL_INT(SAMPLE_LINE, field(field(physical, "region"), "startLine")->valueint);
+}
+
+static void test_a_certificate_result_has_no_region_and_an_expiry(void) {
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &CERTIFICATE_KEY));
+    write_and_parse();
+    const cJSON *location = cJSON_GetArrayItem(field(result(0), "locations"), 0);
+    const cJSON *physical = field(location, "physicalLocation");
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(physical, "region"));
+    TEST_ASSERT_EQUAL_STRING("2031-05-01T12:00:00Z",
+                             field(field(result(0), "properties"), "expires")->valuestring);
+}
+
+static void test_a_result_without_expiry_has_no_properties(void) {
+    add_finding("RSA", NO_KEY_SIZE, RISK_QUANTUM_VULNERABLE);
+    write_and_parse();
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(result(0), "properties"));
 }
 
 static void test_the_message_tells_an_unresolved_key_size(void) {
@@ -176,6 +211,7 @@ static void test_a_hostile_file_name_stays_inside_its_string(void) {
         NO_KEY_SIZE,
         PRIMITIVE_SIGNATURE,
         "x",
+        utc_time_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
     write_and_parse();
@@ -201,6 +237,8 @@ int main(void) {
     RUN_TEST(test_an_empty_log_still_has_a_run);
     RUN_TEST(test_names_the_tool);
     RUN_TEST(test_a_result_points_at_its_rule_and_line);
+    RUN_TEST(test_a_certificate_result_has_no_region_and_an_expiry);
+    RUN_TEST(test_a_result_without_expiry_has_no_properties);
     RUN_TEST(test_the_message_tells_an_unresolved_key_size);
     RUN_TEST(test_levels_follow_the_risk);
     RUN_TEST(test_each_algorithm_has_one_sorted_rule);

@@ -4,6 +4,7 @@
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/skip_list.h"
 #include "pqscan/core/status.h"
+#include "pqscan/core/utc_time.h"
 #include "pqscan/report/reporter.h"
 #include "pqscan/report/text_report.h"
 #include "pqscan/risk/risk.h"
@@ -12,7 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 
-enum { OUTPUT_SIZE = 256, SAMPLE_LINE = 12, SAMPLE_BITS = 2048 };
+enum { OUTPUT_SIZE = 256, SAMPLE_LINE = 12, SAMPLE_BITS = 2048, SAMPLE_YEAR = 2031 };
 
 static const key_size NO_KEY_SIZE = {KEY_SIZE_NOT_APPLICABLE, 0};
 
@@ -55,10 +56,11 @@ static void test_no_findings_write_nothing(void) {
 static void test_writes_one_line_per_finding(void) {
     const finding first = {
         "src/a.c",   SAMPLE_LINE,           "RSA", RISK_QUANTUM_VULNERABLE,
-        NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED, "X",
+        NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED, "X",   utc_time_none(),
     };
     const finding second = {
-        "b.h", 1, "MD5", RISK_CLASSICALLY_WEAK, NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED, "X",
+        "b.h",           1, "MD5", RISK_CLASSICALLY_WEAK, NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED, "X",
+        utc_time_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &first));
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &second));
@@ -81,9 +83,17 @@ static void test_appends_the_key_size_to_the_algorithm(void) {
         {KEY_SIZE_KNOWN, SAMPLE_BITS},
         PRIMITIVE_UNSPECIFIED,
         "X",
+        utc_time_none(),
     };
     const finding unknown = {
-        "a.c", 2, "RSA", RISK_QUANTUM_VULNERABLE, {KEY_SIZE_UNKNOWN, 0}, PRIMITIVE_UNSPECIFIED, "X",
+        "a.c",
+        2,
+        "RSA",
+        RISK_QUANTUM_VULNERABLE,
+        {KEY_SIZE_UNKNOWN, 0},
+        PRIMITIVE_UNSPECIFIED,
+        "X",
+        utc_time_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &known));
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &unknown));
@@ -97,6 +107,27 @@ static void test_appends_the_key_size_to_the_algorithm(void) {
                              output);
 }
 
+static void test_a_certificate_finding_names_the_file_and_its_expiry(void) {
+    const finding item = {
+        "server.der",
+        0,
+        "RSA",
+        RISK_QUANTUM_VULNERABLE,
+        {KEY_SIZE_KNOWN, SAMPLE_BITS},
+        PRIMITIVE_SIGNATURE,
+        "rsaEncryption",
+        {true, SAMPLE_YEAR, 5, 1, 12, 0, 0},
+    };
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
+
+    char output[OUTPUT_SIZE];
+    TEST_ASSERT_EQUAL_INT(PQSCAN_OK, text_reporter.write(&report, out));
+    read_back(output, sizeof(output));
+    TEST_ASSERT_EQUAL_STRING("server.der: RSA-2048 (QUANTUM_VULNERABLE, expires 2031-05-01)\n"
+                             "1 finding: 1 QUANTUM_VULNERABLE\n",
+                             output);
+}
+
 static void test_a_file_name_cannot_forge_a_line(void) {
     const finding item = {
         "evil\nfake.c:1: AES-256 (OK)\n\x1b[2K.c",
@@ -106,6 +137,7 @@ static void test_a_file_name_cannot_forge_a_line(void) {
         NO_KEY_SIZE,
         PRIMITIVE_UNSPECIFIED,
         "X",
+        utc_time_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
 
@@ -120,7 +152,8 @@ static void test_a_file_name_cannot_forge_a_line(void) {
 
 static void test_an_algorithm_name_cannot_forge_a_line(void) {
     const finding item = {
-        "a.c", 1, "X\nb.c:1: AES-256", RISK_OK, NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED, "x",
+        "a.c",           1, "X\nb.c:1: AES-256", RISK_OK, NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED, "x",
+        utc_time_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
 
@@ -136,7 +169,7 @@ static void test_the_summary_runs_from_most_to_least_severe(void) {
     };
     for (size_t i = 0; i < sizeof(levels) / sizeof(levels[0]); i++) {
         const finding item = {
-            "a.c", i + 1, "X", levels[i], NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED, "x",
+            "a.c", i + 1, "X", levels[i], NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED, "x", utc_time_none(),
         };
         TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
     }
@@ -150,7 +183,8 @@ static void test_the_summary_runs_from_most_to_least_severe(void) {
 
 static void test_reports_a_failed_write(void) {
     const finding item = {
-        "a.c", 1, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED, "X",
+        "a.c",           1, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE, PRIMITIVE_UNSPECIFIED, "X",
+        utc_time_none(),
     };
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, finding_list_add(findings, &item));
 
@@ -167,6 +201,7 @@ int main(void) {
     RUN_TEST(test_no_findings_write_nothing);
     RUN_TEST(test_writes_one_line_per_finding);
     RUN_TEST(test_appends_the_key_size_to_the_algorithm);
+    RUN_TEST(test_a_certificate_finding_names_the_file_and_its_expiry);
     RUN_TEST(test_a_file_name_cannot_forge_a_line);
     RUN_TEST(test_an_algorithm_name_cannot_forge_a_line);
     RUN_TEST(test_the_summary_runs_from_most_to_least_severe);

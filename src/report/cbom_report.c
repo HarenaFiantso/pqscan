@@ -6,6 +6,7 @@
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/skip_list.h"
 #include "pqscan/core/status.h"
+#include "pqscan/core/utc_time.h"
 #include "pqscan/core/version.h"
 #include "pqscan/report/json_writer.h"
 #include "pqscan/report/reporter.h"
@@ -166,11 +167,29 @@ static void write_crypto_properties(json_writer *json, const finding *asset) {
     json_end_object(json);
 }
 
+/* Findings of one component can come from certificates that expire on different days, so the
+ * date belongs to the occurrence. CycloneDX gives an occurrence only free text for it. */
+static void write_expiry_context(json_writer *json, const utc_time *expires) {
+    if (!expires->known) {
+        return;
+    }
+    char text[UTC_TIME_TEXT_SIZE];
+    utc_time_format(expires, text, sizeof(text));
+    json_key(json, "additionalContext");
+    json_begin_string(json);
+    json_append(json, "expires ");
+    json_append(json, text);
+    json_end_string(json);
+}
+
 static void write_occurrence(json_writer *json, const finding *item) {
     json_begin_object(json);
     json_field_string(json, "location", item->path);
-    json_field_uint(json, "line", item->line);
+    if (item->line > 0) {
+        json_field_uint(json, "line", item->line);
+    }
     json_field_string(json, "symbol", item->symbol);
+    write_expiry_context(json, &item->expires);
     json_end_object(json);
 }
 

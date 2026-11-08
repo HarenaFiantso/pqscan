@@ -5,6 +5,7 @@
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/skip_list.h"
 #include "pqscan/core/status.h"
+#include "pqscan/core/utc_time.h"
 #include "pqscan/core/version.h"
 #include "pqscan/report/cbom_report.h"
 #include "pqscan/report/reporter.h"
@@ -14,9 +15,26 @@
 #include <stdio.h>
 #include <string.h>
 
-enum { OUTPUT_SIZE = 16384, SAMPLE_LINE = 12, SAMPLE_BITS = 2048, SHORT_BITS = 1024 };
+enum {
+    OUTPUT_SIZE = 16384,
+    SAMPLE_LINE = 12,
+    SAMPLE_BITS = 2048,
+    SHORT_BITS = 1024,
+    SAMPLE_YEAR = 2031,
+};
 
 static const key_size NO_KEY_SIZE = {KEY_SIZE_NOT_APPLICABLE, 0};
+
+static const finding CERTIFICATE_KEY = {
+    "server.der",
+    0,
+    "RSA",
+    RISK_QUANTUM_VULNERABLE,
+    {KEY_SIZE_KNOWN, SAMPLE_BITS},
+    PRIMITIVE_SIGNATURE,
+    "rsaEncryption",
+    {true, SAMPLE_YEAR, 5, 1, 12, 0, 0},
+};
 
 static finding_list *findings;
 static skip_list *skipped;
@@ -42,7 +60,8 @@ static void add(const finding *item) {
 
 static void add_use(const char *algorithm, key_size size, crypto_primitive primitive) {
     const finding item = {
-        "a.c", SAMPLE_LINE, algorithm, RISK_QUANTUM_VULNERABLE, size, primitive, "the_symbol",
+        "a.c", SAMPLE_LINE, algorithm,    RISK_QUANTUM_VULNERABLE,
+        size,  primitive,   "the_symbol", utc_time_none(),
     };
     add(&item);
 }
@@ -199,13 +218,22 @@ static void test_bits_only_count_when_they_are_known(void) {
 
 static void test_occurrences_are_sorted_whatever_the_scan_order(void) {
     const finding later = {
-        "b.c", 1, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE, PRIMITIVE_SIGNATURE, "second",
+        "b.c",       1,
+        "RSA",       RISK_QUANTUM_VULNERABLE,
+        NO_KEY_SIZE, PRIMITIVE_SIGNATURE,
+        "second",    utc_time_none(),
     };
     const finding earlier = {
-        "a.c", 2, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE, PRIMITIVE_SIGNATURE, "z_first",
+        "a.c",       2,
+        "RSA",       RISK_QUANTUM_VULNERABLE,
+        NO_KEY_SIZE, PRIMITIVE_SIGNATURE,
+        "z_first",   utc_time_none(),
     };
     const finding earliest = {
-        "a.c", 2, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE, PRIMITIVE_SIGNATURE, "a_first",
+        "a.c",       2,
+        "RSA",       RISK_QUANTUM_VULNERABLE,
+        NO_KEY_SIZE, PRIMITIVE_SIGNATURE,
+        "a_first",   utc_time_none(),
     };
     add(&later);
     add(&earlier);
@@ -221,6 +249,15 @@ static void test_occurrences_are_sorted_whatever_the_scan_order(void) {
     TEST_ASSERT_EQUAL_STRING("b.c", field(cJSON_GetArrayItem(places, 2), "location")->valuestring);
 }
 
+static void test_a_certificate_occurrence_has_no_line_and_tells_its_expiry(void) {
+    add(&CERTIFICATE_KEY);
+    write_and_parse();
+    const cJSON *place = cJSON_GetArrayItem(occurrences(component(0)), 0);
+    TEST_ASSERT_NULL(cJSON_GetObjectItemCaseSensitive(place, "line"));
+    TEST_ASSERT_EQUAL_STRING("expires 2031-05-01T12:00:00Z",
+                             field(place, "additionalContext")->valuestring);
+}
+
 static void test_says_what_was_not_analyzed(void) {
     TEST_ASSERT_EQUAL_INT(PQSCAN_OK, skip_list_add(skipped, "b.c", PQSCAN_ERR_BINARY));
     write_and_parse();
@@ -231,8 +268,14 @@ static void test_says_what_was_not_analyzed(void) {
 
 static void test_a_hostile_file_name_stays_inside_its_string(void) {
     const finding item = {
-        "evil\",\"line\":1\n\xff.c", SAMPLE_LINE, "RSA", RISK_QUANTUM_VULNERABLE, NO_KEY_SIZE,
-        PRIMITIVE_SIGNATURE,         "x",
+        "evil\",\"line\":1\n\xff.c",
+        SAMPLE_LINE,
+        "RSA",
+        RISK_QUANTUM_VULNERABLE,
+        NO_KEY_SIZE,
+        PRIMITIVE_SIGNATURE,
+        "x",
+        utc_time_none(),
     };
     add(&item);
     write_and_parse();
@@ -265,6 +308,7 @@ int main(void) {
     RUN_TEST(test_a_key_size_or_primitive_makes_another_component);
     RUN_TEST(test_bits_only_count_when_they_are_known);
     RUN_TEST(test_occurrences_are_sorted_whatever_the_scan_order);
+    RUN_TEST(test_a_certificate_occurrence_has_no_line_and_tells_its_expiry);
     RUN_TEST(test_says_what_was_not_analyzed);
     RUN_TEST(test_a_hostile_file_name_stays_inside_its_string);
     RUN_TEST(test_reports_a_failed_write);

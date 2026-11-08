@@ -6,6 +6,7 @@
 #include "pqscan/core/primitive.h"
 #include "pqscan/core/skip_list.h"
 #include "pqscan/core/status.h"
+#include "pqscan/core/utc_time.h"
 #include "pqscan/core/version.h"
 #include "pqscan/report/json_writer.h"
 #include "pqscan/report/report_summary.h"
@@ -16,7 +17,7 @@
 #include <stdio.h>
 
 /* Raised when a change could break a consumer of this format. */
-enum { JSON_SCHEMA_VERSION = 1 };
+enum { JSON_SCHEMA_VERSION = 2 };
 
 static void write_tool(json_writer *json) {
     json_key(json, "tool");
@@ -52,15 +53,37 @@ static void write_key_size(json_writer *json, key_size size) {
     }
 }
 
+/* null when the finding is about the whole file. */
+static void write_line(json_writer *json, size_t line) {
+    json_key(json, "line");
+    if (line > 0) {
+        json_uint(json, line);
+    } else {
+        json_null(json);
+    }
+}
+
+static void write_expiry(json_writer *json, const utc_time *expires) {
+    json_key(json, "expires");
+    if (expires->known) {
+        char text[UTC_TIME_TEXT_SIZE];
+        utc_time_format(expires, text, sizeof(text));
+        json_string(json, text);
+    } else {
+        json_null(json);
+    }
+}
+
 static void write_finding(json_writer *json, const finding *item) {
     json_begin_object(json);
     json_field_string(json, "path", item->path);
-    json_field_uint(json, "line", item->line);
+    write_line(json, item->line);
     json_field_string(json, "symbol", item->symbol);
     json_field_string(json, "algorithm", item->algorithm);
     write_key_size(json, item->size);
     json_field_string(json, "primitive", crypto_primitive_name(item->primitive));
     json_field_string(json, "risk", risk_level_name(item->risk));
+    write_expiry(json, &item->expires);
     json_end_object(json);
 }
 
